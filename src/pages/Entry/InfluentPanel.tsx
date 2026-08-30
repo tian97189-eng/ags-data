@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'r
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CalibrationCurve, type InfluentMode } from '../../db/schema';
 import { computeConcentration } from '../../lib/calibration';
-import { getInfluents, saveInfluent } from '../../lib/entry';
+import { dailyScope, getInfluents, saveInfluent } from '../../lib/entry';
 import { formatNumber } from '../../lib/format';
 import { useAppStore } from '../../store/useAppStore';
 
@@ -11,13 +11,13 @@ export interface InfluentPanelHandle {
 }
 
 interface InfluentState {
-  blank: Record<number, string>;
   dilution: Record<number, string>;
   samples: Record<string, string>;
 }
 
 /**
  * 进水录入面板：三氮一磷按吸光度经标曲换算，COD 直读浓度。
+ * 空白吸光度与出水共用（读 defaults 表），只需在出水卡片填一次空白。
  * shared 模式每指标一套检测样；perReactor 模式每罐一套检测样。
  */
 const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function InfluentPanel(
@@ -41,8 +41,22 @@ const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function
   );
   const curves = useLiveQuery(() => db.curves.toArray(), []);
 
+  // 出水空白（defaults 表），进水与出水共用同一空白
+  const defaults = useLiveQuery(
+    () => db.defaults.where('scopeKey').equals(dailyScope(date)).toArray(),
+    [date],
+  ) ?? [];
+
+  const blankByIndicator = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (const d of defaults) {
+      map[d.indicatorId] = d.blankAbs != null ? String(d.blankAbs) : '';
+    }
+    return map;
+  }, [defaults]);
+
   const [mode, setMode] = useState<InfluentMode>('shared');
-  const [state, setState] = useState<InfluentState>({ blank: {}, dilution: {}, samples: {} });
+  const [state, setState] = useState<InfluentState>({ dilution: {}, samples: {} });
 
   const curvesByIndicator = useMemo(() => {
     const map: Record<number, CalibrationCurve | null> = {};
@@ -60,13 +74,11 @@ const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function
     let cancelled = false;
     (async () => {
       const list = await getInfluents(date);
-      const blank: Record<number, string> = {};
       const dilution: Record<number, string> = {};
       const samples: Record<string, string> = {};
       for (const ind of indicators) {
         const indRows = list.filter((i) => i.indicatorId === ind.id);
         if (indRows.length > 0) {
-          blank[ind.id!] = indRows[0].blankAbs != null ? String(indRows[0].blankAbs) : '';
           dilution[ind.id!] = indRows[0].dilution != null ? String(indRows[0].dilution) : '';
         }
         for (const i of indRows) {
@@ -76,7 +88,7 @@ const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function
       }
       const m = await db.settings.get('influentMode');
       if (cancelled) return;
-      setState({ blank, dilution, samples });
+      setState({ dilution, samples });
       setMode((m?.value as InfluentMode) ?? 'shared');
     })();
     return () => {
@@ -84,12 +96,14 @@ const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function
     };
   }, [date, indicators]);
 
-  function computedValue(indicatorId: number, sample: string, blank: string, dilution: string) {
+  function computedValue(indicatorId: number, sample: string) {
     const ind = (indicators ?? []).find((i) => i.id === indicatorId);
     if (!ind) return null;
     if (ind.method === 'direct') {
       return sample === '' ? null : Number(sample);
     }
+    const blank = blankByIndicator[indicatorId] ?? '';
+    const dilution = state.dilution[indicatorId] ?? '';
     return computeConcentration({
       sampleAbs: sample === '' ? null : Number(sample),
       blankAbs: blank === '' ? null : Number(blank),
@@ -99,9 +113,6 @@ const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function
     }).value;
   }
 
-  function setBlank(indicatorId: number, v: string) {
-    setState((p) => ({ ...p, blank: { ...p.blank, [indicatorId]: v } }));
-  }
   function setDilution(indicatorId: number, v: string) {
     setState((p) => ({ ...p, dilution: { ...p.dilution, [indicatorId]: v } }));
   }
@@ -119,15 +130,18 @@ const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function
         .filter((i) => i.indicatorId === ind.id)
         .delete();
 
-      const blank = state.blank[ind.id!] ?? '';
+      const blank = blankByIndicator[ind.id!] ?? '';
       const dilution = state.dilution[ind.id!] ?? '';
+      const blankAbs = blank === '' ? null : Number(blank);
+      const dilutionVal = dilution === '' ? null : Number(dilution);
+
       if (mode === 'shared') {
         const sample = state.samples[`${ind.id}:shared`] ?? '';
         await saveInfluent({
           date, mode: 'shared', reactorId: null, indicatorId: ind.id!,
           sampleAbs: sample === '' ? null : Number(sample),
-          blankAbs: blank === '' ? null : Number(blank),
-          dilution: dilution === '' ? null : Number(dilution),
+          blankAbs,
+          dilution: dilutionVal,
         });
       } else {
         for (const r of reactors ?? []) {
@@ -135,8 +149,8 @@ const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function
           await saveInfluent({
             date, mode: 'perReactor', reactorId: r.id!, indicatorId: ind.id!,
             sampleAbs: sample === '' ? null : Number(sample),
-            blankAbs: blank === '' ? null : Number(blank),
-            dilution: dilution === '' ? null : Number(dilution),
+            blankAbs,
+            dilution: dilutionVal,
           });
         }
       }
@@ -150,7 +164,8 @@ const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function
     <div className="border border-slate-200 rounded-lg mb-4 p-3 text-xs">
       <div className="flex items-center gap-3 flex-wrap mb-2">
         <span className="text-slate-500">进水浓度（吸光度自动换算）</span>
-        <div className="flex items-center gap-1">
+        <span className="text-[11px] text-slate-400">空白吸光度与出水共用</span>
+        <div className="flex items-center gap-1 ml-auto">
           <button
             type="button"
             onClick={() => setMode('shared')}
@@ -181,7 +196,9 @@ const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function
           <thead>
             <tr className="text-slate-500">
               <th className="text-left py-1.5 px-2 border-b border-slate-100 w-20">指标</th>
-              <th className="text-left py-1.5 px-2 border-b border-slate-100 w-24">空白吸光度</th>
+              <th className="text-left py-1.5 px-2 border-b border-slate-100 w-24">
+                空白吸光度(同出水)
+              </th>
               <th className="text-left py-1.5 px-2 border-b border-slate-100 w-24">稀释倍数</th>
               {mode === 'shared' ? (
                 <>
@@ -204,7 +221,6 @@ const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function
           <tbody>
             {indicators?.map((ind) => {
               const isDirect = ind.method === 'direct';
-              const blank = state.blank[ind.id!] ?? '';
               const dilution = state.dilution[ind.id!] ?? '';
               return (
                 <tr key={ind.id}>
@@ -212,19 +228,8 @@ const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function
                     {ind.name}
                     {isDirect && <span className="ml-1 text-[10px] text-slate-400">直读</span>}
                   </td>
-                  <td className="py-1.5 px-2 border-b border-slate-50">
-                    {isDirect ? (
-                      <span className="text-slate-300">—</span>
-                    ) : (
-                      <input
-                        type="number"
-                        step="any"
-                        aria-label={`${ind.name} 进水空白`}
-                        className="w-full border border-slate-200 rounded px-2 py-1"
-                        value={blank}
-                        onChange={(e) => setBlank(ind.id!, e.target.value)}
-                      />
-                    )}
+                  <td className="py-1.5 px-2 border-b border-slate-50 text-slate-400">
+                    {isDirect ? '—' : blankByIndicator[ind.id!] || '—'}
                   </td>
                   <td className="py-1.5 px-2 border-b border-slate-50">
                     {isDirect ? (
@@ -253,7 +258,7 @@ const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function
                         />
                       </td>
                       <td className="py-1.5 px-2 border-b border-slate-50 text-right font-medium text-teal-700">
-                        {formatNumber(computedValue(ind.id!, state.samples[`${ind.id}:shared`] ?? '', blank, dilution))}
+                        {formatNumber(computedValue(ind.id!, state.samples[`${ind.id}:shared`] ?? ''))}
                       </td>
                     </>
                   ) : (
@@ -268,7 +273,7 @@ const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function
                           onChange={(e) => setSample(`${ind.id}:${r.id}`, e.target.value)}
                         />
                         <span className="block text-right text-teal-700">
-                          {formatNumber(computedValue(ind.id!, state.samples[`${ind.id}:${r.id}`] ?? '', blank, dilution))}
+                          {formatNumber(computedValue(ind.id!, state.samples[`${ind.id}:${r.id}`] ?? ''))}
                         </span>
                       </td>
                     ))
