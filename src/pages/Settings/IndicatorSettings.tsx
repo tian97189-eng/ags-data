@@ -1,0 +1,265 @@
+import { useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db, type Indicator } from '../../db/schema';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import { useAppStore } from '../../store/useAppStore';
+
+const METHOD_LABEL: Record<string, string> = {
+  absorbance: '吸光度换算',
+  direct: '直读',
+};
+
+export default function IndicatorSettings() {
+  const indicators = useLiveQuery(() => db.indicators.orderBy('sortOrder').toArray(), []);
+  const toast = useAppStore((s) => s.toast);
+
+  const [editing, setEditing] = useState<Partial<Indicator> | null>(null);
+  const [deleting, setDeleting] = useState<Indicator | null>(null);
+
+  function isBasic(i?: Partial<Indicator>) {
+    return i?.category === 'basic';
+  }
+
+  async function save() {
+    if (!editing) return;
+    const name = editing.name?.trim();
+    if (!name) {
+      toast('名称不能为空', 'warning');
+      return;
+    }
+    if (editing.id) {
+      await db.indicators.update(editing.id, {
+        name,
+        unit: editing.unit || 'mg/L',
+        defaultDilution: editing.defaultDilution ?? 1,
+        refLow: editing.refLow ?? null,
+        refHigh: editing.refHigh ?? null,
+        lod: editing.lod ?? null,
+      });
+    } else {
+      const last = await db.indicators.orderBy('sortOrder').last();
+      await db.indicators.add({
+        name,
+        category: 'custom',
+        method: 'direct',
+        unit: editing.unit || 'mg/L',
+        defaultDilution: editing.defaultDilution ?? 1,
+        refLow: editing.refLow ?? null,
+        refHigh: editing.refHigh ?? null,
+        lod: editing.lod ?? null,
+        active: true,
+        sortOrder: (last?.sortOrder ?? 0) + 1,
+      });
+    }
+    setEditing(null);
+    toast('已保存', 'success');
+  }
+
+  async function toggleActive(i: Indicator) {
+    await db.indicators.update(i.id!, { active: !i.active });
+  }
+
+  async function askDelete(i: Indicator) {
+    setDeleting(i);
+  }
+
+  async function doDelete() {
+    if (!deleting) return;
+    if (deleting.category === 'basic') {
+      toast('内置指标不能删除，可改为停用', 'warning');
+    } else {
+      await db.indicators.delete(deleting.id!);
+      toast('已删除', 'info');
+    }
+    setDeleting(null);
+  }
+
+  const num = (v: number | null | undefined) => (v == null ? '' : String(v));
+
+  return (
+    <div>
+      <div className="flex justify-end mb-3">
+        <button
+          type="button"
+          onClick={() => setEditing({ name: '', unit: 'mg/L', defaultDilution: 1 })}
+          className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white hover:bg-teal-700"
+        >
+          新增自定义指标
+        </button>
+      </div>
+
+      <table className="w-full table-fixed border-collapse text-xs">
+        <thead>
+          <tr className="text-slate-500">
+            <th className="text-left py-2 px-2 border-b border-slate-200">名称</th>
+            <th className="text-left py-2 px-2 border-b border-slate-200 w-20">计量方式</th>
+            <th className="text-left py-2 px-2 border-b border-slate-200 w-16">单位</th>
+            <th className="text-right py-2 px-2 border-b border-slate-200 w-16">稀释</th>
+            <th className="text-left py-2 px-2 border-b border-slate-200">参考范围</th>
+            <th className="text-right py-2 px-2 border-b border-slate-200 w-40">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {indicators?.map((i) => (
+            <tr key={i.id}>
+              <td className="py-2 px-2 border-b border-slate-100">
+                {i.name}
+                {i.category === 'custom' && (
+                  <span className="ml-1 text-[10px] text-slate-400">自定义</span>
+                )}
+              </td>
+              <td className="py-2 px-2 border-b border-slate-100">
+                {METHOD_LABEL[i.method]}
+              </td>
+              <td className="py-2 px-2 border-b border-slate-100">{i.unit}</td>
+              <td className="py-2 px-2 border-b border-slate-100 text-right">
+                {i.method === 'absorbance' ? `×${i.defaultDilution}` : '—'}
+              </td>
+              <td className="py-2 px-2 border-b border-slate-100 text-slate-500">
+                {i.refLow != null || i.refHigh != null
+                  ? `${i.refLow ?? '?'} ~ ${i.refHigh ?? '?'}`
+                  : '—'}
+              </td>
+              <td className="py-2 px-2 border-b border-slate-100 text-right space-x-1">
+                <button type="button" className="text-teal-700" onClick={() => setEditing({ ...i })}>
+                  编辑
+                </button>
+                <button
+                  type="button"
+                  className={i.active ? 'text-slate-500' : 'text-amber-600'}
+                  onClick={() => toggleActive(i)}
+                >
+                  {i.active ? '停用' : '启用'}
+                </button>
+                {i.category === 'custom' && (
+                  <button type="button" className="text-red-600" onClick={() => askDelete(i)}>
+                    删除
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {editing && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4"
+          onClick={() => setEditing(null)}
+        >
+          <div
+            className="bg-white rounded-xl p-5 max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-medium">
+              {editing.id ? '编辑指标' : '新增自定义指标'}
+            </h3>
+            <div className="mt-3 space-y-3 text-xs">
+              <label className="block">
+                <span className="text-slate-500">名称</span>
+                <input
+                  className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5"
+                  value={editing.name ?? ''}
+                  disabled={isBasic(editing)}
+                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-slate-500">单位</span>
+                  <input
+                    className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5"
+                    value={editing.unit ?? ''}
+                    disabled={isBasic(editing)}
+                    onChange={(e) => setEditing({ ...editing, unit: e.target.value })}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-slate-500">默认稀释倍数</span>
+                  <input
+                    type="number"
+                    className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5"
+                    value={editing.defaultDilution ?? 1}
+                    onChange={(e) =>
+                      setEditing({ ...editing, defaultDilution: Number(e.target.value) })
+                    }
+                  />
+                </label>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <label className="block">
+                  <span className="text-slate-500">参考下限</span>
+                  <input
+                    type="number"
+                    className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5"
+                    value={num(editing.refLow)}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        refLow: e.target.value === '' ? null : Number(e.target.value),
+                      })
+                    }
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-slate-500">参考上限</span>
+                  <input
+                    type="number"
+                    className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5"
+                    value={num(editing.refHigh)}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        refHigh: e.target.value === '' ? null : Number(e.target.value),
+                      })
+                    }
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-slate-500">检出限</span>
+                  <input
+                    type="number"
+                    className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5"
+                    value={num(editing.lod)}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        lod: e.target.value === '' ? null : Number(e.target.value),
+                      })
+                    }
+                  />
+                </label>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={save}
+                className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!deleting}
+        title="删除指标"
+        message={`确定删除「${deleting?.name}」吗？该指标的历史数据将一并删除。`}
+        confirmText="删除"
+        danger
+        onConfirm={doDelete}
+        onCancel={() => setDeleting(null)}
+      />
+    </div>
+  );
+}
