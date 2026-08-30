@@ -65,6 +65,15 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr :4173 ^| findstr LISTENING') 
 )
 
 echo [3/3] Starting server at http://localhost:4173
+
+rem Print LAN IPs so the user knows what to open on the phone
+echo.
+echo   Phone access (same WiFi) - use the 192.168.x.x one:
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /R "IPv4"') do (
+    for /f "tokens=1" %%b in ("%%a") do echo     http://%%b:4173
+)
+echo.
+
 start "" http://localhost:4173
 call npm run preview -- --port 4173 --strictPort
 
