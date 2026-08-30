@@ -32,7 +32,7 @@ export default function CyclePage() {
     async () => {
       const all = await db.indicators.toArray();
       return all
-        .filter((i) => i.category === 'basic' && i.active)
+        .filter((i) => i.active)
         .sort((a, b) => a.sortOrder - b.sortOrder);
     },
     [],
