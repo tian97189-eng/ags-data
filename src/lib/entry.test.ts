@@ -9,6 +9,7 @@ import {
   saveInfluent,
   getInfluents,
   deleteDailyData,
+  getDatesWithData,
 } from './entry';
 
 async function clearAll() {
@@ -229,5 +230,47 @@ describe('deleteDailyData', () => {
     expect(await db.defaults.where('scopeKey').equals(dailyScope('2026-08-05')).count()).toBe(0);
     // 其他日期保留
     expect(await db.measurements.where('date').equals('2026-08-06').count()).toBe(1);
+  });
+});
+
+describe('getDatesWithData', () => {
+  let ids: Awaited<ReturnType<typeof seedBase>>;
+
+  beforeEach(async () => {
+    await clearAll();
+    ids = await seedBase();
+  });
+
+  it('收集有测量或进水的日期，去重', async () => {
+    await saveMeasurement({
+      scene: 'daily', date: '2026-08-05', phase: null, reactorId: ids.reactorId, indicatorId: ids.nh4Id,
+      sampleAbs: 0.284, blankAbs: 0.012, dilution: 10,
+      blankOverridden: false, dilutionOverridden: false, note: '',
+    });
+    await saveInfluent({
+      date: '2026-08-05', mode: 'shared', reactorId: null, indicatorId: ids.nh4Id,
+      sampleAbs: 0.284, blankAbs: 0.012, dilution: 10,
+    });
+    await saveMeasurement({
+      scene: 'daily', date: '2026-08-08', phase: null, reactorId: ids.reactorId, indicatorId: ids.nh4Id,
+      sampleAbs: 0.5, blankAbs: 0.012, dilution: 10,
+      blankOverridden: false, dilutionOverridden: false, note: '',
+    });
+
+    const dates = await getDatesWithData();
+    expect(dates.has('2026-08-05')).toBe(true);
+    expect(dates.has('2026-08-08')).toBe(true);
+    expect(dates.size).toBe(2);
+  });
+
+  it('全周期数据不纳入日常日历', async () => {
+    await db.measurements.add({
+      scene: 'cycle', date: '2026-08-05', cycleRunId: 1, time: '08:00', phase: null,
+      reactorId: ids.reactorId, indicatorId: ids.nh4Id, inputType: 'absorbance',
+      sampleAbs: 0.284, blankAbs: 0.012, dilution: 10, value: 5.73, curveId: null,
+      blankOverridden: false, dilutionOverridden: false, note: '',
+    });
+    const dates = await getDatesWithData();
+    expect(dates.has('2026-08-05')).toBe(false);
   });
 });

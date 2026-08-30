@@ -6,6 +6,7 @@ import { today } from '../../lib/format';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import DatePicker from '../../components/common/DatePicker';
 import IndicatorCard, { type CellState } from './IndicatorCard';
 import InfluentPanel, { type InfluentPanelHandle } from './InfluentPanel';
 import { useAppStore } from '../../store/useAppStore';
@@ -14,6 +15,18 @@ export default function EntryPage() {
   const toast = useAppStore((s) => s.toast);
   const [date, setDate] = useState(today());
   const influentRef = useRef<InfluentPanelHandle>(null);
+
+  const markedDates = useLiveQuery(
+    async () => {
+      const dates = new Set<string>();
+      const ms = await db.measurements.where('scene').equals('daily').toArray();
+      for (const m of ms) dates.add(m.date);
+      const infs = await db.influents.toArray();
+      for (const i of infs) dates.add(i.date);
+      return dates;
+    },
+    [],
+  ) ?? new Set<string>();
 
   const indicators = useLiveQuery(
     async () => {
@@ -168,12 +181,7 @@ export default function EntryPage() {
       <div className="flex items-center gap-3 flex-wrap mb-3">
         <label className="flex items-center gap-1 text-xs">
           <span className="text-slate-500">日期</span>
-          <input
-            type="date"
-            className="border border-slate-200 rounded-md px-2 py-1.5"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+          <DatePicker value={date} markedDates={markedDates} onChange={setDate} />
         </label>
         <button
           type="button"

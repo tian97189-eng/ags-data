@@ -228,3 +228,13 @@ export async function deleteDailyData(date: string): Promise<void> {
   await db.influents.where('date').equals(date).delete();
   await db.defaults.where('scopeKey').equals(dailyScope(date)).delete();
 }
+
+/** 返回有日常录入数据（测量或进水）的日期集合，用于日历高亮 */
+export async function getDatesWithData(): Promise<Set<string>> {
+  const dates = new Set<string>();
+  const ms = await db.measurements.where('scene').equals('daily').toArray();
+  for (const m of ms) dates.add(m.date);
+  const infs = await db.influents.toArray();
+  for (const i of infs) dates.add(i.date);
+  return dates;
+}
