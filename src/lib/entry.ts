@@ -217,3 +217,14 @@ export async function saveInfluent(input: {
 export async function getInfluents(date: string) {
   return db.influents.where('date').equals(date).toArray();
 }
+
+/** 删除某天的全部日常录入数据（测量、进水、默认空白/稀释），不影响其他日期 */
+export async function deleteDailyData(date: string): Promise<void> {
+  await db.measurements
+    .where('date')
+    .equals(date)
+    .filter((m) => m.scene === 'daily')
+    .delete();
+  await db.influents.where('date').equals(date).delete();
+  await db.defaults.where('scopeKey').equals(dailyScope(date)).delete();
+}

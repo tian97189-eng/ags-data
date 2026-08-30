@@ -1,3 +1,5 @@
+import { db } from '../db/schema';
+import { cycleScope } from './entry';
 import { timeToMinutes } from './format';
 
 /** 生成周期采样时间点序列 */
@@ -51,4 +53,12 @@ export function cycleStats(
     if (hit) timeToTarget = hit.t - points[0].t;
   }
   return { start, min, max, timeToTarget };
+}
+
+/** 删除某个周期及其全部测量、默认空白/稀释、阶段标记 */
+export async function deleteCycle(cycleRunId: number): Promise<void> {
+  await db.cycles.delete(cycleRunId);
+  await db.measurements.where('cycleRunId').equals(cycleRunId).delete();
+  await db.defaults.where('scopeKey').equals(cycleScope(cycleRunId)).delete();
+  await db.settings.delete(`cycle:${cycleRunId}:phases`);
 }

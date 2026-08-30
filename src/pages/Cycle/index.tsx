@@ -3,11 +3,12 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Phase } from '../../db/schema';
 import { cycleScope, getDefault, getMeasurement, saveMeasurement, upsertDefault } from '../../lib/entry';
 import { computeConcentration } from '../../lib/calibration';
-import { generateTimes, cycleStats } from '../../lib/cycle';
+import { generateTimes, cycleStats, deleteCycle } from '../../lib/cycle';
 import { parseClipboardTable, mapPasteToGrid } from '../../lib/paste';
 import { formatNumber, today } from '../../lib/format';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import Chip from '../../components/common/Chip';
 import { useAppStore } from '../../store/useAppStore';
 
@@ -45,6 +46,7 @@ export default function CyclePage() {
   const [cycleId, setCycleId] = useState<number | null>(null);
   const [indicatorId, setIndicatorId] = useState<number | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [cells, setCells] = useState<Record<string, CycleCell>>({});
   const [phases, setPhases] = useState<Record<string, Phase>>({});
@@ -130,6 +132,16 @@ export default function CyclePage() {
     toast('已保存', 'success');
   }
 
+  async function handleDelete() {
+    if (cycleId == null) return;
+    await deleteCycle(cycleId);
+    setCycleId(null);
+    setCells({});
+    setPhases({});
+    setConfirmDelete(false);
+    toast('周期已删除', 'info');
+  }
+
   function onPaste(e: React.ClipboardEvent) {
     if (!cycle || !indicator || !reactors || !reactors.length) return;
     const text = e.clipboardData.getData('text/plain');
@@ -180,6 +192,15 @@ export default function CyclePage() {
         >
           新建周期
         </button>
+        {cycle && (
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="px-3 py-1.5 text-xs rounded-md border border-red-200 text-red-600 hover:bg-red-50"
+          >
+            删除周期
+          </button>
+        )}
         <span className="flex-1"></span>
         <button
           type="button"
@@ -348,6 +369,16 @@ export default function CyclePage() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="删除周期"
+        message={`确定删除周期「${cycle?.name ?? ''}」吗？\n该周期下的所有测量数据和阶段标记将一并删除，此操作不可撤销。`}
+        confirmText="删除"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

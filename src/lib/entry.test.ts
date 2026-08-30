@@ -8,6 +8,7 @@ import {
   dailyScope,
   saveInfluent,
   getInfluents,
+  deleteDailyData,
 } from './entry';
 
 async function clearAll() {
@@ -191,5 +192,42 @@ describe('saveInfluent', () => {
     await saveInfluent({ ...base, reactorId: ids.reactor2Id, sampleAbs: 0.5 });
     const list = await getInfluents('2026-08-05');
     expect(list).toHaveLength(2);
+  });
+});
+
+describe('deleteDailyData', () => {
+  let ids: Awaited<ReturnType<typeof seedBase>>;
+
+  beforeEach(async () => {
+    await clearAll();
+    ids = await seedBase();
+  });
+
+  it('删除某天的测量、进水、默认值，不影响其他日期', async () => {
+    // 当天数据
+    await saveMeasurement({
+      scene: 'daily', date: '2026-08-05', phase: null, reactorId: ids.reactorId, indicatorId: ids.nh4Id,
+      sampleAbs: 0.284, blankAbs: 0.012, dilution: 10,
+      blankOverridden: false, dilutionOverridden: false, note: '',
+    });
+    await saveInfluent({
+      date: '2026-08-05', mode: 'shared', reactorId: null, indicatorId: ids.nh4Id,
+      sampleAbs: 0.284, blankAbs: 0.012, dilution: 10,
+    });
+    await upsertDefault(dailyScope('2026-08-05'), ids.nh4Id, 0.012, 10);
+    // 其他日期数据
+    await saveMeasurement({
+      scene: 'daily', date: '2026-08-06', phase: null, reactorId: ids.reactorId, indicatorId: ids.nh4Id,
+      sampleAbs: 0.5, blankAbs: 0.012, dilution: 10,
+      blankOverridden: false, dilutionOverridden: false, note: '',
+    });
+
+    await deleteDailyData('2026-08-05');
+
+    expect(await db.measurements.where('date').equals('2026-08-05').count()).toBe(0);
+    expect(await db.influents.where('date').equals('2026-08-05').count()).toBe(0);
+    expect(await db.defaults.where('scopeKey').equals(dailyScope('2026-08-05')).count()).toBe(0);
+    // 其他日期保留
+    expect(await db.measurements.where('date').equals('2026-08-06').count()).toBe(1);
   });
 });

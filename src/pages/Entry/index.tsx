@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CalibrationCurve } from '../../db/schema';
-import { dailyScope, getDefault, getMeasurement, saveMeasurement, upsertDefault } from '../../lib/entry';
+import { dailyScope, deleteDailyData, getDefault, getMeasurement, saveMeasurement, upsertDefault } from '../../lib/entry';
 import { today } from '../../lib/format';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import IndicatorCard, { type CellState } from './IndicatorCard';
 import InfluentPanel, { type InfluentPanelHandle } from './InfluentPanel';
 import { useAppStore } from '../../store/useAppStore';
@@ -35,6 +36,8 @@ export default function EntryPage() {
   const [defaults, setDefaults] = useState<Record<number, { blank: string; dilution: string }>>({});
   const [cells, setCells] = useState<Record<string, CellState>>({});
   const [loading, setLoading] = useState(true);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [influentKey, setInfluentKey] = useState(0);
 
   const curvesByIndicator = useMemo(() => {
     const map: Record<number, CalibrationCurve | null> = {};
@@ -144,6 +147,20 @@ export default function EntryPage() {
     toast('已保存', 'success');
   }
 
+  async function handleClear() {
+    await deleteDailyData(date);
+    // 重置出水界面
+    setCells({});
+    if (indicators) {
+      const d: Record<number, { blank: string; dilution: string }> = {};
+      for (const ind of indicators) d[ind.id!] = { blank: '', dilution: String(ind.defaultDilution) };
+      setDefaults(d);
+    }
+    setInfluentKey((k) => k + 1); // 强制进水面板重挂载刷新
+    setConfirmClear(false);
+    toast('已清空当日数据', 'info');
+  }
+
   return (
     <div>
       <PageHeader title="数据录入" desc="按指标分行、按罐分列，吸光度自动换算为浓度" />
@@ -160,6 +177,13 @@ export default function EntryPage() {
         </label>
         <button
           type="button"
+          onClick={() => setConfirmClear(true)}
+          className="px-3 py-1.5 text-xs rounded-md border border-red-200 text-red-600 hover:bg-red-50"
+        >
+          清空当日
+        </button>
+        <button
+          type="button"
           onClick={handleSave}
           className="ml-auto px-4 py-1.5 text-xs rounded-md bg-teal-600 text-white hover:bg-teal-700"
         >
@@ -167,7 +191,7 @@ export default function EntryPage() {
         </button>
       </div>
 
-      <InfluentPanel ref={influentRef} date={date} />
+      <InfluentPanel key={influentKey} ref={influentRef} date={date} />
 
       {!loading && indicators && indicators.length === 0 ? (
         <EmptyState title="没有可录入的指标" desc="请在「系统设置」里启用指标或新建标曲" />
@@ -191,6 +215,16 @@ export default function EntryPage() {
           />
         ))
       )}
+
+      <ConfirmDialog
+        open={confirmClear}
+        title="清空当日数据"
+        message={`确定清空 ${date} 的全部录入数据吗？\n包括所有指标的测量值和进水记录，此操作不可撤销。`}
+        confirmText="清空"
+        danger
+        onConfirm={handleClear}
+        onCancel={() => setConfirmClear(false)}
+      />
     </div>
   );
 }
