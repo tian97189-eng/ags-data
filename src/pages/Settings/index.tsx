@@ -4,6 +4,7 @@ import Chip from '../../components/common/Chip';
 import ReactorSettings from './ReactorSettings';
 import CurveSettings from './CurveSettings';
 import IndicatorSettings from './IndicatorSettings';
+import BackupSettings from './BackupSettings';
 
 const TABS = [
   { key: 'reactor', label: '反应器' },
@@ -31,11 +32,7 @@ export default function SettingsPage() {
       {tab === 'reactor' && <ReactorSettings />}
       {tab === 'curve' && <CurveSettings />}
       {tab === 'indicator' && <IndicatorSettings />}
-      {tab === 'backup' && (
-        <div className="text-sm text-slate-500 py-10 text-center">
-          备份与导出将在 P7 阶段完成
-        </div>
-      )}
+      {tab === 'backup' && <BackupSettings />}
     </div>
   );
 }
