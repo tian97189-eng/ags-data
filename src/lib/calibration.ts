@@ -1,4 +1,5 @@
 import { db, type CalibrationCurve, type CalibrationPoint } from '../db/schema';
+import { evaluateFormula } from './formula';
 
 // —— 最小二乘拟合 y = kx + b（x=浓度，y=吸光度）——
 export interface FitResult {
@@ -53,7 +54,8 @@ export async function resolveCurve(
 
 export type ComputeStatus = 'ok' | 'noCurve' | 'belowLOD' | 'negative';
 
-/** 核心换算：浓度 = (A样 − A空 − b) / k × 稀释倍数 */
+/** 核心换算：拟合曲线为 浓度 = (A样 − A空 − b) / k × 稀释倍数；
+ *  手动公式曲线为 浓度 = 公式(A=检测样, A0=空白, D=稀释) */
 export function computeConcentration(p: {
   sampleAbs: number | null;
   blankAbs: number | null;
@@ -65,10 +67,24 @@ export function computeConcentration(p: {
   if (!curve || p.sampleAbs == null) {
     return { value: null, status: 'noCurve' };
   }
-  const blank = p.blankAbs ?? 0;
-  const dilution = p.dilution ?? 1;
-  const raw = (p.sampleAbs - blank - curve.b) / curve.k;
-  const value = raw * dilution;
+
+  let value: number;
+  if (curve.formulaType === 'formula' && curve.formula) {
+    const r = evaluateFormula(curve.formula, {
+      A: p.sampleAbs,
+      A0: p.blankAbs ?? 0,
+      D: p.dilution ?? 1,
+    });
+    if (!r.ok || r.value == null) {
+      return { value: null, status: 'noCurve' };
+    }
+    value = r.value;
+  } else {
+    const blank = p.blankAbs ?? 0;
+    const dilution = p.dilution ?? 1;
+    const raw = (p.sampleAbs - blank - curve.b) / curve.k;
+    value = raw * dilution;
+  }
 
   if (value < 0) return { value, status: 'negative' };
   if (p.lod != null && value < p.lod) return { value, status: 'belowLOD' };

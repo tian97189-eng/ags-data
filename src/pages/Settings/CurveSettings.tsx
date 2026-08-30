@@ -7,6 +7,7 @@ import { today, formatNumber } from '../../lib/format';
 import Chip from '../../components/common/Chip';
 import EmptyState from '../../components/common/EmptyState';
 import CurveForm from './CurveForm';
+import FormulaForm from './FormulaForm';
 
 export default function CurveSettings() {
   const indicators = useLiveQuery(
@@ -20,6 +21,7 @@ export default function CurveSettings() {
   );
   const [indicatorId, setIndicatorId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showFormula, setShowFormula] = useState(false);
   const [counts, setCounts] = useState<Record<number, number>>({});
 
   useEffect(() => {
@@ -63,6 +65,7 @@ export default function CurveSettings() {
     ) ?? [];
 
   const isCod = indicator?.method === 'direct';
+  const isFormula = current?.formulaType === 'formula';
 
   const currentOption = useMemo(() => {
     const pts = current?.points ?? [];
@@ -107,13 +110,22 @@ export default function CurveSettings() {
         ))}
         <span className="flex-1"></span>
         {!isCod && (
-          <button
-            type="button"
-            onClick={() => setShowForm(true)}
-            className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white hover:bg-teal-700"
-          >
-            新建标曲
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => setShowForm(true)}
+              className="px-3 py-1.5 text-xs rounded-md border border-teal-300 text-teal-700 hover:bg-teal-50"
+            >
+              新建标曲（多点）
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowFormula(true)}
+              className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white hover:bg-teal-700"
+            >
+              手动公式
+            </button>
+          </>
         )}
       </div>
 
@@ -134,8 +146,30 @@ export default function CurveSettings() {
           {!current ? (
             <EmptyState
               title="还没有标准曲线"
-              desc="点右上角「新建标曲」，录入标液点后自动拟合出 k、b 和 R²"
+              desc="点右上角「新建标曲（多点）」录入标液点自动拟合，或「手动公式」直接填公式"
             />
+          ) : isFormula ? (
+            <div className="border border-slate-200 rounded-lg p-4 mb-4">
+              <div className="text-xs text-slate-500 mb-2">当前公式</div>
+              <div className="font-mono text-sm bg-slate-50 border border-slate-200 rounded-md px-3 py-2 mb-3 break-all">
+                {current.formula}
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="bg-slate-50 rounded-md p-2">
+                  <div className="text-[11px] text-slate-500">A</div>
+                  <div className="text-xs">检测样吸光度</div>
+                </div>
+                <div className="bg-slate-50 rounded-md p-2">
+                  <div className="text-[11px] text-slate-500">A0</div>
+                  <div className="text-xs">空白吸光度</div>
+                </div>
+                <div className="bg-slate-50 rounded-md p-2">
+                  <div className="text-[11px] text-slate-500">D</div>
+                  <div className="text-xs">稀释倍数</div>
+                </div>
+              </div>
+              <div className="text-[11px] text-slate-400 mt-2">试剂批号：{current.batchNo || '—'}</div>
+            </div>
           ) : (
             <div className="grid md:grid-cols-2 gap-4 border border-slate-200 rounded-lg p-4 mb-4">
               <div>
@@ -191,9 +225,8 @@ export default function CurveSettings() {
               <thead>
                 <tr className="text-slate-500">
                   <th className="text-left py-2 px-2 border-b border-slate-200">生效区间</th>
-                  <th className="text-right py-2 px-2 border-b border-slate-200">k</th>
-                  <th className="text-right py-2 px-2 border-b border-slate-200">b</th>
-                  <th className="text-right py-2 px-2 border-b border-slate-200">R²</th>
+                  <th className="text-left py-2 px-2 border-b border-slate-200">方式</th>
+                  <th className="text-left py-2 px-2 border-b border-slate-200">参数 / 公式</th>
                   <th className="text-left py-2 px-2 border-b border-slate-200">批号</th>
                   <th className="text-left py-2 px-2 border-b border-slate-200">状态</th>
                 </tr>
@@ -205,14 +238,17 @@ export default function CurveSettings() {
                       {c.effectiveFrom}
                       {c.effectiveTo ? ` → ${c.effectiveTo}` : ' 起'}
                     </td>
-                    <td className="py-2 px-2 border-b border-slate-100 text-right">
-                      {formatNumber(c.k, 4)}
+                    <td className="py-2 px-2 border-b border-slate-100">
+                      {c.formulaType === 'formula' ? '公式' : '拟合'}
                     </td>
-                    <td className="py-2 px-2 border-b border-slate-100 text-right">
-                      {formatNumber(c.b, 4)}
-                    </td>
-                    <td className="py-2 px-2 border-b border-slate-100 text-right">
-                      {formatNumber(c.r2, 4)}
+                    <td className="py-2 px-2 border-b border-slate-100">
+                      {c.formulaType === 'formula' ? (
+                        <span className="font-mono text-[11px]">{c.formula}</span>
+                      ) : (
+                        <span className="text-slate-500">
+                          k={formatNumber(c.k, 4)} b={formatNumber(c.b, 4)} R²={formatNumber(c.r2, 4)}
+                        </span>
+                      )}
                     </td>
                     <td className="py-2 px-2 border-b border-slate-100">{c.batchNo || '—'}</td>
                     <td className="py-2 px-2 border-b border-slate-100 text-slate-500">
@@ -231,6 +267,14 @@ export default function CurveSettings() {
           indicator={indicator}
           onClose={() => setShowForm(false)}
           onSaved={() => setShowForm(false)}
+        />
+      )}
+
+      {showFormula && indicator && (
+        <FormulaForm
+          indicator={indicator}
+          onClose={() => setShowFormula(false)}
+          onSaved={() => setShowFormula(false)}
         />
       )}
     </div>

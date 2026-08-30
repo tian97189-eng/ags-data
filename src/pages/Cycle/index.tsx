@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Phase } from '../../db/schema';
 import { cycleScope, getDefault, getMeasurement, saveMeasurement, upsertDefault } from '../../lib/entry';
+import { computeConcentration } from '../../lib/calibration';
 import { generateTimes, cycleStats } from '../../lib/cycle';
 import { parseClipboardTable, mapPasteToGrid } from '../../lib/paste';
 import { formatNumber, today } from '../../lib/format';
@@ -354,11 +355,13 @@ export default function CyclePage() {
 function computeForCycle(cell: CycleCell | undefined, blank: string, curve: any, indicator: any): number | null {
   if (!cell || cell.sample === '') return null;
   if (indicator.method === 'direct') return Number(cell.sample);
-  if (!curve) return null;
-  const sample = Number(cell.sample);
-  const b = blank === '' ? null : Number(blank);
-  const d = cell.dilution === '' ? null : Number(cell.dilution);
-  return ((sample - (b ?? 0) - curve.b) / curve.k) * (d ?? 1);
+  return computeConcentration({
+    sampleAbs: Number(cell.sample),
+    blankAbs: blank === '' ? null : Number(blank),
+    dilution: cell.dilution === '' ? null : Number(cell.dilution),
+    curve,
+    lod: indicator.lod,
+  }).value;
 }
 
 function NewCycleForm({

@@ -138,6 +138,53 @@ describe('computeConcentration', () => {
     });
     expect(r.value).toBeCloseTo((0.4 - 0.1) / 0.3, 6);
   });
+
+  it('手动公式曲线：按公式 (6.9627*(A-A0)-0.004)*D 计算', () => {
+    const formulaCurve = {
+      ...curve,
+      formulaType: 'formula' as const,
+      formula: '(6.9627*(A-A0)-0.004)*D',
+    };
+    const r = computeConcentration({
+      sampleAbs: 0.284,
+      blankAbs: 0.012,
+      dilution: 10,
+      curve: formulaCurve,
+    });
+    expect(r.status).toBe('ok');
+    expect(r.value).toBeCloseTo((6.9627 * (0.284 - 0.012) - 0.004) * 10, 6);
+  });
+
+  it('手动公式曲线同样识别负值', () => {
+    const formulaCurve = {
+      ...curve,
+      formulaType: 'formula' as const,
+      formula: 'A-A0',
+    };
+    const r = computeConcentration({
+      sampleAbs: 0.01,
+      blankAbs: 0.02,
+      dilution: 1,
+      curve: formulaCurve,
+    });
+    expect(r.status).toBe('negative');
+  });
+
+  it('公式非法时返回 noCurve（值 null）', () => {
+    const formulaCurve = {
+      ...curve,
+      formulaType: 'formula' as const,
+      formula: 'A+',
+    };
+    const r = computeConcentration({
+      sampleAbs: 0.284,
+      blankAbs: 0.012,
+      dilution: 1,
+      curve: formulaCurve,
+    });
+    expect(r.status).toBe('noCurve');
+    expect(r.value).toBeNull();
+  });
 });
 
 describe('resolveCurve', () => {

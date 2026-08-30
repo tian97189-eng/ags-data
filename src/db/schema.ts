@@ -38,6 +38,8 @@ export interface CalibrationPoint {
   absorbance: number;
 }
 
+export type CurveType = 'fit' | 'formula';
+
 export interface CalibrationCurve {
   id?: number;
   indicatorId: number;
@@ -50,6 +52,10 @@ export interface CalibrationCurve {
   batchNo: string;
   note: string;
   createdAt: string;
+  /** 标曲类型：fit = 多点拟合（默认），formula = 手动公式 */
+  formulaType?: CurveType;
+  /** 手动公式字符串（formulaType === 'formula' 时使用） */
+  formula?: string | null;
 }
 
 export interface CycleRun {
