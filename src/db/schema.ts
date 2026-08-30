@@ -58,6 +58,7 @@ export interface CycleRun {
   name: string;
   startTime: string; // HH:mm
   intervalMinutes: number;
+  count: number; // 采样点数
   reactorIds: number[];
   note: string;
 }
