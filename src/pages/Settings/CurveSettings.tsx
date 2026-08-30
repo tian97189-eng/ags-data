@@ -10,7 +10,12 @@ import CurveForm from './CurveForm';
 
 export default function CurveSettings() {
   const indicators = useLiveQuery(
-    () => db.indicators.where('category').equals('basic').sortBy('sortOrder'),
+    async () => {
+      const all = await db.indicators.toArray();
+      return all
+        .filter((i) => i.category === 'basic' && i.active)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+    },
     [],
   );
   const [indicatorId, setIndicatorId] = useState<number | null>(null);

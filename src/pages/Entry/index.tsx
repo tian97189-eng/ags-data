@@ -18,16 +18,19 @@ export default function EntryPage() {
   const [influentMode, setInfluentMode] = useState<InfluentMode>('shared');
 
   const indicators = useLiveQuery(
-    () =>
-      db.indicators
-        .where('category')
-        .equals('basic')
-        .and((i) => i.active)
-        .sortBy('sortOrder'),
+    async () => {
+      const all = await db.indicators.toArray();
+      return all
+        .filter((i) => i.category === 'basic' && i.active)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+    },
     [],
   );
   const reactors = useLiveQuery(
-    () => db.reactors.where('active').equals(true).sortBy('sortOrder'),
+    async () => {
+      const all = await db.reactors.toArray();
+      return all.filter((r) => r.active).sort((a, b) => a.sortOrder - b.sortOrder);
+    },
     [],
   );
   const curves = useLiveQuery(() => db.curves.toArray(), []);

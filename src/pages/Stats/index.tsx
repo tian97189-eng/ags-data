@@ -17,7 +17,10 @@ export default function StatsPage() {
 
   const measurements = useLiveQuery(() => db.measurements.toArray(), []);
   const influents = useLiveQuery(() => db.influents.toArray(), []);
-  const reactors = useLiveQuery(() => db.reactors.where('active').equals(true).sortBy('sortOrder'), []);
+  const reactors = useLiveQuery(async () => {
+    const all = await db.reactors.toArray();
+    return all.filter((r) => r.active).sort((a, b) => a.sortOrder - b.sortOrder);
+  }, []);
   const indicators = useLiveQuery(() => db.indicators.orderBy('sortOrder').toArray(), []);
 
   const inRange = (d: string) => (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo);

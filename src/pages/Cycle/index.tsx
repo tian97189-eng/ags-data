@@ -27,10 +27,18 @@ export default function CyclePage() {
   const toast = useAppStore((s) => s.toast);
   const cycles = useLiveQuery(() => db.cycles.orderBy('date').reverse().toArray(), []);
   const indicators = useLiveQuery(
-    () => db.indicators.where('category').equals('basic').and((i) => i.active).sortBy('sortOrder'),
+    async () => {
+      const all = await db.indicators.toArray();
+      return all
+        .filter((i) => i.category === 'basic' && i.active)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+    },
     [],
   );
-  const reactors = useLiveQuery(() => db.reactors.where('active').equals(true).sortBy('sortOrder'), []);
+  const reactors = useLiveQuery(async () => {
+    const all = await db.reactors.toArray();
+    return all.filter((r) => r.active).sort((a, b) => a.sortOrder - b.sortOrder);
+  }, []);
   const curves = useLiveQuery(() => db.curves.toArray(), []);
 
   const [cycleId, setCycleId] = useState<number | null>(null);

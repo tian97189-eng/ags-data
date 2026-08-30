@@ -21,7 +21,10 @@ export default function ChartPage() {
   const [overlayReactorId, setOverlayReactorId] = useState<number | null>(null);
 
   const measurements = useLiveQuery(() => db.measurements.toArray(), []);
-  const reactors = useLiveQuery(() => db.reactors.where('active').equals(true).sortBy('sortOrder'), []);
+  const reactors = useLiveQuery(async () => {
+    const all = await db.reactors.toArray();
+    return all.filter((r) => r.active).sort((a, b) => a.sortOrder - b.sortOrder);
+  }, []);
   const indicators = useLiveQuery(() => db.indicators.orderBy('sortOrder').toArray(), []);
   const cycles = useLiveQuery(() => db.cycles.orderBy('date').toArray(), []);
 
