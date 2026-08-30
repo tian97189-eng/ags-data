@@ -2,7 +2,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { createRef } from 'react';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { db } from '../../db/schema';
-import { dailyScope } from '../../lib/entry';
 import InfluentPanel, { type InfluentPanelHandle } from './InfluentPanel';
 
 async function clearAll() {
@@ -31,11 +30,14 @@ async function seed() {
   return { nh4Id, codId, curveId, r1, r2 };
 }
 
-// 预置出水空白（defaults 表），进水应与出水共用同一空白
-async function seedBlank(indicatorId: number, blankAbs: number) {
-  await db.defaults.add({
-    scopeKey: dailyScope('2026-08-05'), indicatorId, blankAbs, dilution: 10,
-  });
+function renderPanel(props: { nh4Id: number; blank: string; ref?: React.Ref<InfluentPanelHandle> }) {
+  return render(
+    <InfluentPanel
+      ref={props.ref}
+      date="2026-08-05"
+      blankByIndicator={{ [props.nh4Id]: props.blank }}
+    />,
+  );
 }
 
 describe('InfluentPanel', () => {
@@ -43,21 +45,35 @@ describe('InfluentPanel', () => {
 
   it('shared 模式：进水用出水空白换算浓度', async () => {
     const { nh4Id } = await seed();
-    await seedBlank(nh4Id, 0.012);
-    render(<InfluentPanel date="2026-08-05" />);
+    renderPanel({ nh4Id, blank: '0.012' });
 
     await screen.findByLabelText('氨氮 进水检测样');
     fireEvent.change(screen.getByLabelText('氨氮 进水稀释'), { target: { value: '10' } });
     fireEvent.change(screen.getByLabelText('氨氮 进水检测样'), { target: { value: '0.284' } });
 
-    // (0.284 - 0.012 - 0.1) / 0.3 * 10 = 5.7333 -> 5.73（空白取出水 0.012）
+    // (0.284 - 0.012 - 0.1) / 0.3 * 10 = 5.7333 -> 5.73（空白取传入的出水空白 0.012）
     expect(screen.getByText('5.73')).toBeInTheDocument();
+  });
+
+  it('改变出水空白时，进水浓度实时更新', async () => {
+    const { nh4Id } = await seed();
+    const { rerender } = renderPanel({ nh4Id, blank: '0.012' });
+
+    await screen.findByLabelText('氨氮 进水检测样');
+    fireEvent.change(screen.getByLabelText('氨氮 进水稀释'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('氨氮 进水检测样'), { target: { value: '0.284' } });
+    expect(screen.getByText('5.73')).toBeInTheDocument();
+
+    // 出水空白改成 0.062：浓度 = (0.284 - 0.062 - 0.1)/0.3*10 = 4.0667 -> 4.07
+    rerender(
+      <InfluentPanel date="2026-08-05" blankByIndicator={{ [nh4Id]: '0.062' }} />,
+    );
+    expect(screen.getByText('4.07')).toBeInTheDocument();
   });
 
   it('进水空白列为只读，显示出水空白值', async () => {
     const { nh4Id } = await seed();
-    await seedBlank(nh4Id, 0.012);
-    render(<InfluentPanel date="2026-08-05" />);
+    renderPanel({ nh4Id, blank: '0.012' });
 
     await screen.findByLabelText('氨氮 进水检测样');
     // 空白列是只读文本，不是输入框
@@ -66,8 +82,8 @@ describe('InfluentPanel', () => {
   });
 
   it('COD 直读指标不显示稀释列', async () => {
-    await seed();
-    render(<InfluentPanel date="2026-08-05" />);
+    const { nh4Id } = await seed();
+    renderPanel({ nh4Id, blank: '0.012' });
 
     await screen.findByLabelText('COD 进水检测样');
     expect(screen.queryByLabelText('COD 进水稀释')).toBeNull();
@@ -78,9 +94,8 @@ describe('InfluentPanel', () => {
 
   it('保存后进水记录写入数据库，空白用出水空白且换算正确', async () => {
     const { nh4Id, curveId } = await seed();
-    await seedBlank(nh4Id, 0.012);
     const ref = createRef<InfluentPanelHandle>();
-    render(<InfluentPanel ref={ref} date="2026-08-05" />);
+    renderPanel({ nh4Id, blank: '0.012', ref });
 
     await screen.findByLabelText('氨氮 进水检测样');
     fireEvent.change(screen.getByLabelText('氨氮 进水稀释'), { target: { value: '10' } });
@@ -100,14 +115,21 @@ describe('InfluentPanel', () => {
 
   it('切换每罐各自模式后按罐保存', async () => {
     const { nh4Id, r1, r2 } = await seed();
-    await seedBlank(nh4Id, 0.012);
     const ref = createRef<InfluentPanelHandle>();
-    render(<InfluentPanel ref={ref} date="2026-08-05" />);
+    renderPanel({ nh4Id, blank: '0.012', ref });
 
-    await screen.findByText('每罐各自');
+    // 先等 shared 模式渲染完成（确保指标/反应器数据已加载）
+    await screen.findByLabelText('氨氮 进水检测样');
     fireEvent.click(screen.getByText('每罐各自'));
 
-    await screen.findByLabelText('氨氮 R1 进水检测样');
+    // 等 perReactor 模式渲染（给足超时，避免并发下 useLiveQuery 响应慢）
+    await waitFor(
+      () => {
+        expect(screen.getByLabelText('氨氮 R1 进水检测样')).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
+
     fireEvent.change(screen.getByLabelText('氨氮 进水稀释'), { target: { value: '10' } });
     fireEvent.change(screen.getByLabelText('氨氮 R1 进水检测样'), { target: { value: '0.284' } });
     fireEvent.change(screen.getByLabelText('氨氮 R2 进水检测样'), { target: { value: '0.5' } });

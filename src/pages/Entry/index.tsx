@@ -52,6 +52,13 @@ export default function EntryPage() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [influentKey, setInfluentKey] = useState(0);
 
+  // 出水空白（供进水面板实时共用）
+  const outBlank = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (const ind of indicators ?? []) map[ind.id!] = defaults[ind.id!]?.blank ?? '';
+    return map;
+  }, [indicators, defaults]);
+
   const curvesByIndicator = useMemo(() => {
     const map: Record<number, CalibrationCurve | null> = {};
     for (const ind of indicators ?? []) {
@@ -199,7 +206,7 @@ export default function EntryPage() {
         </button>
       </div>
 
-      <InfluentPanel key={influentKey} ref={influentRef} date={date} />
+      <InfluentPanel key={influentKey} ref={influentRef} date={date} blankByIndicator={outBlank} />
 
       {!loading && indicators && indicators.length === 0 ? (
         <EmptyState title="没有可录入的指标" desc="请在「系统设置」里启用指标或新建标曲" />

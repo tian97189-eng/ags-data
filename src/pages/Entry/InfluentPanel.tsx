@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'r
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CalibrationCurve, type InfluentMode } from '../../db/schema';
 import { computeConcentration } from '../../lib/calibration';
-import { dailyScope, getInfluents, saveInfluent } from '../../lib/entry';
+import { getInfluents, saveInfluent } from '../../lib/entry';
 import { formatNumber } from '../../lib/format';
 import { useAppStore } from '../../store/useAppStore';
 
@@ -17,13 +17,13 @@ interface InfluentState {
 
 /**
  * 进水录入面板：三氮一磷按吸光度经标曲换算，COD 直读浓度。
- * 空白吸光度与出水共用（读 defaults 表），只需在出水卡片填一次空白。
+ * 空白吸光度与出水共用（由父组件传入出水卡片的实时空白值），只需在出水卡片填一次空白。
  * shared 模式每指标一套检测样；perReactor 模式每罐一套检测样。
  */
-const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function InfluentPanel(
-  { date },
-  ref,
-) {
+const InfluentPanel = forwardRef<
+  InfluentPanelHandle,
+  { date: string; blankByIndicator: Record<number, string> }
+>(function InfluentPanel({ date, blankByIndicator }, ref) {
   const toast = useAppStore((s) => s.toast);
   const indicators = useLiveQuery(
     async () => {
@@ -40,20 +40,6 @@ const InfluentPanel = forwardRef<InfluentPanelHandle, { date: string }>(function
     [],
   );
   const curves = useLiveQuery(() => db.curves.toArray(), []);
-
-  // 出水空白（defaults 表），进水与出水共用同一空白
-  const defaults = useLiveQuery(
-    () => db.defaults.where('scopeKey').equals(dailyScope(date)).toArray(),
-    [date],
-  ) ?? [];
-
-  const blankByIndicator = useMemo(() => {
-    const map: Record<number, string> = {};
-    for (const d of defaults) {
-      map[d.indicatorId] = d.blankAbs != null ? String(d.blankAbs) : '';
-    }
-    return map;
-  }, [defaults]);
 
   const [mode, setMode] = useState<InfluentMode>('shared');
   const [state, setState] = useState<InfluentState>({ dilution: {}, samples: {} });
