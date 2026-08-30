@@ -5,3 +5,4 @@ dist-ssr
 .DS_Store
 .vite
 coverage
+vite.config.ts.timestamp-*
