@@ -1,21 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import {
-  db,
-  type CalibrationCurve,
-  type InfluentMode,
-} from '../../db/schema';
-import { dailyScope, getDefault, getInfluents, getMeasurement, saveInfluent, saveMeasurement, upsertDefault } from '../../lib/entry';
+import { db, type CalibrationCurve } from '../../db/schema';
+import { dailyScope, getDefault, getMeasurement, saveMeasurement, upsertDefault } from '../../lib/entry';
 import { today } from '../../lib/format';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
 import IndicatorCard, { type CellState } from './IndicatorCard';
+import InfluentPanel, { type InfluentPanelHandle } from './InfluentPanel';
 import { useAppStore } from '../../store/useAppStore';
 
 export default function EntryPage() {
   const toast = useAppStore((s) => s.toast);
   const [date, setDate] = useState(today());
-  const [influentMode, setInfluentMode] = useState<InfluentMode>('shared');
+  const influentRef = useRef<InfluentPanelHandle>(null);
 
   const indicators = useLiveQuery(
     async () => {
@@ -37,7 +34,6 @@ export default function EntryPage() {
 
   const [defaults, setDefaults] = useState<Record<number, { blank: string; dilution: string }>>({});
   const [cells, setCells] = useState<Record<string, CellState>>({});
-  const [influents, setInfluents] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   const curvesByIndicator = useMemo(() => {
@@ -78,18 +74,9 @@ export default function EntryPage() {
           };
         }
       }
-      const inf = await getInfluents(date);
-      const infMap: Record<string, string> = {};
-      for (const i of inf) {
-        const key = i.reactorId != null ? `${i.reactorId}:${i.indicatorId}` : `shared:${i.indicatorId}`;
-        infMap[key] = String(i.value);
-      }
-      const mode = await db.settings.get('influentMode');
       if (cancelled) return;
       setDefaults(d);
       setCells(c);
-      setInfluents(infMap);
-      setInfluentMode((mode?.value as InfluentMode) ?? 'shared');
       setLoading(false);
     })();
     return () => {
@@ -115,10 +102,6 @@ export default function EntryPage() {
 
   function handleCellChange(indicatorId: number, reactorId: number, cell: CellState) {
     setCells((prev) => ({ ...prev, [`${indicatorId}:${reactorId}`]: cell }));
-  }
-
-  function handleInfluentChange(key: string, value: string) {
-    setInfluents((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleSave() {
@@ -157,23 +140,7 @@ export default function EntryPage() {
       }
     }
 
-    for (const ind of indicators) {
-      if (influentMode === 'shared') {
-        const v = influents[`shared:${ind.id}`];
-        await saveInfluent({
-          date, mode: 'shared', reactorId: null, indicatorId: ind.id!,
-          value: v === '' || v == null ? null : Number(v),
-        });
-      } else {
-        for (const r of reactors) {
-          const v = influents[`${r.id}:${ind.id}`];
-          await saveInfluent({
-            date, mode: 'perReactor', reactorId: r.id!, indicatorId: ind.id!,
-            value: v === '' || v == null ? null : Number(v),
-          });
-        }
-      }
-    }
+    await influentRef.current?.save();
     toast('已保存', 'success');
   }
 
@@ -191,31 +158,6 @@ export default function EntryPage() {
             onChange={(e) => setDate(e.target.value)}
           />
         </label>
-        <div className="flex items-center gap-1 text-xs">
-          <span className="text-slate-500">进水</span>
-          <button
-            type="button"
-            onClick={() => setInfluentMode('shared')}
-            className={`px-2.5 py-1.5 rounded-md border ${
-              influentMode === 'shared'
-                ? 'bg-teal-50 border-teal-300 text-teal-800'
-                : 'border-slate-200 text-slate-600'
-            }`}
-          >
-            几罐共用
-          </button>
-          <button
-            type="button"
-            onClick={() => setInfluentMode('perReactor')}
-            className={`px-2.5 py-1.5 rounded-md border ${
-              influentMode === 'perReactor'
-                ? 'bg-teal-50 border-teal-300 text-teal-800'
-                : 'border-slate-200 text-slate-600'
-            }`}
-          >
-            每罐各自
-          </button>
-        </div>
         <button
           type="button"
           onClick={handleSave}
@@ -225,43 +167,7 @@ export default function EntryPage() {
         </button>
       </div>
 
-      <div className="border border-slate-200 rounded-lg mb-4 p-3 text-xs">
-        <div className="text-slate-500 mb-2">
-          进水浓度{influentMode === 'shared' ? '（几罐共用一个数）' : '（每罐分别填）'}
-        </div>
-        <div className={`grid gap-2 ${influentMode === 'shared' ? 'grid-cols-2 sm:grid-cols-5' : ''}`}>
-          {indicators?.map((ind) =>
-            influentMode === 'shared' ? (
-              <label key={ind.id} className="flex items-center gap-1">
-                <span className="text-slate-500 shrink-0">{ind.name}</span>
-                <input
-                  type="number"
-                  step="any"
-                  className="w-full border border-slate-200 rounded px-2 py-1"
-                  value={influents[`shared:${ind.id}`] ?? ''}
-                  onChange={(e) => handleInfluentChange(`shared:${ind.id}`, e.target.value)}
-                />
-              </label>
-            ) : (
-              <div key={ind.id}>
-                <div className="text-slate-500 mb-1">{ind.name}</div>
-                {reactors?.map((r) => (
-                  <label key={r.id} className="flex items-center gap-1 mb-1">
-                    <span className="text-slate-400 w-8 shrink-0">{r.code}</span>
-                    <input
-                      type="number"
-                      step="any"
-                      className="w-full border border-slate-200 rounded px-2 py-1"
-                      value={influents[`${r.id}:${ind.id}`] ?? ''}
-                      onChange={(e) => handleInfluentChange(`${r.id}:${ind.id}`, e.target.value)}
-                    />
-                  </label>
-                ))}
-              </div>
-            ),
-          )}
-        </div>
-      </div>
+      <InfluentPanel ref={influentRef} date={date} />
 
       {!loading && indicators && indicators.length === 0 ? (
         <EmptyState title="没有可录入的指标" desc="请在「系统设置」里启用指标或新建标曲" />

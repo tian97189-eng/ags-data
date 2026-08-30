@@ -5,6 +5,7 @@ import {
   type Phase,
   type DailyDefault,
   type InfluentMode,
+  type InputType,
 } from '../db/schema';
 import { resolveCurve, computeConcentration } from './calibration';
 
@@ -142,27 +143,59 @@ export async function getMeasurement(
   );
 }
 
-/** 保存进水浓度；值为 null 表示清除该格 */
+/** 保存进水：absorbance 指标按吸光度经标曲换算，direct 指标直接填浓度；换算值为 null 时清除该格 */
 export async function saveInfluent(input: {
   date: string;
   mode: InfluentMode;
   reactorId: number | null;
   indicatorId: number;
-  value: number | null;
+  /** absorbance 指标为水样吸光度；direct 指标为直接填写的浓度 */
+  sampleAbs: number | null;
+  blankAbs: number | null;
+  dilution: number | null;
 }): Promise<void> {
+  const indicator = await db.indicators.get(input.indicatorId);
+  if (!indicator) throw new Error('指标不存在');
+
+  const inputType: InputType = indicator.method;
+  let value: number | null = null;
+  let curveId: number | null = null;
+
+  if (indicator.method === 'direct') {
+    value = input.sampleAbs;
+  } else {
+    const curve = await resolveCurve(input.indicatorId, input.date);
+    curveId = curve?.id ?? null;
+    value = computeConcentration({
+      sampleAbs: input.sampleAbs,
+      blankAbs: input.blankAbs,
+      dilution: input.dilution,
+      curve,
+      lod: indicator.lod,
+    }).value;
+  }
+
   const existing = await db.influents
     .where('date')
     .equals(input.date)
     .filter((m) => m.indicatorId === input.indicatorId && m.reactorId === input.reactorId)
     .first();
 
-  if (input.value == null) {
+  if (value == null) {
     if (existing) await db.influents.delete(existing.id!);
     return;
   }
 
   if (existing) {
-    await db.influents.update(existing.id!, { mode: input.mode, value: input.value });
+    await db.influents.update(existing.id!, {
+      mode: input.mode,
+      sampleAbs: input.sampleAbs,
+      blankAbs: input.blankAbs,
+      dilution: input.dilution,
+      value,
+      curveId,
+      inputType,
+    });
   } else {
     await db.influents.add({
       date: input.date,
@@ -170,12 +203,12 @@ export async function saveInfluent(input: {
       mode: input.mode,
       reactorId: input.reactorId,
       indicatorId: input.indicatorId,
-      inputType: 'direct',
-      sampleAbs: null,
-      blankAbs: null,
-      dilution: null,
-      value: input.value,
-      curveId: null,
+      inputType,
+      sampleAbs: input.sampleAbs,
+      blankAbs: input.blankAbs,
+      dilution: input.dilution,
+      value,
+      curveId,
     });
   }
 }

@@ -136,23 +136,59 @@ describe('saveInfluent', () => {
     ids = await seedBase();
   });
 
-  it('保存进水，覆盖更新，不产生重复', async () => {
-    await saveInfluent({ date: '2026-08-05', mode: 'shared', reactorId: null, indicatorId: ids.nh4Id, value: 40 });
-    await saveInfluent({ date: '2026-08-05', mode: 'shared', reactorId: null, indicatorId: ids.nh4Id, value: 42 });
+  it('absorbance 指标：进水吸光度经标曲换算并记录曲线 id', async () => {
+    await saveInfluent({
+      date: '2026-08-05', mode: 'shared', reactorId: null, indicatorId: ids.nh4Id,
+      sampleAbs: 0.284, blankAbs: 0.012, dilution: 10,
+    });
     const list = await getInfluents('2026-08-05');
     expect(list).toHaveLength(1);
-    expect(list[0].value).toBe(42);
+    expect(list[0].value).toBeCloseTo(((0.284 - 0.012 - 0.1) / 0.3) * 10, 6);
+    expect(list[0].curveId).toBe(ids.curveId);
+    expect(list[0].sampleAbs).toBe(0.284);
+    expect(list[0].inputType).toBe('absorbance');
   });
 
-  it('值为 null 清除该格', async () => {
-    await saveInfluent({ date: '2026-08-05', mode: 'shared', reactorId: null, indicatorId: ids.nh4Id, value: 40 });
-    await saveInfluent({ date: '2026-08-05', mode: 'shared', reactorId: null, indicatorId: ids.nh4Id, value: null });
+  it('direct 指标：进水 value 直接取输入浓度', async () => {
+    await saveInfluent({
+      date: '2026-08-05', mode: 'shared', reactorId: null, indicatorId: ids.codId,
+      sampleAbs: 40, blankAbs: null, dilution: null,
+    });
+    const list = await getInfluents('2026-08-05');
+    expect(list).toHaveLength(1);
+    expect(list[0].value).toBe(40);
+    expect(list[0].curveId).toBeNull();
+    expect(list[0].inputType).toBe('direct');
+  });
+
+  it('无标曲时换算值为 null，清除该格', async () => {
+    await db.curves.clear();
+    await saveInfluent({
+      date: '2026-08-05', mode: 'shared', reactorId: null, indicatorId: ids.nh4Id,
+      sampleAbs: 0.284, blankAbs: 0.012, dilution: 10,
+    });
     expect(await getInfluents('2026-08-05')).toHaveLength(0);
   });
 
+  it('覆盖更新，不产生重复', async () => {
+    const base = {
+      date: '2026-08-05', mode: 'shared' as const, reactorId: null, indicatorId: ids.nh4Id,
+      blankAbs: 0.012, dilution: 10,
+    };
+    await saveInfluent({ ...base, sampleAbs: 0.284 });
+    await saveInfluent({ ...base, sampleAbs: 0.5 });
+    const list = await getInfluents('2026-08-05');
+    expect(list).toHaveLength(1);
+    expect(list[0].sampleAbs).toBe(0.5);
+  });
+
   it('分罐模式按罐隔离', async () => {
-    await saveInfluent({ date: '2026-08-05', mode: 'perReactor', reactorId: ids.reactorId, indicatorId: ids.nh4Id, value: 40 });
-    await saveInfluent({ date: '2026-08-05', mode: 'perReactor', reactorId: ids.reactor2Id, indicatorId: ids.nh4Id, value: 80 });
+    const base = {
+      date: '2026-08-05', mode: 'perReactor' as const, indicatorId: ids.nh4Id,
+      sampleAbs: 0.284, blankAbs: 0.012, dilution: 10,
+    };
+    await saveInfluent({ ...base, reactorId: ids.reactorId });
+    await saveInfluent({ ...base, reactorId: ids.reactor2Id, sampleAbs: 0.5 });
     const list = await getInfluents('2026-08-05');
     expect(list).toHaveLength(2);
   });
