@@ -83,3 +83,31 @@ P0 地基 → P9 收尾全部完成，**104 个测试通过**，git 存档点 P0
 - OQ-5 标曲吸光度是否已减空白（当前公式统一由软件在测样时减）
 - OQ-6 检出限（已做成指标设置里的选填字段）
 - OQ-7 高氯酸盐记法（当前进水 perReactor 模式可记各罐投加浓度）
+
+### 部署/交付相关踩坑
+5. **start.bat 假设装了 Node.js**：用户的电脑 PATH 里没有 node/npm，
+   裸跑 `npm` 直接报"'npm' 不是内部或外部命令"。对策：start.bat 头部加
+   `where node` / `where npm` 检测，缺失时打印 Node.js 下载链接并 pause 退出；
+   README 顶部加「前置条件」小节。
+6. **Node.js 安装程序依赖 Windows Installer 服务**：用户电脑该服务不可用
+   （"The Windows Installer Service could not be accessed"），Node.js Setup Wizard
+   直接提前终止。**保底方案**（无需安装器、不依赖该服务）：
+   - 从 https://nodejs.org/dist/ 下载 `node-vXX-win-x64.zip`（选 LTS）
+   - 解压到例如 `C:\nodejs\`
+   - Win 键搜"环境变量" → "编辑系统环境变量" → 环境变量 → 找系统变量 `Path` → 编辑 → 新建 → `C:\nodejs` → 确定
+   - 重开 cmd，输入 `node -v` 和 `npm -v` 验证
+   - 然后双击 `start.bat` 即可
+7. **双击 .bat 启动的 cmd 进程读不到用户级 PATH**：用户手动 `node -v` 能跑
+   （PATH 在用户手动开的 cmd 里认到），但 `start.bat` 双击时 `where node` 失败。
+   原因是 explorer 启动的子进程有时不继承用户级 PATH，只看系统 PATH。
+   对策：start.bat **主动在常见位置找 node.exe**（`C:\nodejs`、
+   `C:\Program Files\nodejs`、`%LOCALAPPDATA%\Programs\nodejs`、scoop），找到后
+   把它的目录临时 `set PATH=...;%PATH%`，**不依赖系统环境变量**。
+
+### 用户当前环境（2026-08-30 验证后）
+- Windows 10.0.26200
+- Node.js **v26.8.1** / npm 11.19.0（**最新版，历史上未做广泛兼容性测试**）
+- Vite 5 + esbuild 0.21 等可能要求 Node ≤22 或 ≤24，Node 26 存在 build 失败风险
+  （esbuild native binary 不匹配 / Vite 内部 Node API 校验）。对策：若 build 报
+  "esbuild failed" / "EBADENGINE" / 找不到模块等，让用户降级到 Node 22 LTS
+  （用 https://nodejs.org/dist/v22.11.0/node-v22.11.0-win-x64.zip 绿色版覆盖安装目录）。
