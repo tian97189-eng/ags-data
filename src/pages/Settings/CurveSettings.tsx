@@ -2,14 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import ReactECharts from 'echarts-for-react';
 import { db, type CalibrationCurve } from '../../db/schema';
-import { countMeasurementsByCurve } from '../../lib/calibration';
+import { countMeasurementsByCurve, deleteCurve } from '../../lib/calibration';
 import { today, formatNumber } from '../../lib/format';
 import Chip from '../../components/common/Chip';
 import EmptyState from '../../components/common/EmptyState';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import CurveForm from './CurveForm';
 import FormulaForm from './FormulaForm';
+import { useAppStore } from '../../store/useAppStore';
 
 export default function CurveSettings() {
+  const toast = useAppStore((s) => s.toast);
   const indicators = useLiveQuery(
     async () => {
       const all = await db.indicators.toArray();
@@ -23,6 +26,7 @@ export default function CurveSettings() {
   const [showForm, setShowForm] = useState(false);
   const [showFormula, setShowFormula] = useState(false);
   const [counts, setCounts] = useState<Record<number, number>>({});
+  const [deleting, setDeleting] = useState<CalibrationCurve | null>(null);
 
   useEffect(() => {
     if (indicatorId == null && indicators && indicators.length > 0) {
@@ -66,6 +70,13 @@ export default function CurveSettings() {
 
   const isCod = indicator?.method === 'direct';
   const isFormula = current?.formulaType === 'formula';
+
+  async function handleDelete() {
+    if (!deleting) return;
+    await deleteCurve(deleting.id!);
+    setDeleting(null);
+    toast('曲线已删除', 'info');
+  }
 
   const currentOption = useMemo(() => {
     const pts = current?.points ?? [];
@@ -136,10 +147,21 @@ export default function CurveSettings() {
         />
       ) : (
         <>
-          <div className="text-xs text-slate-500 mb-2">
-            当前生效 · {indicator?.name}
+          <div className="flex items-center text-xs text-slate-500 mb-2">
+            <span>
+              当前生效 · {indicator?.name}
+              {current && (
+                <span className="text-slate-400 ml-1">（{current.effectiveFrom} 起）</span>
+              )}
+            </span>
             {current && (
-              <span className="text-slate-400 ml-1">（{current.effectiveFrom} 起）</span>
+              <button
+                type="button"
+                onClick={() => setDeleting(current)}
+                className="ml-auto text-red-500 hover:text-red-600"
+              >
+                删除此曲线
+              </button>
             )}
           </div>
 
@@ -229,6 +251,7 @@ export default function CurveSettings() {
                   <th className="text-left py-2 px-2 border-b border-slate-200">参数 / 公式</th>
                   <th className="text-left py-2 px-2 border-b border-slate-200">批号</th>
                   <th className="text-left py-2 px-2 border-b border-slate-200">状态</th>
+                  <th className="text-right py-2 px-2 border-b border-slate-200">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -254,6 +277,15 @@ export default function CurveSettings() {
                     <td className="py-2 px-2 border-b border-slate-100 text-slate-500">
                       停用 · 仍算着 {(counts[c.id!] ?? 0)} 条旧数据
                     </td>
+                    <td className="py-2 px-2 border-b border-slate-100 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setDeleting(c)}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        删除
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -277,6 +309,20 @@ export default function CurveSettings() {
           onSaved={() => setShowFormula(false)}
         />
       )}
+
+      <ConfirmDialog
+        open={!!deleting}
+        title="删除标准曲线"
+        message={
+          deleting?.effectiveTo === null
+            ? `确定删除「${indicator?.name}」当前生效的曲线吗？\n删除后该指标将没有可用标曲，新数据无法换算；已录入数据的浓度不受影响。`
+            : `确定删除这条历史曲线吗？\n仍有 ${counts[deleting?.id ?? -1] ?? 0} 条旧数据引用它，删除后这些数据会失去曲线追溯，但已计算的浓度值不受影响。`
+        }
+        confirmText="删除"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setDeleting(null)}
+      />
     </div>
   );
 }

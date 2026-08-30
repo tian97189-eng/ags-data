@@ -135,3 +135,8 @@ export async function saveCurve(
 export async function countMeasurementsByCurve(curveId: number): Promise<number> {
   return db.measurements.where('curveId').equals(curveId).count();
 }
+
+/** 删除一条标准曲线。已存测量值的浓度不受影响（冗余存储），仅失去曲线追溯。 */
+export async function deleteCurve(curveId: number): Promise<void> {
+  await db.curves.delete(curveId);
+}

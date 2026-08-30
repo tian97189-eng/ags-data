@@ -6,6 +6,7 @@ import {
   computeConcentration,
   saveCurve,
   countMeasurementsByCurve,
+  deleteCurve,
 } from './calibration';
 
 async function clearAll() {
@@ -324,5 +325,55 @@ describe('saveCurve', () => {
       note: '',
     });
     expect(await countMeasurementsByCurve(r.id!)).toBe(1);
+  });
+});
+
+describe('deleteCurve', () => {
+  beforeEach(clearAll);
+
+  it('删除曲线后 curves 表少一条', async () => {
+    const r = await saveCurve({
+      indicatorId: 1,
+      effectiveFrom: '2026-08-01',
+      k: 0.3,
+      b: 0.1,
+      r2: 0.999,
+      points: [],
+      batchNo: '',
+      note: '',
+      createdAt: '',
+    });
+    expect(r.ok).toBe(true);
+    expect(await db.curves.count()).toBe(1);
+
+    await deleteCurve(r.id!);
+    expect(await db.curves.count()).toBe(0);
+  });
+
+  it('删除曲线不影响已存测量值的浓度（冗余存储）', async () => {
+    const r = await saveCurve({
+      indicatorId: 1,
+      effectiveFrom: '2026-08-01',
+      k: 0.3,
+      b: 0.1,
+      r2: 0.999,
+      points: [],
+      batchNo: '',
+      note: '',
+      createdAt: '',
+    });
+    const mId = await db.measurements.add({
+      scene: 'daily', date: '2026-08-05', phase: null, reactorId: 1, indicatorId: 1,
+      inputType: 'absorbance', sampleAbs: 0.284, blankAbs: 0.012, dilution: 10,
+      value: 5.7333, curveId: r.id!,
+      blankOverridden: false, dilutionOverridden: false, note: '',
+    });
+
+    await deleteCurve(r.id!);
+
+    const m = await db.measurements.get(mId);
+    expect(m).toBeTruthy();
+    expect(m?.value).toBeCloseTo(5.7333, 4);
+    expect(m?.curveId).toBe(r.id); // curveId 保留，指向已删除的曲线
   });
 });
