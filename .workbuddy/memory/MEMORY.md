@@ -59,3 +59,27 @@ React 18 + TypeScript + Vite + Tailwind + Dexie(IndexedDB) + ECharts + SheetJS(x
   因此日常录入表方向 = **行=指标，列=罐**；布局改为「每个指标一张卡片，卡内按罐分列，
   空白/稀释放在各指标卡内」（此前草图的"顶部共用行"改为"指标卡内共用行"）。
 - 开始按 DEV_PLAN 连续开发（P0→P9，每阶段加测试并跑通）。
+
+## 开发完成（2026-08-30，全部 9 阶段交付）
+P0 地基 → P9 收尾全部完成，**104 个测试通过**，git 存档点 P0~P9 齐全。
+- 技术栈：React18+TS+Vite5+Tailwind+Dexie(IndexedDB)+ECharts+SheetJS+Zustand+vite-plugin-pwa
+- 测试框架：Vitest + fake-indexeddb + Testing Library；测试文件 15 个、104 用例
+- 数据模型落地：9 张 Dexie 表，measurements 冗余 curveId 追溯标曲
+- 交付文件：`start.bat`（双击启动）、`README.md`（使用说明）
+
+### 开发中踩过的坑（下次注意）
+1. **沙箱 safe-delete 干扰 npm/vite**：WorkBuddy 沙箱把 rm 换成"回收站"操作，失败时导致
+   npm 解包丢 .js 文件、vite build 清 dist 失败。对策：npm install/build 用
+   `dangerouslyDisableSandbox`；vite build 设 `emptyOutDir:false`。
+2. **vitest 默认按 CPU 核数开 worker 导致 OOM**（本机 16 核、空余 3.3GB）。对策：限制
+   `poolOptions.threads.maxThreads=4`。
+3. **Dexie 复合索引不能含 null**：influents 的 [date+indicatorId+reactorId] 在 shared 模式
+   reactorId=null 时 fake-indexeddb 抛错。对策：去掉复合索引，用 where('date')+filter。
+4. **Dexie clear 不重置自增主键**：测试里硬编码 id 会因跨用例错位。对策：seed 函数返回真实 id。
+
+### 遗留待定项（不影响使用，后续可补）
+- OQ-2 全周期单指标切换（已按方案①实现，未再单独确认）
+- OQ-4 手机端 HTTPS 方案（PWA 安装需 HTTPS，README 已说明）
+- OQ-5 标曲吸光度是否已减空白（当前公式统一由软件在测样时减）
+- OQ-6 检出限（已做成指标设置里的选填字段）
+- OQ-7 高氯酸盐记法（当前进水 perReactor 模式可记各罐投加浓度）
