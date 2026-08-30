@@ -58,6 +58,12 @@ if errorlevel 1 (
     exit /b 1
 )
 
+rem Free port 4173 in case a previous preview is still running
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr :4173 ^| findstr LISTENING') do (
+    echo Killing leftover process %%P on port 4173...
+    taskkill /F /PID %%P >nul 2>&1
+)
+
 echo [3/3] Starting server at http://localhost:4173
 start "" http://localhost:4173
 call npm run preview -- --port 4173 --strictPort
