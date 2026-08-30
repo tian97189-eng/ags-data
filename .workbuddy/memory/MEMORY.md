@@ -111,3 +111,15 @@ P0 地基 → P9 收尾全部完成，**104 个测试通过**，git 存档点 P0
   （esbuild native binary 不匹配 / Vite 内部 Node API 校验）。对策：若 build 报
   "esbuild failed" / "EBADENGINE" / 找不到模块等，让用户降级到 Node 22 LTS
   （用 https://nodejs.org/dist/v22.11.0/node-v22.11.0-win-x64.zip 绿色版覆盖安装目录）。
+
+### GitHub 远程仓库（2026-08-30 配置）
+- 远程地址：`https://github.com/tian97189-eng/ags-data.git`（已 `git remote add origin`，本地已保存）
+- 本地分支 `master`，首次推送有 26 个提交
+- **首次 push 必须由用户在自己的 cmd 里执行** `git push -u origin master`：
+  我的 Bash 环境无 tty（报 `/dev/tty: No such device or address` + `could not read Username`），
+  PowerShell 工具也触发不到 GCM 的 GUI 授权弹窗到用户桌面，**无法代跑 push**。
+- 认证：Windows 凭据管理器（GCM）会弹浏览器/窗口让用户登录 GitHub，无需手动配 token
+- 上传内容仅代码（83 个文件 <1MB），`.gitignore` 已排除 node_modules / dist；
+  **实验数据在浏览器 IndexedDB，不会上传**，无隐私风险
+- 后续同步：用户改完代码后 `git add -A && git commit -m "说明" && git push`，
+  或用 GitHub Desktop 点 Commit → Push origin

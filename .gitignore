@@ -6,3 +6,4 @@ dist-ssr
 .vite
 coverage
 vite.config.ts.timestamp-*
+certs
