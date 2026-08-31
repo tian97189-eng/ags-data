@@ -106,7 +106,7 @@ describe('parseImportFile', () => {
 describe('buildImportTemplate', () => {
   it('生成含示例数据的模板 sheet', () => {
     const wb = buildImportTemplate();
-    expect(wb.SheetNames).toContain('数据');
+    expect(wb.SheetNames).toEqual(['使用说明', '数据', '示例场景']);
     const rows = XLSX.utils.sheet_to_json(wb.Sheets['数据']);
     expect(rows.length).toBeGreaterThan(0);
     expect((rows[0] as any)).toHaveProperty('日期');
