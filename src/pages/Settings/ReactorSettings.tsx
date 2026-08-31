@@ -73,52 +73,54 @@ export default function ReactorSettings() {
       {!reactors || reactors.length === 0 ? (
         <EmptyState title="还没有反应器" desc="点右上角新增一个罐，比如 R1" />
       ) : (
-        <table className="w-full table-fixed border-collapse text-xs">
-          <thead>
-            <tr className="text-slate-500">
-              <th className="text-left py-2 px-2 border-b border-slate-200 w-20">编号</th>
-              <th className="text-left py-2 px-2 border-b border-slate-200">显示名</th>
-              <th className="text-left py-2 px-2 border-b border-slate-200">备注</th>
-              <th className="text-left py-2 px-2 border-b border-slate-200 w-16">状态</th>
-              <th className="text-right py-2 px-2 border-b border-slate-200 w-40">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reactors.map((r) => (
-              <tr key={r.id}>
-                <td className="py-2 px-2 border-b border-slate-100">{r.code}</td>
-                <td className="py-2 px-2 border-b border-slate-100">{r.name}</td>
-                <td className="py-2 px-2 border-b border-slate-100 text-slate-500">{r.note || '—'}</td>
-                <td className="py-2 px-2 border-b border-slate-100">
-                  {r.active ? (
-                    <span className="text-teal-700">启用</span>
-                  ) : (
-                    <span className="text-slate-400">停用</span>
-                  )}
-                </td>
-                <td className="py-2 px-2 border-b border-slate-100 text-right space-x-1">
-                  <button
-                    type="button"
-                    className="text-teal-700"
-                    onClick={() => setEditing({ ...r })}
-                  >
-                    编辑
-                  </button>
-                  <button
-                    type="button"
-                    className={r.active ? 'text-slate-500' : 'text-amber-600'}
-                    onClick={() => toggleActive(r)}
-                  >
-                    {r.active ? '停用' : '启用'}
-                  </button>
-                  <button type="button" className="text-red-600" onClick={() => askDelete(r)}>
-                    删除
-                  </button>
-                </td>
+        <div className="overflow-x-auto -mx-3 px-3">
+          <table className="w-full table-fixed border-collapse text-xs min-w-[640px]">
+            <thead>
+              <tr className="text-slate-500">
+                <th className="text-left py-2 px-2 border-b border-slate-200 w-16 whitespace-nowrap">编号</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 min-w-[6rem] whitespace-nowrap">显示名</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 min-w-[8rem] whitespace-nowrap">备注</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 w-20 whitespace-nowrap">状态</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200 min-w-[7.5rem] whitespace-nowrap">操作</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {reactors.map((r) => (
+                <tr key={r.id}>
+                  <td className="py-2 px-2 border-b border-slate-100 whitespace-nowrap">{r.code}</td>
+                  <td className="py-2 px-2 border-b border-slate-100 whitespace-nowrap">{r.name}</td>
+                  <td className="py-2 px-2 border-b border-slate-100 text-slate-500 whitespace-nowrap">{r.note || '—'}</td>
+                  <td className="py-2 px-2 border-b border-slate-100 whitespace-nowrap">
+                    {r.active ? (
+                      <span className="text-teal-700">启用</span>
+                    ) : (
+                      <span className="text-slate-400">停用</span>
+                    )}
+                  </td>
+                  <td className="py-2 px-2 border-b border-slate-100 text-right space-x-1 whitespace-nowrap">
+                    <button
+                      type="button"
+                      className="text-teal-700"
+                      onClick={() => setEditing({ ...r })}
+                    >
+                      编辑
+                    </button>
+                    <button
+                      type="button"
+                      className={r.active ? 'text-slate-500' : 'text-amber-600'}
+                      onClick={() => toggleActive(r)}
+                    >
+                      {r.active ? '停用' : '启用'}
+                    </button>
+                    <button type="button" className="text-red-600" onClick={() => askDelete(r)}>
+                      删除
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {editing && (

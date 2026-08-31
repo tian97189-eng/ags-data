@@ -95,59 +95,61 @@ export default function IndicatorSettings() {
         不想测了再点「停用」就行，历史数据保留。
       </div>
 
-      <table className="w-full table-fixed border-collapse text-xs">
-        <thead>
-          <tr className="text-slate-500">
-            <th className="text-left py-2 px-2 border-b border-slate-200">名称</th>
-            <th className="text-left py-2 px-2 border-b border-slate-200 w-20">计量方式</th>
-            <th className="text-left py-2 px-2 border-b border-slate-200 w-16">单位</th>
-            <th className="text-right py-2 px-2 border-b border-slate-200 w-16">稀释</th>
-            <th className="text-left py-2 px-2 border-b border-slate-200">参考范围</th>
-            <th className="text-right py-2 px-2 border-b border-slate-200 w-40">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          {indicators?.map((i) => (
-            <tr key={i.id}>
-              <td className="py-2 px-2 border-b border-slate-100">
-                {i.name}
-                {i.category === 'custom' && (
-                  <span className="ml-1 text-[10px] text-slate-400">自定义</span>
-                )}
-              </td>
-              <td className="py-2 px-2 border-b border-slate-100">
-                {METHOD_LABEL[i.method]}
-              </td>
-              <td className="py-2 px-2 border-b border-slate-100">{i.unit}</td>
-              <td className="py-2 px-2 border-b border-slate-100 text-right">
-                {i.method === 'absorbance' ? `×${i.defaultDilution}` : '—'}
-              </td>
-              <td className="py-2 px-2 border-b border-slate-100 text-slate-500">
-                {i.refLow != null || i.refHigh != null
-                  ? `${i.refLow ?? '?'} ~ ${i.refHigh ?? '?'}`
-                  : '—'}
-              </td>
-              <td className="py-2 px-2 border-b border-slate-100 text-right space-x-1">
-                <button type="button" className="text-teal-700" onClick={() => setEditing({ ...i })}>
-                  编辑
-                </button>
-                <button
-                  type="button"
-                  className={i.active ? 'text-slate-500' : 'text-amber-600'}
-                  onClick={() => toggleActive(i)}
-                >
-                  {i.active ? '停用' : '启用'}
-                </button>
-                {i.category === 'custom' && (
-                  <button type="button" className="text-red-600" onClick={() => askDelete(i)}>
-                    删除
-                  </button>
-                )}
-              </td>
+      <div className="overflow-x-auto -mx-3 px-3">
+        <table className="w-full table-fixed border-collapse text-xs min-w-[680px]">
+          <thead>
+            <tr className="text-slate-500">
+              <th className="text-left py-2 px-2 border-b border-slate-200 min-w-[5.5rem] whitespace-nowrap">名称</th>
+              <th className="text-left py-2 px-2 border-b border-slate-200 min-w-[5.5rem] whitespace-nowrap">计量方式</th>
+              <th className="text-left py-2 px-2 border-b border-slate-200 w-16 whitespace-nowrap">单位</th>
+              <th className="text-right py-2 px-2 border-b border-slate-200 w-16 whitespace-nowrap">稀释</th>
+              <th className="text-left py-2 px-2 border-b border-slate-200 min-w-[7rem] whitespace-nowrap">参考范围</th>
+              <th className="text-right py-2 px-2 border-b border-slate-200 min-w-[7.5rem] whitespace-nowrap">操作</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {indicators?.map((i) => (
+              <tr key={i.id}>
+                <td className="py-2 px-2 border-b border-slate-100 whitespace-nowrap">
+                  {i.name}
+                  {i.category === 'custom' && (
+                    <span className="ml-1 text-[10px] text-slate-400">自定义</span>
+                  )}
+                </td>
+                <td className="py-2 px-2 border-b border-slate-100 whitespace-nowrap">
+                  {METHOD_LABEL[i.method]}
+                </td>
+                <td className="py-2 px-2 border-b border-slate-100 whitespace-nowrap">{i.unit}</td>
+                <td className="py-2 px-2 border-b border-slate-100 text-right whitespace-nowrap">
+                  {i.method === 'absorbance' ? `×${i.defaultDilution}` : '—'}
+                </td>
+                <td className="py-2 px-2 border-b border-slate-100 text-slate-500 whitespace-nowrap">
+                  {i.refLow != null || i.refHigh != null
+                    ? `${i.refLow ?? '?'} ~ ${i.refHigh ?? '?'}`
+                    : '—'}
+                </td>
+                <td className="py-2 px-2 border-b border-slate-100 text-right space-x-1 whitespace-nowrap">
+                  <button type="button" className="text-teal-700" onClick={() => setEditing({ ...i })}>
+                    编辑
+                  </button>
+                  <button
+                    type="button"
+                    className={i.active ? 'text-slate-500' : 'text-amber-600'}
+                    onClick={() => toggleActive(i)}
+                  >
+                    {i.active ? '停用' : '启用'}
+                  </button>
+                  {i.category === 'custom' && (
+                    <button type="button" className="text-red-600" onClick={() => askDelete(i)}>
+                      删除
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {editing && (
         <div

@@ -48,4 +48,26 @@ describe('ReactorSettings', () => {
 
     expect(await db.reactors.count()).toBe(0);
   });
+
+  it('表格窄屏适配：表格有 min-w + 父容器可横向滚动（避免手机端列被挤成单字）', async () => {
+    await db.reactors.add({
+      code: 'R1', name: 'R1', note: '好氧罐', active: true, sortOrder: 1, createdAt: '',
+    });
+    render(<ReactorSettings />);
+    await screen.findByText('好氧罐');
+
+    const table = document.querySelector('table');
+    expect(table).not.toBeNull();
+    // 表格设了 min-w-[640px]，避免被压扁
+    expect(table!.className).toMatch(/min-w-\[640px\]/);
+    // 父容器 overflow-x-auto 提供横向滚动
+    expect(table!.parentElement!.className).toMatch(/overflow-x-auto/);
+    // 关键列有最小宽度与 nowrap（防止"亚硝态氮""吸光度换算"被压成竖排）
+    const ths = table!.querySelectorAll('thead th');
+    const thClasses = Array.from(ths).map((th) => th.className).join(' | ');
+    expect(thClasses).toMatch(/min-w-\[6rem\]/); // 显示名
+    expect(thClasses).toMatch(/min-w-\[8rem\]/); // 备注
+    expect(thClasses).toMatch(/min-w-\[7\.5rem\]/); // 操作
+    expect(thClasses).toMatch(/whitespace-nowrap/);
+  });
 });

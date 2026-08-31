@@ -125,4 +125,25 @@ describe('IndicatorSettings 自定义指标支持公式/标准曲线', () => {
     render(<IndicatorSettings />);
     expect(screen.getByText(/默认.*停用/)).toBeInTheDocument();
   });
+
+  it('表格窄屏适配：min-w + overflow-x-auto + 名称/计量方式列加最小宽度 + nowrap', async () => {
+    await db.indicators.add({
+      name: '氨氮', category: 'basic', method: 'absorbance', unit: 'mg/L',
+      defaultDilution: 10, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 1,
+    });
+    render(<IndicatorSettings />);
+    await screen.findByText('吸光度换算');
+
+    const table = document.querySelector('table');
+    expect(table).not.toBeNull();
+    // 表格设了 min-w-[680px]
+    expect(table!.className).toMatch(/min-w-\[680px\]/);
+    // 父容器 overflow-x-auto
+    expect(table!.parentElement!.className).toMatch(/overflow-x-auto/);
+    // 名称 + 计量方式各 ≥5.5rem（够"吸光度换算"4-5个字横向展示）
+    const ths = table!.querySelectorAll('thead th');
+    const thClasses = Array.from(ths).map((th) => th.className).join(' | ');
+    expect(thClasses).toMatch(/min-w-\[5\.5rem\]/);
+    expect(thClasses).toMatch(/whitespace-nowrap/);
+  });
 });
