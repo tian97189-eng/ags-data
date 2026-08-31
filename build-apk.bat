@@ -76,7 +76,8 @@ echo      android sync ok.
 rem ======== [6/7] Build APK (gradle) ========
 echo [6/7] Building APK. First run downloads dependencies, it can take 5-15 min. Do not close this window.
 cd /d "%BUILD%\android"
-call "C:\Users\sky\gradle-dist\gradle-8.14.3\bin\gradle.bat" assembleRelease --no-daemon >> "%LOG%" 2>&1
+rem 直接用 java 启动 gradle（绕开 gradle.bat 结尾的 exit 行为，防止窗口被关闭导致后续步骤丢失）
+"%JAVA_HOME%\bin\java.exe" -Dorg.gradle.appname=gradlew -classpath "C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar" org.gradle.launcher.GradleMain assembleRelease --no-daemon >> "%LOG%" 2>&1
 if errorlevel 1 goto fail
 echo      apk build ok.
 
