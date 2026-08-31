@@ -89,4 +89,40 @@ describe('IndicatorSettings 自定义指标支持公式/标准曲线', () => {
     await userEvent.selectOptions(methodSelect, 'direct');
     expect(dilutionInput.disabled).toBe(true);
   });
+
+  it('新建自定义指标默认停用（active=false），需要在表格里点启用', async () => {
+    render(<IndicatorSettings />);
+    await userEvent.click(screen.getByText('新增自定义指标'));
+    const nameInput = screen.getByLabelText('名称') as HTMLInputElement;
+    await userEvent.type(nameInput, 'EPS');
+    await userEvent.click(screen.getByText('保存'));
+
+    await waitFor(async () => {
+      const eps = await db.indicators.where('name').equals('EPS').first();
+      expect(eps).toBeDefined();
+      // 新建的默认停用 —— 用户主动启用才进入数据录入/全周期
+      expect(eps?.active).toBe(false);
+    });
+  });
+
+  it('停用状态的指标点"启用"按钮 → active=true', async () => {
+    await db.indicators.add({
+      name: 'SVI', category: 'custom', method: 'direct', unit: 'mL/g',
+      defaultDilution: 1, refLow: null, refHigh: null, lod: null, active: false, sortOrder: 10,
+    });
+    render(<IndicatorSettings />);
+    await screen.findByText('SVI');
+    // 表格行显示 "启用" 按钮（停用状态时按钮文案是"启用"）
+    const enableBtn = screen.getByRole('button', { name: '启用' });
+    await userEvent.click(enableBtn);
+    await waitFor(async () => {
+      const svi = await db.indicators.where('name').equals('SVI').first();
+      expect(svi?.active).toBe(true);
+    });
+  });
+
+  it('顶部提示文字告诉用户默认停用、需手动启用', () => {
+    render(<IndicatorSettings />);
+    expect(screen.getByText(/默认.*停用/)).toBeInTheDocument();
+  });
 });

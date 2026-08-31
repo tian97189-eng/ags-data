@@ -48,7 +48,8 @@ export default function IndicatorSettings() {
         refLow: editing.refLow ?? null,
         refHigh: editing.refHigh ?? null,
         lod: editing.lod ?? null,
-        active: true,
+        // 自定义指标默认停用，需要时点"启用"才进入数据录入/全周期
+        active: false,
         sortOrder: (last?.sortOrder ?? 0) + 1,
       });
     }
@@ -87,6 +88,11 @@ export default function IndicatorSettings() {
         >
           新增自定义指标
         </button>
+      </div>
+
+      <div className="text-xs text-slate-500 mb-3 border-l-2 border-teal-200 pl-2">
+        新增的自定义指标默认<strong>停用</strong>，需要测量时在下面表格点<strong>「启用」</strong>才会出现在数据录入和全周期。
+        不想测了再点「停用」就行，历史数据保留。
       </div>
 
       <table className="w-full table-fixed border-collapse text-xs">
