@@ -218,9 +218,21 @@ export default function BackupSettings() {
     toast(`已导入 ${n} 条测量记录`, 'success');
   }
 
-  function handleDownloadTemplate() {
+  async function handleDownloadTemplate() {
     const wb = buildImportTemplate();
-    XLSX.writeFile(wb, 'AGS数据导入模板.xlsx');
+    // APK（WebView）里 XLSX.writeFile 的 a.click() 下载不可见 → 复用 saveAndShare 走 Capacitor 保存+分享
+    const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+    const res = await saveAndShare({
+      filename: 'AGS数据导入模板.xlsx',
+      content: base64,
+      mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      encoding: 'base64',
+    });
+    if (res.method === 'native') {
+      toast('模板已保存到手机，请在分享面板选择"保存到文件"', 'success');
+    } else {
+      toast('模板已下载', 'success');
+    }
   }
 
   async function doImport(mode: 'merge' | 'overwrite') {
