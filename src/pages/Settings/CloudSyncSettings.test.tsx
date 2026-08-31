@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   syncNow: vi.fn(),
   getSavedEnvId: vi.fn(),
   saveEnvId: vi.fn(),
+  getSavedAccessKey: vi.fn(),
+  saveAccessKey: vi.fn(),
   isSyncing: vi.fn(() => false),
   onSyncStateChange: vi.fn(() => () => {}),
   syncState: { status: 'idle' as string, lastSyncAt: null, lastError: '', pendingOps: 0, envId: '' },
@@ -20,6 +22,8 @@ vi.mock('../../lib/sync', () => ({
   syncNow: mocks.syncNow,
   getSavedEnvId: mocks.getSavedEnvId,
   saveEnvId: mocks.saveEnvId,
+  getSavedAccessKey: mocks.getSavedAccessKey,
+  saveAccessKey: mocks.saveAccessKey,
   isSyncing: mocks.isSyncing,
   onSyncStateChange: mocks.onSyncStateChange,
   syncState: mocks.syncState,
@@ -34,8 +38,12 @@ beforeEach(async () => {
   mocks.syncNow.mockReset();
   mocks.getSavedEnvId.mockReset();
   mocks.saveEnvId.mockReset();
+  mocks.getSavedAccessKey.mockReset();
+  mocks.saveAccessKey.mockReset();
   mocks.getSavedEnvId.mockResolvedValue('');
   mocks.saveEnvId.mockResolvedValue(undefined);
+  mocks.getSavedAccessKey.mockResolvedValue('');
+  mocks.saveAccessKey.mockResolvedValue(undefined);
   mocks.initSync.mockResolvedValue(undefined);
   mocks.syncNow.mockResolvedValue(undefined);
   mocks.syncState.status = 'idle';
@@ -51,15 +59,29 @@ describe('CloudSyncSettings 云同步面板', () => {
     expect(screen.getByText('启用云同步')).toBeTruthy();
   });
 
-  it('填入环境 ID 点启用 → 保存并连接', async () => {
+  it('填入环境 ID 与 API 密钥点启用 → 保存并连接', async () => {
     render(<CloudSyncSettings />);
-    const input = await screen.findByPlaceholderText(/xxx-1a2b3c/);
-    await userEvent.type(input, 'my-env-123');
+    const envInput = await screen.findByPlaceholderText(/ags-/);
+    await userEvent.type(envInput, 'my-env-123');
+    const keyInput = await screen.findByPlaceholderText(/pk-/);
+    await userEvent.type(keyInput, 'pk-test-key');
     await userEvent.click(screen.getByText('启用云同步'));
     await waitFor(() => {
       expect(mocks.saveEnvId).toHaveBeenCalledWith('my-env-123');
-      expect(mocks.initSync).toHaveBeenCalledWith('my-env-123');
+      expect(mocks.saveAccessKey).toHaveBeenCalledWith('pk-test-key');
+      expect(mocks.initSync).toHaveBeenCalledWith('my-env-123', 'pk-test-key');
     });
+  });
+
+  it('未填 API 密钥点启用会提示', async () => {
+    render(<CloudSyncSettings />);
+    const envInput = await screen.findByPlaceholderText(/ags-/);
+    await userEvent.type(envInput, 'my-env-123');
+    // 不填 API 密钥
+    await userEvent.click(screen.getByText('启用云同步'));
+    // initSync 不应被调用
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mocks.initSync).not.toHaveBeenCalled();
   });
 
   it('已连接时显示立即同步与停用按钮', async () => {

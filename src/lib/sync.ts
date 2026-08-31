@@ -20,6 +20,7 @@ import {
   cloudRemoveByLocalId,
   cloudFindByLocalId,
   cloudWatch,
+  formatError,
   type CloudCollection,
 } from './cloud';
 
@@ -300,14 +301,14 @@ async function reconcile(): Promise<void> {
 
 // ---------- 生命周期 ----------
 
-export async function initSync(envId: string): Promise<void> {
+export async function initSync(envId: string, accessKey: string): Promise<void> {
   if (running) return;
   syncState.status = 'connecting';
   syncState.envId = envId;
   syncState.lastError = '';
   emit();
   try {
-    await initCloud(envId);
+    await initCloud(envId, accessKey);
     await replayQueue(); // 先补传离线修改
     await reconcile(); // 再双向对账
     startWatch();
@@ -319,7 +320,7 @@ export async function initSync(envId: string): Promise<void> {
   } catch (err) {
     running = false;
     syncState.status = 'error';
-    syncState.lastError = err instanceof Error ? err.message : String(err);
+    syncState.lastError = formatError(err);
     emit();
     throw err;
   }
@@ -353,7 +354,7 @@ export async function syncNow(): Promise<void> {
     emit();
   } catch (err) {
     syncState.status = 'error';
-    syncState.lastError = err instanceof Error ? err.message : String(err);
+    syncState.lastError = formatError(err);
     emit();
     throw err;
   }
@@ -365,7 +366,17 @@ export async function getSavedEnvId(): Promise<string> {
   return (s?.value as string) ?? '';
 }
 
-/** 保存环境 ID（不自动连接） */
+/** 读取已保存的 API 密钥 */
+export async function getSavedAccessKey(): Promise<string> {
+  const s = await db.settings.get('cloudAccessKey');
+  return (s?.value as string) ?? '';
+}
+
+/** 保存环境 ID 和 API 密钥（不自动连接） */
 export async function saveEnvId(envId: string): Promise<void> {
   await db.settings.put({ key: 'cloudEnvId', value: envId.trim() });
+}
+
+export async function saveAccessKey(accessKey: string): Promise<void> {
+  await db.settings.put({ key: 'cloudAccessKey', value: accessKey.trim() });
 }

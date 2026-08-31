@@ -38,24 +38,60 @@ export function hasEnvId(envId?: string): boolean {
 }
 
 /**
+ * 把任意错误对象转成可读字符串。
+ * SDK 经常抛非标准对象（带 code/errCode/msg 字段），直接 err.message 会得到空或 [object Object]。
+ */
+export function formatError(err: unknown): string {
+  if (!err) return '未知错误';
+  if (typeof err === 'string') return err;
+  if (err instanceof Error) {
+    if (err.message) return err.message;
+    return `${err.name}: ${err.stack?.split('\n')[0] ?? err.toString()}`;
+  }
+  if (typeof err === 'object') {
+    const e = err as Record<string, unknown>;
+    const msg = e.message ?? e.msg ?? e.errorMessage ?? e.errMsg;
+    const code = e.code ?? e.errCode;
+    if (msg && code) return `[${code}] ${String(msg)}`;
+    if (msg) return String(msg);
+    try {
+      return JSON.stringify(err, null, 2);
+    } catch {
+      return String(err);
+    }
+  }
+  return String(err);
+}
+
+/**
  * 初始化云环境并匿名登录。
  * 匿名登录：用户无需注册账号，CloudBase 自动分配匿名身份；
  * 集合权限设为「所有用户可读写」即可跨设备共享同一份数据。
+ *
+ * 重要（SDK 3.x）：
+ *  - 必须传 accessKey（发布密钥，从控制台「Web 安全域名 / API Key」页拿）
+ *  - 默认 app.auth() 在已签发 token 后不再走 signInAnonymously；
+ *    getLoginState() 不可靠（即使无真实登录也返回状态），这里强制调用匿名登录
+ *  - 匿名登录默认**禁用**，需控制台「用户管理 → 登录方式」里启用
  */
-export async function initCloud(envId: string): Promise<void> {
+export async function initCloud(envId: string, accessKey: string, region?: string): Promise<void> {
   if (!hasEnvId(envId)) throw new Error('请先填写云环境 ID');
+  if (!accessKey || !accessKey.trim()) throw new Error('请先填写 API 密钥（accessKey）');
   if (app && authed) return; // 已就绪
   if (!app) {
-    app = cloudbase.init({ env: envId.trim() });
+    app = cloudbase.init({
+      env: envId.trim(),
+      accessKey: accessKey.trim(),
+      ...(region?.trim() ? { region: region.trim() } : {}),
+    });
   }
   cdb = app.database();
   const auth = app.auth();
-  const state = auth.getLoginState();
-  if (state) {
-    authed = true;
-    return;
+  // 3.x 的 signInAnonymously 返回 { data, error }（Supabase-like）；不抛错
+  const res = await auth.signInAnonymously();
+  if (res?.error) {
+    throw new Error(formatError(res.error));
   }
-  await auth.signInAnonymously();
   authed = true;
 }
 

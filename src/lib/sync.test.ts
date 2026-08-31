@@ -68,7 +68,7 @@ describe('环境 ID 存取', () => {
 describe('待同步队列', () => {
   it('队列变化时 pendingOps 更新', async () => {
     mocks.initCloud.mockResolvedValue(undefined);
-    await initSync('env-1'); // 先启动，注册本地 hooks
+    await initSync('env-1', 'test-key'); // 先启动，注册本地 hooks
     mocks.cloudAdd.mockRejectedValue(new Error('offline')); // 之后的新增推送失败 → 入队
     await db.reactors.add({ code: 'R1', name: '一号罐', note: '', active: true, sortOrder: 0, createdAt: '2026-08-31' });
     // creating hook 是 setTimeout 延后的，等一拍
@@ -89,7 +89,7 @@ describe('reconcile 双向对账', () => {
       return [];
     });
     mocks.initCloud.mockResolvedValue(undefined);
-    await initSync('env-1');
+    await initSync('env-1', 'test-key');
     const rows = await db.reactors.toArray();
     expect(rows).toHaveLength(1);
     expect(rows[0].id).toBe(1);
@@ -101,7 +101,7 @@ describe('reconcile 双向对账', () => {
   it('本地独有 → 推上云端（带 localId）', async () => {
     const localId = await db.reactors.add({ code: 'R1', name: '本地罐', note: '', active: true, sortOrder: 0, createdAt: '2026-08-31' });
     mocks.initCloud.mockResolvedValue(undefined);
-    await initSync('env-1');
+    await initSync('env-1', 'test-key');
     expect(mocks.cloudAdd).toHaveBeenCalled();
     const [col, payload] = mocks.cloudAdd.mock.calls[0];
     expect(col).toBe('reactors');
@@ -119,7 +119,7 @@ describe('reconcile 双向对账', () => {
       return [];
     });
     mocks.initCloud.mockResolvedValue(undefined);
-    await initSync('env-1');
+    await initSync('env-1', 'test-key');
     const rows = await db.reactors.toArray();
     expect(rows).toHaveLength(1);
     expect(rows[0].name).toBe('一致罐');
@@ -135,7 +135,7 @@ describe('reconcile 双向对账', () => {
       return [];
     });
     mocks.initCloud.mockResolvedValue(undefined);
-    await initSync('env-1');
+    await initSync('env-1', 'test-key');
     const rows = await db.reactors.toArray();
     expect(rows[0].name).toBe('云端新名');
     stopSync();
@@ -150,7 +150,7 @@ describe('离线队列重放', () => {
       value: [{ collection: 'reactors', op: 'delete', localId: 9 }],
     });
     mocks.initCloud.mockResolvedValue(undefined);
-    await initSync('env-1');
+    await initSync('env-1', 'test-key');
     expect(mocks.cloudRemoveByLocalId).toHaveBeenCalledWith('reactors', 9);
     const s = await db.settings.get('syncQueue');
     expect((s?.value as any[]).length).toBe(0); // 成功重放后清空
@@ -161,7 +161,7 @@ describe('离线队列重放', () => {
 describe('syncNow 手动同步', () => {
   it('同步后更新 lastSyncAt', async () => {
     mocks.initCloud.mockResolvedValue(undefined);
-    await initSync('env-1');
+    await initSync('env-1', 'test-key');
     const before = syncState.lastSyncAt;
     await syncNow();
     expect(syncState.lastSyncAt).toBeGreaterThanOrEqual(before ?? 0);
@@ -174,7 +174,7 @@ describe('状态通知', () => {
     const seen: string[] = [];
     const off = onSyncStateChange((s) => seen.push(s.status));
     mocks.initCloud.mockResolvedValue(undefined);
-    await initSync('env-1');
+    await initSync('env-1', 'test-key');
     expect(seen).toContain('connecting');
     expect(seen).toContain('connected');
     off();

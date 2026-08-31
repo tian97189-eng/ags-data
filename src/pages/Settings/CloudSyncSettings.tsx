@@ -7,11 +7,14 @@ import {
   syncNow,
   getSavedEnvId,
   saveEnvId,
+  getSavedAccessKey,
+  saveAccessKey,
   syncState,
   onSyncStateChange,
   isSyncing,
   type SyncStatus,
 } from '../../lib/sync';
+import { formatError } from '../../lib/cloud';
 import { useAppStore } from '../../store/useAppStore';
 
 const STATUS_TEXT: Record<SyncStatus, string> = {
@@ -24,6 +27,7 @@ const STATUS_TEXT: Record<SyncStatus, string> = {
 export default function CloudSyncSettings() {
   const toast = useAppStore((s) => s.toast);
   const [envId, setEnvId] = useState('');
+  const [accessKey, setAccessKey] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [status, setStatus] = useState<SyncStatus>(syncState.status);
 
@@ -39,6 +43,7 @@ export default function CloudSyncSettings() {
   useEffect(() => {
     void (async () => {
       setEnvId(await getSavedEnvId());
+      setAccessKey(await getSavedAccessKey());
       setLoaded(true);
     })();
     const off = onSyncStateChange((s) => setStatus(s.status));
@@ -47,7 +52,8 @@ export default function CloudSyncSettings() {
 
   async function handleSave() {
     await saveEnvId(envId);
-    toast('环境 ID 已保存', 'success');
+    await saveAccessKey(accessKey);
+    toast('已保存', 'success');
   }
 
   async function handleConnect() {
@@ -55,12 +61,17 @@ export default function CloudSyncSettings() {
       toast('请先填写环境 ID', 'warning');
       return;
     }
+    if (!accessKey.trim()) {
+      toast('请先填写 API 密钥', 'warning');
+      return;
+    }
     try {
       await saveEnvId(envId);
-      await initSync(envId);
+      await saveAccessKey(accessKey);
+      await initSync(envId, accessKey);
       toast('云同步已开启，数据正在互通', 'success');
     } catch (err) {
-      toast(`连接失败：${(err as Error).message}`, 'error');
+      toast(`连接失败：${formatError(err)}`, 'error');
     }
   }
 
@@ -69,7 +80,7 @@ export default function CloudSyncSettings() {
       await syncNow();
       toast('同步完成', 'success');
     } catch (err) {
-      toast(`同步失败：${(err as Error).message}`, 'error');
+      toast(`同步失败：${formatError(err)}`, 'error');
     }
   }
 
@@ -94,9 +105,24 @@ export default function CloudSyncSettings() {
             type="text"
             value={envId}
             onChange={(e) => setEnvId(e.target.value)}
-            placeholder="在腾讯云控制台复制，形如 xxx-1a2b3c"
+            placeholder="ags-xxxxxxxx 格式"
             disabled={connected}
             className="flex-1 px-3 py-1.5 text-xs rounded-md border border-slate-300 focus:outline-none focus:border-teal-500 disabled:bg-slate-100"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 mb-3">
+          <label className="text-xs text-slate-600 w-20 shrink-0" htmlFor="cloud-access-key">
+            API 密钥
+          </label>
+          <input
+            id="cloud-access-key"
+            type="text"
+            value={accessKey}
+            onChange={(e) => setAccessKey(e.target.value)}
+            placeholder="在控制台「Web API Key」页复制（以 pk- 开头）"
+            disabled={connected}
+            className="flex-1 px-3 py-1.5 text-xs rounded-md border border-slate-300 focus:outline-none focus:border-teal-500 disabled:bg-slate-100 font-mono"
           />
           <button
             type="button"
@@ -116,7 +142,7 @@ export default function CloudSyncSettings() {
             </span>
           )}
           {status === 'error' && syncState.lastError && (
-            <div className="text-red-500 mt-1">{syncState.lastError}</div>
+            <div className="text-red-500 mt-1 break-words">{syncState.lastError}</div>
           )}
           {connected && syncState.pendingOps > 0 && (
             <div className="text-amber-600 mt-1">有 {syncState.pendingOps} 条待补传的记录（离线时修改的），正在自动补传…</div>
@@ -160,14 +186,15 @@ export default function CloudSyncSettings() {
       <div className="border border-slate-200 rounded-lg p-4">
         <div className="text-sm font-medium mb-1">怎么开通（5 分钟）</div>
         <ol className="text-xs text-slate-500 space-y-1.5 list-decimal pl-4">
-          <li>电脑浏览器打开 <span className="font-mono text-teal-700">cloud.tencent.com</span>，用微信/QQ 登录（新用户注册一个）</li>
-          <li>搜索进入「<span className="font-medium text-slate-700">云开发 CloudBase</span>」→ 创建环境（选免费体验版，地域选离你近的）</li>
-          <li>环境创建完成后，在「环境概览」页复制「环境 ID」（形如 <span className="font-mono">xxx-1a2b3c</span>）</li>
-          <li>回到本页，粘贴环境 ID → 保存 → 点「启用云同步」</li>
-          <li>到控制台「数据库」页，把每个集合的权限设为「<span className="font-medium text-slate-700">所有用户可读写</span>」（新增集合后都要设一次）</li>
+          <li>电脑浏览器打开 <span className="font-mono text-teal-700">cloud.tencent.com</span>，用微信/QQ 登录</li>
+          <li>搜索进入「<span className="font-medium text-slate-700">云开发 CloudBase</span>」→ 创建环境（免费体验版，地域选离你近的）</li>
+          <li>环境创建完后，到「<span className="font-medium text-slate-700">用户管理 → 登录方式</span>」页，把「<span className="font-medium text-slate-700">匿名登录</span>」打开（<span className="text-red-500">这步不打开就连不上</span>）</li>
+          <li>到「<span className="font-medium text-slate-700">环境 → API Key（Web 安全域名 / API Key）</span>」页，复制 Web 密钥（以 <span className="font-mono">pk-</span> 开头）</li>
+          <li>环境 ID（<span className="font-mono">ags-...</span> 格式）和 API 密钥填到本页 → 点「启用云同步」</li>
+          <li>首次成功后会同步数据库结构；到控制台「数据库」页，<span className="font-medium text-slate-700">把每个集合权限改为「所有用户可读写」</span>，再点一次「立即同步」</li>
         </ol>
         <p className="text-xs text-amber-600 mt-2">
-          首次连接会把你电脑上的全部数据上传到云端（之后手机、电脑就互通了）。第一次集合权限没设好可能报错，设好后再点一次「立即同步」即可。
+          90% 的连接失败是因为第 3 步「匿名登录」没打开，或者第 6 步「集合权限」没改。
         </p>
       </div>
 
