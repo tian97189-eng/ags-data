@@ -3,10 +3,12 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/schema';
 import { exportBackupData, backupToJson, jsonToBackup, importBackupData } from '../../lib/backup';
 import { buildExportRows, buildWorkbook, downloadWorkbook } from '../../lib/excel';
+import { saveAndShare } from '../../lib/share';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useAppStore } from '../../store/useAppStore';
 
 function downloadText(filename: string, text: string, mime = 'application/json') {
+  // 保留作为辅助（当前不再直接调用）；Excel 导出仍用 a.click() 路径
   const blob = new Blob([text], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -36,8 +38,13 @@ export default function BackupSettings() {
     const json = backupToJson(backup);
     const d = new Date();
     const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    downloadText(`AGS备份-${stamp}.json`, json);
-    toast('备份已导出', 'success');
+    const filename = `AGS备份-${stamp}.json`;
+    const res = await saveAndShare({ filename, content: json, mime: 'application/json' });
+    if (res.method === 'native') {
+      toast('已保存到手机 Documents 目录，请在分享面板选择"保存到文件"', 'success');
+    } else {
+      toast('备份已导出', 'success');
+    }
   }
 
   async function handleExportExcel() {
