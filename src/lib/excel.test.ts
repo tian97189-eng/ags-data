@@ -1,6 +1,13 @@
 import { beforeEach, describe, it, expect } from 'vitest';
 import { db, type Measurement } from '../db/schema';
-import { buildExportRows, buildWorkbook } from './excel';
+import {
+  buildExportRows,
+  buildFullWorkbook,
+  buildMLSSExport,
+  buildParticleExport,
+  buildEPSExport,
+  buildWorkbook,
+} from './excel';
 import * as XLSX from 'xlsx';
 
 async function clearAll() {
@@ -128,5 +135,108 @@ describe('buildExportRows 过滤条件', () => {
     const { ms } = await seed();
     const rows = await buildExportRows(ms, { reactorIds: [] });
     expect(rows).toHaveLength(5);
+  });
+});
+
+describe('buildMLSSExport', () => {
+  beforeEach(async () => {
+    for (const t of db.tables) await t.clear();
+  });
+  it('把 mlssRecords 转成导出行（含日期过滤）', async () => {
+    await db.mlssRecords.bulkAdd([
+      { date: '2026-08-30', reactorId: null, paperNo: 'A-1', m1: 0.75, m2: 0.77, m3: 25, m4: 25.01, v: 15, mlss: 1.333, mlvss: 50.667, note: '', createdAt: '' },
+      { date: '2026-09-05', reactorId: null, paperNo: 'A-2', m1: 0.74, m2: 0.76, m3: 25, m4: 25.01, v: 15, mlss: 1.333, mlvss: 50.667, note: '', createdAt: '' },
+    ]);
+    const all = await buildMLSSExport();
+    expect(all).toHaveLength(2);
+    expect(all[0].滤纸编号).toBe('A-2'); // 按日期降序
+    expect(all[0].MLSS).toBeCloseTo(1.333, 3);
+
+    const ranged = await buildMLSSExport({ dateFrom: '2026-09-01' });
+    expect(ranged).toHaveLength(1);
+    expect(ranged[0].日期).toBe('2026-09-05');
+  });
+});
+
+describe('buildParticleExport', () => {
+  beforeEach(async () => {
+    for (const t of db.tables) await t.clear();
+  });
+  it('把粒径记录转成导出行（含区间标签）', async () => {
+    const r1 = await db.particleSizeRanges.add({ from: 50, to: 100, mid: 75, sortOrder: 1 });
+    const r2 = await db.particleSizeRanges.add({ from: 100, to: 200, mid: 150, sortOrder: 2 });
+    await db.particleSizeRecords.bulkAdd([
+      { date: '2026-08-30', reactorId: null, rangeId: r1, paperWeight: 0.7, sampleWeight: 0.75, dryWeight: 0.05, percent: 33.33, contribution: 25, note: '', createdAt: '' },
+      { date: '2026-08-30', reactorId: null, rangeId: r2, paperWeight: 0.7, sampleWeight: 0.8, dryWeight: 0.1, percent: 66.67, contribution: 100, note: '', createdAt: '' },
+    ]);
+    const rows = await buildParticleExport();
+    expect(rows).toHaveLength(2);
+    // 按主键降序返回（r2 在前），区间标签对应 r2
+    expect(rows[0].区间).toBe('100-200 μm');
+    expect(rows[1].区间).toBe('50-100 μm');
+    expect(rows[1].中位径).toBe(75);
+  });
+});
+
+describe('buildEPSExport', () => {
+  beforeEach(async () => {
+    for (const t of db.tables) await t.clear();
+  });
+  it('把 EPS 记录转成导出行（含 PN/PS 比）', async () => {
+    await db.epsRecords.bulkAdd([
+      { date: '2026-08-30', reactorId: null, sampleCode: 'R1-D1', vssMg: 100, psConc: 50, pnConc: 30, extractVolume: 10, psContent: 5, pnContent: 3, pnPsRatio: 0.6, note: '', createdAt: '' },
+    ]);
+    const rows = await buildEPSExport();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].样品编号).toBe('R1-D1');
+    expect(rows[0].PS含量).toBeCloseTo(5, 4);
+    expect(rows[0].PNPS比).toBeCloseTo(0.6, 2);
+  });
+});
+
+describe('buildFullWorkbook（多 sheet 导出）', () => {
+  beforeEach(async () => {
+    for (const t of db.tables) await t.clear();
+  });
+
+  it('只有 measurements 时只输出测量数据 sheet', async () => {
+    const r = await db.reactors.add({ code: 'R1', name: 'R1', note: '', active: true, sortOrder: 1, createdAt: '' });
+    const i = await db.indicators.add({ name: '氨氮', category: 'basic', method: 'absorbance', unit: 'mg/L', defaultDilution: 10, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 1 });
+    const m: Measurement = {
+      scene: 'daily', date: '2026-08-30', phase: null, reactorId: r, indicatorId: i,
+      inputType: 'absorbance', sampleAbs: 0.284, blankAbs: 0.012, dilution: 10, value: 13.6,
+      curveId: null, blankOverridden: false, dilutionOverridden: false, note: '',
+    };
+    const { wb, counts } = await buildFullWorkbook([m]);
+    expect(wb.SheetNames).toEqual(['测量数据']);
+    expect(counts.total).toBe(1);
+  });
+
+  it('含其他指标时输出多 sheet（按数据存在动态添加）', async () => {
+    const r = await db.reactors.add({ code: 'R1', name: 'R1', note: '', active: true, sortOrder: 1, createdAt: '' });
+    const i = await db.indicators.add({ name: '氨氮', category: 'basic', method: 'absorbance', unit: 'mg/L', defaultDilution: 10, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 1 });
+    const m: Measurement = {
+      scene: 'daily', date: '2026-08-30', phase: null, reactorId: r, indicatorId: i,
+      inputType: 'absorbance', sampleAbs: 0.284, blankAbs: 0.012, dilution: 10, value: 13.6,
+      curveId: null, blankOverridden: false, dilutionOverridden: false, note: '',
+    };
+    await db.mlssRecords.add({ date: '2026-08-30', reactorId: null, paperNo: 'A-1', m1: 0.7, m2: 0.8, m3: 25, m4: 25.01, v: 15, mlss: 6.667, mlvss: 50.667, note: '', createdAt: '' });
+    const { wb, counts } = await buildFullWorkbook([m]);
+    expect(wb.SheetNames).toEqual(['测量数据', '污泥浓度']);
+    expect(counts.total).toBe(2);
+  });
+
+  it('includeExtras=false → 只输出测量数据 sheet', async () => {
+    const r = await db.reactors.add({ code: 'R1', name: 'R1', note: '', active: true, sortOrder: 1, createdAt: '' });
+    const i = await db.indicators.add({ name: '氨氮', category: 'basic', method: 'absorbance', unit: 'mg/L', defaultDilution: 10, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 1 });
+    const m: Measurement = {
+      scene: 'daily', date: '2026-08-30', phase: null, reactorId: r, indicatorId: i,
+      inputType: 'absorbance', sampleAbs: 0.284, blankAbs: 0.012, dilution: 10, value: 13.6,
+      curveId: null, blankOverridden: false, dilutionOverridden: false, note: '',
+    };
+    await db.mlssRecords.add({ date: '2026-08-30', reactorId: null, paperNo: 'A-1', m1: 0.7, m2: 0.8, m3: 25, m4: 25.01, v: 15, mlss: 6.667, mlvss: 50.667, note: '', createdAt: '' });
+    const { wb, counts } = await buildFullWorkbook([m], { includeExtras: false });
+    expect(wb.SheetNames).toEqual(['测量数据']);
+    expect(counts.total).toBe(1);
   });
 });

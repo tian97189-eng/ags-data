@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/schema';
 import { exportBackupData, backupToJson, jsonToBackup, importBackupData } from '../../lib/backup';
-import { buildExportRows, buildWorkbook, type ExportFilter } from '../../lib/excel';
+import { buildExportRows, buildFullWorkbook, type ExportFilter } from '../../lib/excel';
 import { parseImportFile, buildImportTemplate, type ImportPreview } from '../../lib/importExcel';
 import { saveAndShare } from '../../lib/share';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -33,10 +33,56 @@ export default function BackupSettings() {
   const [dateTo, setDateTo] = useState('');
   const [pickedReactors, setPickedReactors] = useState<number[]>([]);
   const [pickedIndicators, setPickedIndicators] = useState<number[]>([]);
+  const [includeExtras, setIncludeExtras] = useState(true);
 
   // Excel 导入
   const excelFileRef = useRef<HTMLInputElement>(null);
   const [excelImport, setExcelImport] = useState<ImportPreview | null>(null);
+
+  // 预估会导出多少条（实时显示，按 sheet 分别显示）
+  const exportPreview = useLiveQuery(async () => {
+    if (!exportOpen) return null;
+    const filter: ExportFilter = {
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+      reactorIds: pickedReactors.length ? pickedReactors : undefined,
+      indicatorIds: pickedIndicators.length ? pickedIndicators : undefined,
+      includeExtras,
+    };
+    const all = await db.measurements.toArray();
+    const dataRows = all.filter((m) => {
+      if (filter.dateFrom && m.date < filter.dateFrom) return false;
+      if (filter.dateTo && m.date > filter.dateTo) return false;
+      if (filter.reactorIds && !filter.reactorIds.includes(m.reactorId)) return false;
+      if (filter.indicatorIds && !filter.indicatorIds.includes(m.indicatorId)) return false;
+      return true;
+    });
+    const mlss = (await db.mlssRecords.toArray()).filter((r) => {
+      if (filter.dateFrom && r.date < filter.dateFrom) return false;
+      if (filter.dateTo && r.date > filter.dateTo) return false;
+      return true;
+    });
+    const particle = (await db.particleSizeRecords.toArray()).filter((r) => {
+      if (filter.dateFrom && r.date < filter.dateFrom) return false;
+      if (filter.dateTo && r.date > filter.dateTo) return false;
+      return true;
+    });
+    const eps = (await db.epsRecords.toArray()).filter((r) => {
+      if (filter.dateFrom && r.date < filter.dateFrom) return false;
+      if (filter.dateTo && r.date > filter.dateTo) return false;
+      return true;
+    });
+    return { measurement: dataRows.length, mlss: mlss.length, particle: particle.length, eps: eps.length };
+  }, [exportOpen, dateFrom, dateTo, pickedReactors, pickedIndicators, includeExtras]);
+
+  function openExport() {
+    setPickedReactors((reactors ?? []).map((r) => r.id!));
+    setPickedIndicators((indicators ?? []).map((i) => i.id!));
+    setDateFrom('');
+    setDateTo('');
+    setIncludeExtras(true);
+    setExportOpen(true);
+  }
 
   const counts = useLiveQuery(async () => {
     return {
@@ -55,33 +101,6 @@ export default function BackupSettings() {
     [],
   );
 
-  // 预估会导出多少条（实时显示）
-  const previewCount = useLiveQuery(async () => {
-    if (!exportOpen) return 0;
-    const filter: ExportFilter = {
-      dateFrom: dateFrom || undefined,
-      dateTo: dateTo || undefined,
-      reactorIds: pickedReactors.length ? pickedReactors : undefined,
-      indicatorIds: pickedIndicators.length ? pickedIndicators : undefined,
-    };
-    const all = await db.measurements.toArray();
-    return all.filter((m) => {
-      if (filter.dateFrom && m.date < filter.dateFrom) return false;
-      if (filter.dateTo && m.date > filter.dateTo) return false;
-      if (filter.reactorIds && !filter.reactorIds.includes(m.reactorId)) return false;
-      if (filter.indicatorIds && !filter.indicatorIds.includes(m.indicatorId)) return false;
-      return true;
-    }).length;
-  }, [exportOpen, dateFrom, dateTo, pickedReactors, pickedIndicators]);
-
-  function openExport() {
-    setPickedReactors((reactors ?? []).map((r) => r.id!));
-    setPickedIndicators((indicators ?? []).map((i) => i.id!));
-    setDateFrom('');
-    setDateTo('');
-    setExportOpen(true);
-  }
-
   function togglePicked(list: number[], id: number): number[] {
     return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
   }
@@ -93,6 +112,7 @@ export default function BackupSettings() {
       dateTo: dateTo || undefined,
       reactorIds: pickedReactors.length === reactors.length ? [] : pickedReactors,
       indicatorIds: pickedIndicators.length === indicators.length ? [] : pickedIndicators,
+      includeExtras,
     };
     const all = await db.measurements.toArray();
     if (all.length === 0) {
@@ -104,7 +124,7 @@ export default function BackupSettings() {
       toast('当前条件下没有匹配的数据', 'warning');
       return;
     }
-    const wb = buildWorkbook(rows);
+    const { wb, counts } = await buildFullWorkbook(all, filter);
     const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
     const d = new Date();
     const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -116,10 +136,11 @@ export default function BackupSettings() {
       encoding: 'base64',
     });
     setExportOpen(false);
+    const sheetCount = wb.SheetNames.length;
     if (res.method === 'native') {
-      toast(`已导出 ${rows.length} 条，请在分享面板选择"保存到文件"`, 'success');
+      toast(`已导出 ${counts.total} 条（${sheetCount} 个 sheet），请在分享面板保存`, 'success');
     } else {
-      toast(`已导出 ${rows.length} 条 Excel`, 'success');
+      toast(`已导出 ${counts.total} 条（${sheetCount} 个 sheet）`, 'success');
     }
   }
 
@@ -342,8 +363,27 @@ export default function BackupSettings() {
               </div>
             </div>
 
-            <div className="text-xs text-slate-500 mb-3">
-              预计导出 <span className="font-medium text-teal-700">{previewCount ?? 0}</span> 条测量记录
+            <label className="flex items-center gap-1 mb-3">
+              <input
+                type="checkbox"
+                checked={includeExtras}
+                onChange={(e) => setIncludeExtras(e.target.checked)}
+              />
+              <span className="text-slate-500">包含其他指标（污泥浓度 / 筛分粒径 / EPS）</span>
+            </label>
+
+            <div className="text-xs text-slate-500 mb-3 space-y-0.5">
+              <div>预计导出（按 sheet 分）：</div>
+              <div className="pl-2">
+                · 测量数据 <span className="font-medium text-teal-700">{exportPreview?.measurement ?? 0}</span> 条
+                {includeExtras && (
+                  <>
+                    {' '}· 污泥浓度 <span className="font-medium text-teal-700">{exportPreview?.mlss ?? 0}</span> 条
+                    {' '}· 粒径 <span className="font-medium text-teal-700">{exportPreview?.particle ?? 0}</span> 条
+                    {' '}· EPS <span className="font-medium text-teal-700">{exportPreview?.eps ?? 0}</span> 条
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="flex justify-end gap-2">
