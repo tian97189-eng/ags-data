@@ -1,7 +1,10 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import fs from 'node:fs';
 import { ensureCert, readCert } from './scripts/cert.mjs';
+
+const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
 export default defineConfig(async () => {
   // 启动/构建前自动生成或更新自签证书（IP 变化会重新生成）
@@ -32,6 +35,7 @@ export default defineConfig(async () => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         },
       }),
     ],
@@ -46,6 +50,9 @@ export default defineConfig(async () => {
     },
     build: {
       emptyOutDir: false,
+    },
+    define: {
+      __APP_VERSION__: JSON.stringify(pkg.version),
     },
     test: {
       environment: 'jsdom',
