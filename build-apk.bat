@@ -52,6 +52,8 @@ copy /Y "%SRC%postcss.config.js"  "%BUILD%\postcss.config.js"  >> "%LOG%" 2>&1
 copy /Y "%SRC%index.html"         "%BUILD%\index.html"         >> "%LOG%" 2>&1
 copy /Y "%SRC%capacitor.config.ts" "%BUILD%\capacitor.config.ts" >> "%LOG%" 2>&1
 copy /Y "%SRC%android\app\build.gradle" "%BUILD%\android\app\build.gradle" >> "%LOG%" 2>&1
+rem MainActivity.java 必须同步（包名 com.ags.data，漏了会用旧包名导致启动闪退）
+copy /Y "%SRC%android\app\src\main\java\com\ags\data\MainActivity.java" "%BUILD%\android\app\src\main\java\com\ags\data\MainActivity.java" >> "%LOG%" 2>&1
 echo      source synced.
 
 rem ======== [3/7] Install dependencies ========
