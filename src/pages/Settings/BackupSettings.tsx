@@ -1,14 +1,15 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/schema';
 import { exportBackupData, backupToJson, jsonToBackup, importBackupData } from '../../lib/backup';
-import { buildExportRows, buildWorkbook, downloadWorkbook } from '../../lib/excel';
+import { buildExportRows, buildWorkbook, type ExportFilter } from '../../lib/excel';
 import { saveAndShare } from '../../lib/share';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useAppStore } from '../../store/useAppStore';
+import * as XLSX from 'xlsx';
 
 function downloadText(filename: string, text: string, mime = 'application/json') {
-  // 保留作为辅助（当前不再直接调用）；Excel 导出仍用 a.click() 路径
+  // 保留作为辅助（当前不再直接调用）；Excel 导出走 saveAndShare
   const blob = new Blob([text], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -24,6 +25,13 @@ export default function BackupSettings() {
   const [pendingImport, setPendingImport] = useState<string | null>(null);
   const [modeChoiceOpen, setModeChoiceOpen] = useState(false);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+
+  // 导出过滤条件
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [pickedReactors, setPickedReactors] = useState<number[]>([]);
+  const [pickedIndicators, setPickedIndicators] = useState<number[]>([]);
 
   const counts = useLiveQuery(async () => {
     return {
@@ -32,6 +40,83 @@ export default function BackupSettings() {
       curves: await db.curves.count(),
     };
   }, []);
+
+  const reactors = useLiveQuery(
+    () => db.reactors.toArray().then((r) => r.sort((a, b) => a.sortOrder - b.sortOrder)),
+    [],
+  );
+  const indicators = useLiveQuery(
+    () => db.indicators.toArray().then((i) => i.sort((a, b) => a.sortOrder - b.sortOrder)),
+    [],
+  );
+
+  // 预估会导出多少条（实时显示）
+  const previewCount = useLiveQuery(async () => {
+    if (!exportOpen) return 0;
+    const filter: ExportFilter = {
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+      reactorIds: pickedReactors.length ? pickedReactors : undefined,
+      indicatorIds: pickedIndicators.length ? pickedIndicators : undefined,
+    };
+    const all = await db.measurements.toArray();
+    return all.filter((m) => {
+      if (filter.dateFrom && m.date < filter.dateFrom) return false;
+      if (filter.dateTo && m.date > filter.dateTo) return false;
+      if (filter.reactorIds && !filter.reactorIds.includes(m.reactorId)) return false;
+      if (filter.indicatorIds && !filter.indicatorIds.includes(m.indicatorId)) return false;
+      return true;
+    }).length;
+  }, [exportOpen, dateFrom, dateTo, pickedReactors, pickedIndicators]);
+
+  function openExport() {
+    setPickedReactors((reactors ?? []).map((r) => r.id!));
+    setPickedIndicators((indicators ?? []).map((i) => i.id!));
+    setDateFrom('');
+    setDateTo('');
+    setExportOpen(true);
+  }
+
+  function togglePicked(list: number[], id: number): number[] {
+    return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+  }
+
+  async function handleConfirmExport() {
+    if (!reactors || !indicators) return;
+    const filter: ExportFilter = {
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+      reactorIds: pickedReactors.length === reactors.length ? [] : pickedReactors,
+      indicatorIds: pickedIndicators.length === indicators.length ? [] : pickedIndicators,
+    };
+    const all = await db.measurements.toArray();
+    if (all.length === 0) {
+      toast('还没有数据可导出', 'warning');
+      return;
+    }
+    const rows = await buildExportRows(all, filter);
+    if (rows.length === 0) {
+      toast('当前条件下没有匹配的数据', 'warning');
+      return;
+    }
+    const wb = buildWorkbook(rows);
+    const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+    const d = new Date();
+    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const filename = `AGS数据-${stamp}.xlsx`;
+    const res = await saveAndShare({
+      filename,
+      content: base64,
+      mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      encoding: 'base64',
+    });
+    setExportOpen(false);
+    if (res.method === 'native') {
+      toast(`已导出 ${rows.length} 条，请在分享面板选择"保存到文件"`, 'success');
+    } else {
+      toast(`已导出 ${rows.length} 条 Excel`, 'success');
+    }
+  }
 
   async function handleExportBackup() {
     const backup = await exportBackupData();
@@ -45,18 +130,6 @@ export default function BackupSettings() {
     } else {
       toast('备份已导出', 'success');
     }
-  }
-
-  async function handleExportExcel() {
-    const all = await db.measurements.toArray();
-    if (all.length === 0) {
-      toast('还没有数据可导出', 'warning');
-      return;
-    }
-    const rows = await buildExportRows(all);
-    const wb = buildWorkbook(rows);
-    downloadWorkbook(wb, 'AGS全部数据.xlsx');
-    toast('已导出 Excel', 'success');
   }
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -112,11 +185,131 @@ export default function BackupSettings() {
 
       <div className="border border-slate-200 rounded-lg p-4">
         <div className="text-sm font-medium mb-1">导出 Excel</div>
-        <p className="text-xs text-slate-500 mb-3">把全部数据（含标曲追溯、空白、稀释倍数）导出成 Excel 表格。</p>
-        <button type="button" onClick={handleExportExcel} className="px-3 py-1.5 text-xs rounded-md border border-slate-300 text-slate-700">
-          导出全部数据 Excel
+        <p className="text-xs text-slate-500 mb-3">把数据（含标曲追溯、空白、稀释倍数）导出成 Excel，可选日期范围、罐和指标。</p>
+        <button type="button" onClick={openExport} className="px-3 py-1.5 text-xs rounded-md border border-slate-300 text-slate-700">
+          导出 Excel
         </button>
       </div>
+
+      {/* 导出 Excel 对话框 */}
+      {exportOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4"
+          onClick={() => setExportOpen(false)}
+        >
+          <div
+            className="bg-white rounded-xl p-5 max-w-md w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-medium mb-3">选择导出的数据范围</h3>
+
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <label className="block">
+                <span className="text-slate-500 text-xs">起始日期（可留空）</span>
+                <input
+                  type="date"
+                  className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5 text-xs"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="text-slate-500 text-xs">结束日期（可留空）</span>
+                <input
+                  type="date"
+                  className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5 text-xs"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                />
+              </label>
+            </div>
+
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-slate-500 text-xs">选择罐</span>
+                <div className="flex gap-2 text-[11px]">
+                  <button type="button" className="text-teal-700" onClick={() => setPickedReactors((reactors ?? []).map((r) => r.id!))}>全选</button>
+                  <button type="button" className="text-slate-500" onClick={() => setPickedReactors([])}>清空</button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(reactors ?? []).map((r) => {
+                  const checked = pickedReactors.includes(r.id!);
+                  return (
+                    <label
+                      key={r.id}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer border ${
+                        checked ? 'bg-teal-50 border-teal-300 text-teal-800' : 'border-slate-200 text-slate-500'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setPickedReactors((p) => togglePicked(p, r.id!))}
+                        className="hidden"
+                      />
+                      {r.code}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-slate-500 text-xs">选择指标</span>
+                <div className="flex gap-2 text-[11px]">
+                  <button type="button" className="text-teal-700" onClick={() => setPickedIndicators((indicators ?? []).map((i) => i.id!))}>全选</button>
+                  <button type="button" className="text-slate-500" onClick={() => setPickedIndicators([])}>清空</button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(indicators ?? []).map((i) => {
+                  const checked = pickedIndicators.includes(i.id!);
+                  return (
+                    <label
+                      key={i.id}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer border ${
+                        checked ? 'bg-teal-50 border-teal-300 text-teal-800' : 'border-slate-200 text-slate-500'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setPickedIndicators((p) => togglePicked(p, i.id!))}
+                        className="hidden"
+                      />
+                      {i.name}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="text-xs text-slate-500 mb-3">
+              预计导出 <span className="font-medium text-teal-700">{previewCount ?? 0}</span> 条测量记录
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setExportOpen(false)}
+                className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmExport}
+                disabled={!pickedReactors.length || !pickedIndicators.length}
+                className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
+              >
+                导出
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modeChoiceOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" onClick={() => setModeChoiceOpen(false)}>

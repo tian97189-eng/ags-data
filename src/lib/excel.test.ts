@@ -55,3 +55,78 @@ describe('buildWorkbook', () => {
     expect((rows[0] as any).罐).toBe('R1');
   });
 });
+
+describe('buildExportRows 过滤条件', () => {
+  beforeEach(clearAll);
+
+  async function seed() {
+    const r1 = await db.reactors.add({ code: 'R1', name: 'R1', note: '', active: true, sortOrder: 1, createdAt: '' });
+    const r2 = await db.reactors.add({ code: 'R2', name: 'R2', note: '', active: true, sortOrder: 2, createdAt: '' });
+    const i1 = await db.indicators.add({ name: '氨氮', category: 'basic', method: 'absorbance', unit: 'mg/L', defaultDilution: 10, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 1 });
+    const i2 = await db.indicators.add({ name: 'COD', category: 'basic', method: 'direct', unit: 'mg/L', defaultDilution: 1, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 5 });
+    const base = (reactorId: number, indicatorId: number, date: string): Measurement => ({
+      scene: 'daily', date, phase: null, reactorId, indicatorId,
+      inputType: 'absorbance', sampleAbs: 0, blankAbs: 0, dilution: 1, value: 1,
+      curveId: null, blankOverridden: false, dilutionOverridden: false, note: '',
+    });
+    const ms = [
+      base(r1, i1, '2026-08-25'),
+      base(r1, i2, '2026-08-25'),
+      base(r2, i1, '2026-08-25'),
+      base(r1, i1, '2026-08-30'),
+      base(r2, i2, '2026-08-30'),
+    ];
+    return { r1, r2, i1, i2, ms };
+  }
+
+  it('默认无过滤 → 全部导出', async () => {
+    const { ms } = await seed();
+    const rows = await buildExportRows(ms);
+    expect(rows).toHaveLength(5);
+  });
+
+  it('按日期范围过滤（含端点）', async () => {
+    const { ms } = await seed();
+    const rows = await buildExportRows(ms, { dateFrom: '2026-08-25', dateTo: '2026-08-25' });
+    expect(rows).toHaveLength(3);
+    expect(rows.every((r) => r.日期 === '2026-08-25')).toBe(true);
+  });
+
+  it('只设 dateFrom → 大于等于该日期', async () => {
+    const { ms } = await seed();
+    const rows = await buildExportRows(ms, { dateFrom: '2026-08-30' });
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.日期 === '2026-08-30')).toBe(true);
+  });
+
+  it('按罐 id 过滤', async () => {
+    const { ms, r1 } = await seed();
+    const rows = await buildExportRows(ms, { reactorIds: [r1] });
+    expect(rows).toHaveLength(3); // 08-25: R1/i1 + R1/i2; 08-30: R1/i1
+    expect(rows.every((r) => r.罐 === 'R1')).toBe(true);
+  });
+
+  it('按指标 id 过滤', async () => {
+    const { ms, i2 } = await seed();
+    const rows = await buildExportRows(ms, { indicatorIds: [i2] });
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.指标 === 'COD')).toBe(true);
+  });
+
+  it('多条件叠加：日期+罐+指标', async () => {
+    const { ms, r1, i1 } = await seed();
+    const rows = await buildExportRows(ms, {
+      dateFrom: '2026-08-25', dateTo: '2026-08-25', reactorIds: [r1], indicatorIds: [i1],
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].罐).toBe('R1');
+    expect(rows[0].指标).toBe('氨氮');
+    expect(rows[0].日期).toBe('2026-08-25');
+  });
+
+  it('空数组的 reactorIds 视作"不限"（不传=全部）', async () => {
+    const { ms } = await seed();
+    const rows = await buildExportRows(ms, { reactorIds: [] });
+    expect(rows).toHaveLength(5);
+  });
+});

@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@capacitor/filesystem', () => ({
   Filesystem: { writeFile: mocks.writeFile },
   Directory: { Documents: 'DOCUMENTS' },
-  Encoding: { UTF8: 'utf8' },
+  Encoding: { UTF8: 'utf8', BASE64: 'BASE64' },
 }));
 vi.mock('@capacitor/share', () => ({
   Share: { share: mocks.share },
@@ -68,7 +68,9 @@ describe('saveAndShare', () => {
     (window as any).Capacitor = { isNativePlatform: () => false };
     const clickMock = vi.fn();
     const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-      if (tag === 'a') return { href: '', download: '', click: clickMock } as any;
+      if (tag === 'a') {
+        return { href: '', download: '', click: clickMock } as any;
+      }
       return document.createElement(tag);
     });
 
@@ -76,6 +78,57 @@ describe('saveAndShare', () => {
     expect(res.method).toBe('web');
     expect(clickMock).toHaveBeenCalled();
     expect(mocks.writeFile).not.toHaveBeenCalled();
+    createElementSpy.mockRestore();
+  });
+
+  it('base64 编码（原生）：Filesystem 写入时不再是 UTF8', async () => {
+    (window as any).Capacitor = { isNativePlatform: () => true };
+    mocks.writeFile.mockResolvedValue({ uri: 'file:///docs/data.xlsx' });
+    const b64 = 'UEsDBAoAAAAAAAAAIQAFAAAAJAAAAHRlc3R4bWw=';
+    const res = await saveAndShare({
+      filename: 'data.xlsx',
+      content: b64,
+      mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      encoding: 'base64',
+    });
+    expect(res.method).toBe('native');
+    const writeArgs = mocks.writeFile.mock.calls[0][0];
+    expect(writeArgs.data).toBe(b64);
+    expect(writeArgs.encoding).not.toBe('UTF8');
+  });
+
+  it('base64 编码（Web）：把 base64 转成二进制 Blob 下载', async () => {
+    delete (window as any).Capacitor;
+    const clickMock = vi.fn();
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+      if (tag === 'a') {
+        return { href: '', download: '', click: clickMock } as any;
+      }
+      return document.createElement(tag);
+    });
+    const createdBlobs: Blob[] = [];
+    const origCreate = URL.createObjectURL;
+    URL.createObjectURL = vi.fn((obj: Blob | MediaSource) => {
+      if (obj instanceof Blob) createdBlobs.push(obj);
+      return 'blob:mock';
+    }) as typeof URL.createObjectURL;
+
+    // 含空字节的二进制，验证 Blob 转换正确
+    const binary = 'hello\x00\x01world';
+    const b64 = btoa(binary);
+    await saveAndShare({
+      filename: 'data.xlsx',
+      content: b64,
+      encoding: 'base64',
+      mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+
+    expect(clickMock).toHaveBeenCalled();
+    expect(createdBlobs.length).toBeGreaterThan(0);
+    expect(createdBlobs[0].type).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    expect(createdBlobs[0].size).toBe(binary.length);
+
+    URL.createObjectURL = origCreate;
     createElementSpy.mockRestore();
   });
 });
