@@ -1,5 +1,6 @@
-import type { Indicator, Reactor, CalibrationCurve } from '../../db/schema';
-import { computeConcentration, type ComputeStatus } from '../../lib/calibration';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { computeConcentration, computeCompositeValue, type ComputeStatus } from '../../lib/calibration';
+import { db } from '../../db/schema';
 import { formatNumber } from '../../lib/format';
 
 export interface CellState {
@@ -25,6 +26,7 @@ const STATUS_HINT: Record<ComputeStatus, string> = {
 export default function IndicatorCard({
   indicator,
   reactors,
+  date,
   defaultBlank,
   defaultDilution,
   cells,
@@ -32,18 +34,38 @@ export default function IndicatorCard({
   onDefaultChange,
   onCellChange,
 }: {
-  indicator: Indicator;
-  reactors: Reactor[];
+  indicator: import('../../db/schema').Indicator;
+  reactors: import('../../db/schema').Reactor[];
+  date: string;
   defaultBlank: string;
   defaultDilution: string;
   cells: Record<number, CellState>;
-  curve: CalibrationCurve | null;
+  curve: import('../../db/schema').CalibrationCurve | null;
   onDefaultChange: (blank: string, dilution: string) => void;
   onCellChange: (reactorId: number, cell: CellState) => void;
 }) {
   const isDirect = indicator.method === 'direct';
+  const isComposite = indicator.compositeType === 'sumOf';
 
-  function cellValue(r: Reactor): { value: number | null; status: ComputeStatus } {
+  // composite 指标：实时查同日的依赖指标 value，按罐聚合
+  const compositeByReactor = useLiveQuery<Record<number, number | null>>(async () => {
+    if (!isComposite || !indicator.compositeRefs?.length) return {};
+    const refs = await db.measurements
+      .where('date')
+      .equals(date)
+      .filter((m) => m.scene === 'daily' && indicator.compositeRefs!.includes(m.indicatorId))
+      .toArray();
+    const out: Record<number, number | null> = {};
+    for (const r of reactors) {
+      out[r.id!] = computeCompositeValue({
+        indicator,
+        refMeasurements: refs.filter((m) => m.reactorId === r.id),
+      });
+    }
+    return out;
+  }, [indicator.id, date, reactors.length]);
+
+  function cellValue(r: import('../../db/schema').Reactor): { value: number | null; status: ComputeStatus } {
     const cell = cells[r.id!];
     if (!cell) return { value: null, status: 'noCurve' };
     if (isDirect) {
@@ -63,7 +85,12 @@ export default function IndicatorCard({
     <div className="border border-slate-200 rounded-lg mb-3">
       <div className="flex items-center gap-3 flex-wrap px-3 py-2 border-b border-slate-100 bg-slate-50 rounded-t-lg">
         <span className="text-sm font-medium">{indicator.name}</span>
-        {!isDirect ? (
+        {isComposite && (
+          <span className="ml-auto text-[11px] text-slate-400">
+            由 {indicator.compositeRefs?.length ?? 0} 个指标自动求和
+          </span>
+        )}
+        {!isDirect && !isComposite && (
           <div className="flex items-center gap-3 text-xs ml-auto">
             <label className="flex items-center gap-1">
               <span className="text-slate-500">空白</span>
@@ -88,7 +115,8 @@ export default function IndicatorCard({
               />
             </label>
           </div>
-        ) : (
+        )}
+        {isDirect && (
           <span className="ml-auto text-[11px] text-slate-400">仪器直读，直接填浓度</span>
         )}
       </div>
@@ -97,62 +125,76 @@ export default function IndicatorCard({
         <thead>
           <tr className="text-slate-500">
             <th className="text-left py-1.5 px-3 border-b border-slate-100 w-16">罐</th>
-            <th className="text-left py-1.5 px-2 border-b border-slate-100">
-              {isDirect ? '浓度' : '吸光度'}
-            </th>
-            {!isDirect && (
-              <th className="text-left py-1.5 px-2 border-b border-slate-100 w-24">稀释</th>
+            {isComposite ? (
+              <th className="text-left py-1.5 px-2 border-b border-slate-100">自动计算</th>
+            ) : (
+              <>
+                <th className="text-left py-1.5 px-2 border-b border-slate-100">
+                  {isDirect ? '浓度' : '吸光度'}
+                </th>
+                {!isDirect && (
+                  <th className="text-left py-1.5 px-2 border-b border-slate-100 w-24">稀释</th>
+                )}
+              </>
             )}
-            <th className="text-right py-1.5 px-3 border-b border-slate-100 w-24">
-              {isDirect ? '' : 'mg/L'}
-            </th>
+            <th className="text-right py-1.5 px-3 border-b border-slate-100 w-24">mg/L</th>
           </tr>
         </thead>
         <tbody>
           {reactors.map((r) => {
             const cell = cells[r.id!] ?? { sample: '', dilution: defaultDilution, dilutionOverridden: false };
-            const { value, status } = cellValue(r);
+            const value = isComposite
+              ? (compositeByReactor?.[r.id!] ?? null)
+              : cellValue(r).value;
             return (
               <tr key={r.id}>
                 <td className="py-1.5 px-3 border-b border-slate-50">{r.code}</td>
-                <td className="py-1.5 px-2 border-b border-slate-50">
-                  <input
-                    type="number"
-                    step="any"
-                    aria-label={`${r.code} ${isDirect ? '浓度' : '吸光度'}`}
-                    className="w-full border border-slate-200 rounded px-2 py-1"
-                    value={cell.sample}
-                    onChange={(e) => onCellChange(r.id!, { ...cell, sample: e.target.value })}
-                  />
-                </td>
-                {!isDirect && (
-                  <td className="py-1.5 px-2 border-b border-slate-50">
-                    <input
-                      type="number"
-                      step="any"
-                      aria-label={`${r.code} 稀释`}
-                      className={`w-full border rounded px-2 py-1 ${
-                        cell.dilutionOverridden
-                          ? 'border-amber-400 bg-amber-50 text-amber-700'
-                          : 'border-slate-200'
-                      }`}
-                      value={cell.dilution}
-                      title={cell.dilutionOverridden ? '单独改过稀释倍数' : undefined}
-                      onChange={(e) =>
-                        onCellChange(r.id!, {
-                          ...cell,
-                          dilution: e.target.value,
-                          dilutionOverridden: e.target.value !== defaultDilution,
-                        })
-                      }
-                    />
+                {isComposite ? (
+                  <td
+                    className="py-1.5 px-2 border-b border-slate-50 text-slate-500 text-[11px]"
+                    colSpan={2}
+                  >
+                    由三氮等指标自动算得
                   </td>
+                ) : (
+                  <>
+                    <td className="py-1.5 px-2 border-b border-slate-50">
+                      <input
+                        type="number"
+                        step="any"
+                        aria-label={`${r.code} ${isDirect ? '浓度' : '吸光度'}`}
+                        className="w-full border border-slate-200 rounded px-2 py-1"
+                        value={cell.sample}
+                        onChange={(e) => onCellChange(r.id!, { ...cell, sample: e.target.value })}
+                      />
+                    </td>
+                    {!isDirect && (
+                      <td className="py-1.5 px-2 border-b border-slate-50">
+                        <input
+                          type="number"
+                          step="any"
+                          aria-label={`${r.code} 稀释`}
+                          className={`w-full border rounded px-2 py-1 ${
+                            cell.dilutionOverridden
+                              ? 'border-amber-400 bg-amber-50 text-amber-700'
+                              : 'border-slate-200'
+                          }`}
+                          value={cell.dilution}
+                          title={cell.dilutionOverridden ? '单独改过稀释倍数' : undefined}
+                          onChange={(e) =>
+                            onCellChange(r.id!, {
+                              ...cell,
+                              dilution: e.target.value,
+                              dilutionOverridden: e.target.value !== defaultDilution,
+                            })
+                          }
+                        />
+                      </td>
+                    )}
+                  </>
                 )}
-                <td
-                  className={`py-1.5 px-3 border-b border-slate-50 text-right font-medium ${STATUS_STYLE[status]}`}
-                  title={STATUS_HINT[status]}
-                >
-                  {status === 'belowLOD' && value != null ? '未检出' : formatNumber(value)}
+                <td className="py-1.5 px-3 border-b border-slate-50 text-right font-medium text-teal-700">
+                  {formatNumber(value)}
                 </td>
               </tr>
             );

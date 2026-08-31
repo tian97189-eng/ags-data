@@ -7,6 +7,8 @@ import {
   saveCurve,
   countMeasurementsByCurve,
   deleteCurve,
+  computeCompositeValue,
+  recomputeAndSaveComposites,
 } from './calibration';
 
 async function clearAll() {
@@ -375,5 +377,159 @@ describe('deleteCurve', () => {
     expect(m).toBeTruthy();
     expect(m?.value).toBeCloseTo(5.7333, 4);
     expect(m?.curveId).toBe(r.id); // curveId 保留，指向已删除的曲线
+  });
+});
+
+describe('computeCompositeValue', () => {
+  function refMeasurements(date: string, reactorId: number, items: Array<{ indicatorId: number; value: number | null }>) {
+    return items.map((it, i) => ({
+      id: i + 1,
+      scene: 'daily' as const,
+      date,
+      phase: null,
+      reactorId,
+      indicatorId: it.indicatorId,
+      inputType: 'absorbance' as const,
+      sampleAbs: null,
+      blankAbs: null,
+      dilution: null,
+      value: it.value,
+      curveId: null,
+      blankOverridden: false,
+      dilutionOverridden: false,
+      note: '',
+    }));
+  }
+
+  it('sumOf：把 compositeRefs 里指标的 value 加起来', () => {
+    const indicator = { compositeType: 'sumOf' as const, compositeRefs: [10, 20, 30] } as any;
+    const refs = refMeasurements('2026-08-30', 1, [
+      { indicatorId: 10, value: 1.5 },
+      { indicatorId: 20, value: 0.5 },
+      { indicatorId: 30, value: 3.0 },
+    ]);
+    expect(computeCompositeValue({ indicator, refMeasurements: refs })).toBe(5.0);
+  });
+
+  it('sumOf：忽略无 value 的依赖指标（视为空）', () => {
+    const indicator = { compositeType: 'sumOf' as const, compositeRefs: [10, 20] } as any;
+    const refs = refMeasurements('2026-08-30', 1, [
+      { indicatorId: 10, value: 1.5 },
+      { indicatorId: 20, value: null },
+    ]);
+    expect(computeCompositeValue({ indicator, refMeasurements: refs })).toBe(1.5);
+  });
+
+  it('所有依赖指标都没值 → 返回 null（区别于 0）', () => {
+    const indicator = { compositeType: 'sumOf' as const, compositeRefs: [10, 20] } as any;
+    const refs = refMeasurements('2026-08-30', 1, [
+      { indicatorId: 10, value: null },
+      { indicatorId: 20, value: null },
+    ]);
+    expect(computeCompositeValue({ indicator, refMeasurements: refs })).toBeNull();
+  });
+
+  it('非 sumOf 复合类型 → 返回 null', () => {
+    const indicator = { compositeType: null, compositeRefs: [] } as any;
+    expect(computeCompositeValue({ indicator, refMeasurements: [] })).toBeNull();
+  });
+});
+
+describe('recomputeAndSaveComposites', () => {
+  beforeEach(async () => {
+    for (const t of db.tables) await t.clear();
+  });
+
+  async function seedBasic() {
+    const nh4 = await db.indicators.add({
+      name: '氨氮', category: 'basic', method: 'absorbance', unit: 'mg/L',
+      defaultDilution: 10, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 1,
+    });
+    const no2 = await db.indicators.add({
+      name: '亚硝态氮', category: 'basic', method: 'absorbance', unit: 'mg/L',
+      defaultDilution: 5, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 2,
+    });
+    const no3 = await db.indicators.add({
+      name: '硝态氮', category: 'basic', method: 'absorbance', unit: 'mg/L',
+      defaultDilution: 5, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 3,
+    });
+    const total = await db.indicators.add({
+      name: '总氮', category: 'basic', method: 'absorbance', unit: 'mg/L',
+      defaultDilution: 1, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 4,
+      compositeType: 'sumOf', compositeRefs: [nh4, no2, no3],
+    });
+    const r1 = await db.reactors.add({
+      code: 'R1', name: 'R1', note: '', active: true, sortOrder: 1, createdAt: '',
+    });
+    return { nh4, no2, no3, total, r1 };
+  }
+
+  it('依赖指标全有值 → 写一条 composite measurement（value=三者之和）', async () => {
+    const { nh4, no2, no3, total, r1 } = await seedBasic();
+    const date = '2026-08-30';
+    await db.measurements.bulkAdd([
+      { scene: 'daily', date, phase: null, reactorId: r1, indicatorId: nh4,
+        inputType: 'absorbance', sampleAbs: 0.3, blankAbs: 0, dilution: 10, value: 1.5,
+        curveId: null, blankOverridden: false, dilutionOverridden: false, note: '' },
+      { scene: 'daily', date, phase: null, reactorId: r1, indicatorId: no2,
+        inputType: 'absorbance', sampleAbs: 0.1, blankAbs: 0, dilution: 5, value: 0.5,
+        curveId: null, blankOverridden: false, dilutionOverridden: false, note: '' },
+      { scene: 'daily', date, phase: null, reactorId: r1, indicatorId: no3,
+        inputType: 'absorbance', sampleAbs: 0.4, blankAbs: 0, dilution: 5, value: 3.0,
+        curveId: null, blankOverridden: false, dilutionOverridden: false, note: '' },
+    ]);
+
+    await recomputeAndSaveComposites(date);
+
+    const list = await db.measurements.where('date').equals(date).toArray();
+    const tot = list.find((m) => m.indicatorId === total);
+    expect(tot).toBeDefined();
+    expect(tot?.reactorId).toBe(r1);
+    expect(tot?.value).toBeCloseTo(5.0, 6);
+    expect(tot?.note).toContain('自动计算');
+  });
+
+  it('已有 composite measurement → 更新 value（不重复插入）', async () => {
+    const { nh4, no2, no3, total, r1 } = await seedBasic();
+    const date = '2026-08-30';
+    // 预先放一条 composite 记录（value=0）
+    await db.measurements.add({
+      scene: 'daily', date, phase: null, reactorId: r1, indicatorId: total,
+      inputType: 'absorbance', sampleAbs: null, blankAbs: null, dilution: null, value: 0,
+      curveId: null, blankOverridden: false, dilutionOverridden: false, note: '',
+    });
+    await db.measurements.bulkAdd([
+      { scene: 'daily', date, phase: null, reactorId: r1, indicatorId: nh4,
+        inputType: 'absorbance', sampleAbs: 0, blankAbs: 0, dilution: 1, value: 2.0,
+        curveId: null, blankOverridden: false, dilutionOverridden: false, note: '' },
+      { scene: 'daily', date, phase: null, reactorId: r1, indicatorId: no3,
+        inputType: 'absorbance', sampleAbs: 0, blankAbs: 0, dilution: 1, value: 3.0,
+        curveId: null, blankOverridden: false, dilutionOverridden: false, note: '' },
+    ]);
+
+    await recomputeAndSaveComposites(date);
+
+    const tot = (await db.measurements.where('date').equals(date).toArray()).find(
+      (m) => m.indicatorId === total,
+    );
+    expect(tot?.value).toBeCloseTo(5.0, 6); // 2+3，跳过 no2（无 value）
+  });
+
+  it('依赖指标缺失 → 删掉已有的 composite 记录', async () => {
+    const { total, r1 } = await seedBasic();
+    const date = '2026-08-30';
+    // 先插一条 composite
+    await db.measurements.add({
+      scene: 'daily', date, phase: null, reactorId: r1, indicatorId: total,
+      inputType: 'absorbance', sampleAbs: null, blankAbs: null, dilution: null, value: 1,
+      curveId: null, blankOverridden: false, dilutionOverridden: false, note: '',
+    });
+    // 没插任何依赖指标 → 重算时删掉
+    await recomputeAndSaveComposites(date);
+
+    const tot = (await db.measurements.where('date').equals(date).toArray()).find(
+      (m) => m.indicatorId === total,
+    );
+    expect(tot).toBeUndefined();
   });
 });

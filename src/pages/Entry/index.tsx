@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CalibrationCurve } from '../../db/schema';
 import { dailyScope, deleteDailyData, getDefault, getMeasurement, saveMeasurement, upsertDefault } from '../../lib/entry';
+import { recomputeAndSaveComposites } from '../../lib/calibration';
 import { today } from '../../lib/format';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
@@ -147,6 +148,8 @@ export default function EntryPage() {
       for (const r of reactors) {
         const cell = cells[`${ind.id}:${r.id}`];
         if (!cell) continue;
+        // composite 指标（自动求和）不保存吸光度/稀释等，只由 recomputeAndSaveComposites 算
+        if (ind.compositeType === 'sumOf') continue;
         await saveMeasurement({
           scene: 'daily',
           date,
@@ -162,6 +165,9 @@ export default function EntryPage() {
         });
       }
     }
+
+    // 联动重算所有 composite 指标（总氮等）并写入 measurement
+    await recomputeAndSaveComposites(date);
 
     await influentRef.current?.save();
     toast('已保存', 'success');
@@ -216,6 +222,7 @@ export default function EntryPage() {
             key={ind.id}
             indicator={ind}
             reactors={reactors ?? []}
+            date={date}
             defaultBlank={defaults[ind.id!]?.blank ?? ''}
             defaultDilution={defaults[ind.id!]?.dilution ?? String(ind.defaultDilution)}
             cells={Object.fromEntries(

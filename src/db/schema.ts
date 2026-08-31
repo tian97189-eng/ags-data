@@ -8,6 +8,9 @@ export type InputType = 'absorbance' | 'direct';
 export type Phase = 'anaerobic' | 'oxic' | 'anoxic' | null;
 export type InfluentMode = 'shared' | 'perReactor';
 
+/** 复合公式类型：指标的值由其他指标的 value 计算而来 */
+export type CompositeType = 'sumOf' | null;
+
 // —— 实体（与 PRD 第 4 节对齐）——
 export interface Reactor {
   id?: number;
@@ -31,6 +34,10 @@ export interface Indicator {
   lod: number | null;
   active: boolean;
   sortOrder: number;
+  /** 复合公式类型：sumOf = 由 compositeRefs 中指标的 value 求和得到（如总氮=氨氮+亚硝+硝态） */
+  compositeType?: CompositeType;
+  /** 复合公式所依赖的其他指标 id 列表 */
+  compositeRefs?: number[];
 }
 
 export interface CalibrationPoint {

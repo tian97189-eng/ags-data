@@ -9,9 +9,9 @@ async function clearAll() {
 describe('seedIfEmpty', () => {
   beforeEach(clearAll);
 
-  it('首次初始化 5 个指标和 3 个反应器', async () => {
+  it('首次初始化 6 个指标（含总氮）和 3 个反应器', async () => {
     await seedIfEmpty();
-    expect(await db.indicators.count()).toBe(5);
+    expect(await db.indicators.count()).toBe(6);
     expect(await db.reactors.count()).toBe(3);
   });
 
@@ -19,7 +19,7 @@ describe('seedIfEmpty', () => {
     await seedIfEmpty();
     await seedIfEmpty();
     await seedIfEmpty();
-    expect(await db.indicators.count()).toBe(5);
+    expect(await db.indicators.count()).toBe(6);
     expect(await db.reactors.count()).toBe(3);
   });
 
@@ -30,7 +30,19 @@ describe('seedIfEmpty', () => {
     expect(all.find((i) => i.name === 'COD')?.method).toBe('direct');
     expect(
       all.filter((i) => i.method === 'absorbance').map((i) => i.name).sort(),
-    ).toEqual(['亚硝态氮', '总P', '氨氮', '硝态氮'].sort());
+    ).toEqual(['亚硝态氮', '总P', '总氮', '氨氮', '硝态氮'].sort());
+  });
+
+  it('总氮是复合公式型指标，依赖氨氮/亚硝态氮/硝态氮', async () => {
+    await seedIfEmpty();
+    const total = await db.indicators.where('name').equals('总氮').first();
+    expect(total).toBeDefined();
+    expect(total?.compositeType).toBe('sumOf');
+    expect(total?.compositeRefs).toHaveLength(3);
+    const nh4 = await db.indicators.where('name').equals('氨氮').first();
+    const no2 = await db.indicators.where('name').equals('亚硝态氮').first();
+    const no3 = await db.indicators.where('name').equals('硝态氮').first();
+    expect(total?.compositeRefs).toEqual([nh4!.id, no2!.id, no3!.id]);
   });
 
   it('写入默认设置', async () => {

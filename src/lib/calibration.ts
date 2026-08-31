@@ -1,4 +1,4 @@
-import { db, type CalibrationCurve, type CalibrationPoint } from '../db/schema';
+import { db, type CalibrationCurve, type CalibrationPoint, type Indicator, type Measurement } from '../db/schema';
 import { evaluateFormula } from './formula';
 
 // —— 最小二乘拟合 y = kx + b（x=浓度，y=吸光度）——
@@ -139,4 +139,107 @@ export async function countMeasurementsByCurve(curveId: number): Promise<number>
 /** 删除一条标准曲线。已存测量值的浓度不受影响（冗余存储），仅失去曲线追溯。 */
 export async function deleteCurve(curveId: number): Promise<void> {
   await db.curves.delete(curveId);
+}
+
+/** —— 复合公式指标（如总氮 = 氨氮 + 亚硝态氮 + 硝态氮） —— */
+
+/** 纯函数：给定指标 + 同日同罐的依赖指标 measurements，算出复合指标的值 */
+export function computeCompositeValue(input: {
+  indicator: Indicator;
+  refMeasurements: Measurement[];
+}): number | null {
+  const { indicator, refMeasurements } = input;
+  if (indicator.compositeType !== 'sumOf' || !indicator.compositeRefs?.length) {
+    return null;
+  }
+  let sum = 0;
+  let hasAny = false;
+  for (const refId of indicator.compositeRefs) {
+    const m = refMeasurements.find((x) => x.indicatorId === refId);
+    if (m?.value != null && Number.isFinite(m.value)) {
+      sum += m.value;
+      hasAny = true;
+    }
+  }
+  return hasAny ? sum : null;
+}
+
+/** 保存基础指标后调用：重算并写入所有 compositeType 指标的 Measurement
+ *  - 依赖指标全有值 → 写 measurement（inputType='absorbance' 但 value 由 composite 提供）
+ *  - 依赖指标不全 → 删掉已有 composite measurement
+ *  - 每个 (date, reactorId) 都处理
+ */
+export async function recomputeAndSaveComposites(date: string): Promise<void> {
+  const composities = await db.indicators
+    .filter((i) => i.active && i.compositeType === 'sumOf' && (i.compositeRefs?.length ?? 0) > 0)
+    .toArray();
+  if (!composities.length) return;
+
+  // 同日 daily measurements（一次性查全，省得每指标单独查）
+  const allDaily = await db.measurements
+    .where('date')
+    .equals(date)
+    .filter((m) => m.scene === 'daily')
+    .toArray();
+
+  for (const composite of composities) {
+    const refIds = composite.compositeRefs!;
+    const compositeId = composite.id!;
+
+    // 当前 composite 自己当日所有记录（按 reactorId 分组）
+    const existingByReactor = new Map<number, Measurement>();
+    for (const m of allDaily) {
+      if (m.indicatorId === compositeId) {
+        existingByReactor.set(m.reactorId, m);
+      }
+    }
+
+    // 依赖指标当日所有记录（按 reactorId 分组）
+    const refsByReactor = new Map<number, Measurement[]>();
+    for (const m of allDaily) {
+      if (refIds.includes(m.indicatorId)) {
+        const list = refsByReactor.get(m.reactorId) ?? [];
+        list.push(m);
+        refsByReactor.set(m.reactorId, list);
+      }
+    }
+
+    // 遍历所有相关罐（refs 存在 ∪ 已有 composite 记录），保证删残留/写新增都不漏
+    const reactorIds = new Set<number>([
+      ...refsByReactor.keys(),
+      ...existingByReactor.keys(),
+    ]);
+
+    for (const reactorId of reactorIds) {
+      const refs = refsByReactor.get(reactorId) ?? [];
+      const value = computeCompositeValue({ indicator: composite, refMeasurements: refs });
+      const existing = existingByReactor.get(reactorId);
+
+      if (value == null) {
+        // 依赖不全 → 删已有
+        if (existing?.id) await db.measurements.delete(existing.id);
+      } else if (existing?.id) {
+        // 已有 → 更新 value（不动 sampleAbs/dilution/curveId）
+        await db.measurements.update(existing.id, { value });
+      } else {
+        // 新增一条 composite 记录
+        await db.measurements.add({
+          scene: 'daily',
+          date,
+          phase: null,
+          reactorId,
+          indicatorId: compositeId,
+          inputType: 'absorbance',
+          sampleAbs: null,
+          blankAbs: null,
+          dilution: null,
+          value,
+          curveId: null,
+          blankOverridden: false,
+          dilutionOverridden: false,
+          note: '由其他指标自动计算',
+        });
+      }
+    }
+  }
 }

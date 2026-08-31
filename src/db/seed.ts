@@ -63,6 +63,23 @@ const BUILTIN_INDICATORS: Omit<Indicator, 'id'>[] = [
   },
 ];
 
+/** 复合公式型内置指标（依赖其他指标 id，先插入基础指标再插入这些） */
+const BUILTIN_COMPOSITE_INDICATORS: Omit<Indicator, 'id' | 'compositeRefs'>[] = [
+  // 总氮：氨氮 + 亚硝态氮 + 硝态氮，sortOrder 放在三氮后
+  {
+    name: '总氮',
+    category: 'basic',
+    method: 'absorbance',
+    unit: 'mg/L',
+    defaultDilution: 1,
+    refLow: null,
+    refHigh: null,
+    lod: null,
+    active: true,
+    sortOrder: 3.5,
+  },
+];
+
 const DEFAULT_REACTORS: Omit<Reactor, 'id'>[] = [
   { code: 'R1', name: 'R1', note: '', active: true, sortOrder: 1, createdAt: '' },
   { code: 'R2', name: 'R2', note: '', active: true, sortOrder: 2, createdAt: '' },
@@ -79,7 +96,27 @@ const DEFAULT_SETTINGS: { key: string; value: unknown }[] = [
 export async function seedIfEmpty(): Promise<void> {
   if ((await db.indicators.count()) === 0) {
     const now = new Date().toISOString();
+    // 先插入基础指标（无 compositeType）
     await db.indicators.bulkAdd(BUILTIN_INDICATORS);
+
+    // 再插入复合公式型指标（如总氮 = 三氮求和）
+    for (const composite of BUILTIN_COMPOSITE_INDICATORS) {
+      if (composite.name === '总氮') {
+        const nh4 = await db.indicators.where('name').equals('氨氮').first();
+        const no3 = await db.indicators.where('name').equals('硝态氮').first();
+        const no2 = await db.indicators.where('name').equals('亚硝态氮').first();
+        if (nh4?.id && no2?.id && no3?.id) {
+          await db.indicators.add({
+            ...composite,
+            compositeType: 'sumOf',
+            compositeRefs: [nh4.id, no2.id, no3.id],
+          });
+        }
+      } else {
+        await db.indicators.add(composite);
+      }
+    }
+
     await db.reactors.bulkAdd(
       DEFAULT_REACTORS.map((r) => ({ ...r, createdAt: now })),
     );
