@@ -9,6 +9,7 @@ import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import Chip from '../../components/common/Chip';
+import SampleReminder from '../../components/common/SampleReminder';
 import { useAppStore } from '../../store/useAppStore';
 
 interface CycleCell {
@@ -310,6 +311,13 @@ export default function CyclePage() {
               <span className="text-slate-400 ml-auto">可直接从 Excel 框选整块 Ctrl+V 粘贴</span>
             </div>
           )}
+
+          <div className="mb-3">
+            <SampleReminder
+              defaultInterval={cycle?.intervalMinutes ?? 30}
+              defaultCount={times.length}
+            />
+          </div>
 
           <div className="overflow-x-auto">
             <table

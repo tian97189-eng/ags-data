@@ -61,6 +61,18 @@ const BUILTIN_INDICATORS: Omit<Indicator, 'id'>[] = [
     active: true,
     sortOrder: 5,
   },
+  {
+    name: 'DO',
+    category: 'basic',
+    method: 'direct',
+    unit: 'mg/L',
+    defaultDilution: 1,
+    refLow: null,
+    refHigh: null,
+    lod: null,
+    active: true,
+    sortOrder: 6,
+  },
 ];
 
 /** 复合公式型内置指标（依赖其他指标 id，先插入基础指标再插入这些） */
