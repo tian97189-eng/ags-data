@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Phase } from '../../db/schema';
-import { cycleScope, getDefault, getMeasurement, saveMeasurement, upsertDefault } from '../../lib/entry';
+import { db, type Phase } from '../../db/schema';import { cycleScope, getDefault, getMeasurement, saveMeasurement, upsertDefault } from '../../lib/entry';
 import { computeConcentration } from '../../lib/calibration';
 import { generateTimes, cycleStats, deleteCycle } from '../../lib/cycle';
 import { parseClipboardTable, mapPasteToGrid } from '../../lib/paste';
@@ -55,6 +54,36 @@ export default function CyclePage() {
 
   const cycle = cycles?.find((c) => c.id === cycleId) ?? null;
   const indicator = indicators?.find((i) => i.id === indicatorId);
+  const isComposite = indicator?.compositeType != null;
+  // composite（总氮）依赖指标 id 列表，逗号串用于 useLiveQuery deps
+  const compositeRefs = indicator?.compositeType != null ? (indicator.compositeRefs ?? []) : [];
+  const refKey = compositeRefs.join(',');
+
+  // composite 指标：读当前周期三氮的已保存浓度，逐格求和显示
+  const refMeasurements = useLiveQuery(
+    async () => {
+      if (!cycle || compositeRefs.length === 0) return [];
+      return db.measurements
+        .where('cycleRunId')
+        .equals(cycle.id!)
+        .filter((m) => compositeRefs.includes(m.indicatorId))
+        .toArray();
+    },
+    [cycle?.id, refKey],
+  );
+
+  /** 该时间点该罐的三氮浓度和；任一依赖缺失返回 null */
+  function compositeAt(t: string, reactorId: number): number | null {
+    let sum = 0;
+    for (const refId of compositeRefs) {
+      const m = (refMeasurements ?? []).find(
+        (mm) => mm.reactorId === reactorId && mm.time === t && mm.indicatorId === refId,
+      );
+      if (m?.value == null) return null;
+      sum += m.value;
+    }
+    return sum;
+  }
 
   const times = useMemo(
     () => (cycle ? generateTimes(cycle.startTime, cycle.intervalMinutes, cycle.count) : []),
@@ -112,6 +141,32 @@ export default function CyclePage() {
 
   async function handleSave() {
     if (!cycle || !indicator || !reactors) return;
+
+    // composite（总氮）：不录吸光度，浓度 = 三氮之和，直写库
+    if (isComposite) {
+      await db.measurements
+        .where('cycleRunId')
+        .equals(cycle.id!)
+        .filter((m) => m.indicatorId === indicator.id)
+        .delete();
+      for (const t of times) {
+        for (const r of reactors) {
+          const v = compositeAt(t, r.id!);
+          if (v == null) continue;
+          await db.measurements.add({
+            scene: 'cycle', date: cycle.date, cycleRunId: cycle.id, time: t,
+            phase: phases[t] ?? null, reactorId: r.id!, indicatorId: indicator.id!,
+            inputType: 'direct', sampleAbs: null, blankAbs: null, dilution: null,
+            value: v, curveId: null, blankOverridden: false, dilutionOverridden: false,
+            note: '由其他指标自动计算',
+          });
+        }
+      }
+      await db.settings.put({ key: `cycle:${cycle.id}:phases`, value: phases });
+      toast('已保存', 'success');
+      return;
+    }
+
     const scope = cycleScope(cycle.id!);
     await upsertDefault(scope, indicator.id!, blank === '' ? null : Number(blank), Number(dilution) || indicator.defaultDilution);
     for (const t of times) {
@@ -228,7 +283,7 @@ export default function CyclePage() {
               <span className="text-slate-500">
                 {cycle.startTime} 起 · 每 {cycle.intervalMinutes} 分钟 · 共 {times.length} 点
               </span>
-              {indicator.method === 'absorbance' && (
+              {indicator.method === 'absorbance' && !isComposite && (
                 <>
                   <label className="flex items-center gap-1">
                     <span className="text-slate-500">空白</span>
@@ -267,7 +322,7 @@ export default function CyclePage() {
                   <th className="text-left py-2 px-2 border-b border-slate-200 w-20">阶段</th>
                   {reactors?.map((r) => (
                     <th key={r.id} className="text-left py-2 px-2 border-b border-slate-200">
-                      {r.code} {indicator?.method === 'absorbance' ? '吸光度' : '浓度'}
+                      {r.code} {indicator?.method === 'absorbance' && !isComposite ? '吸光度' : '浓度'}
                     </th>
                   ))}
                 </tr>
@@ -293,6 +348,17 @@ export default function CyclePage() {
                     </td>
                     {reactors?.map((r) => {
                       const cell = cells[`${t}:${r.id}`] ?? { sample: '', dilution, dilutionOverridden: false };
+                      if (isComposite) {
+                        return (
+                          <td
+                            key={r.id}
+                            className="py-1.5 px-2 border-b border-slate-50 text-right font-medium text-teal-700"
+                            title="氨氮+硝态氮+亚硝态氮"
+                          >
+                            {formatNumber(compositeAt(t, r.id!))}
+                          </td>
+                        );
+                      }
                       return (
                         <td key={r.id} className="py-1.5 px-2 border-b border-slate-50">
                           <input
@@ -332,6 +398,7 @@ export default function CyclePage() {
                 <tbody>
                   {reactors?.map((r) => {
                     const values = times.map((t) => {
+                      if (isComposite) return compositeAt(t, r.id!);
                       const cell = cells[`${t}:${r.id}`];
                       const v = cell?.sample === '' || !cell ? null : Number(cell.sample);
                       if (indicator?.method === 'direct') return v;
