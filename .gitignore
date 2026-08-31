@@ -7,3 +7,7 @@ dist-ssr
 coverage
 vite.config.ts.timestamp-*
 certs
+android/keystore.properties
+*.keystore
+*.jks
+ags-release-keystore
