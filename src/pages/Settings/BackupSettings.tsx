@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/schema';
 import { exportBackupData, backupToJson, jsonToBackup, importBackupData } from '../../lib/backup';
 import { buildExportRows, buildWorkbook, type ExportFilter } from '../../lib/excel';
+import { parseImportFile, buildImportTemplate, type ImportPreview } from '../../lib/importExcel';
 import { saveAndShare } from '../../lib/share';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useAppStore } from '../../store/useAppStore';
@@ -32,6 +33,10 @@ export default function BackupSettings() {
   const [dateTo, setDateTo] = useState('');
   const [pickedReactors, setPickedReactors] = useState<number[]>([]);
   const [pickedIndicators, setPickedIndicators] = useState<number[]>([]);
+
+  // Excel 导入
+  const excelFileRef = useRef<HTMLInputElement>(null);
+  const [excelImport, setExcelImport] = useState<ImportPreview | null>(null);
 
   const counts = useLiveQuery(async () => {
     return {
@@ -144,6 +149,57 @@ export default function BackupSettings() {
       toast('不是有效的备份文件', 'error');
     }
     if (fileRef.current) fileRef.current.value = '';
+  }
+
+  async function handleExcelSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const preview = await parseImportFile(file);
+      setExcelImport(preview);
+    } catch (err) {
+      toast(`解析失败：${(err as Error).message}`, 'error');
+    }
+    if (excelFileRef.current) excelFileRef.current.value = '';
+  }
+
+  async function handleConfirmExcelImport() {
+    if (!excelImport) return;
+    const reactors = await db.reactors.toArray();
+    const indicators = await db.indicators.toArray();
+    const rMap = new Map(reactors.map((r) => [r.code, r]));
+    const iMap = new Map(indicators.map((i) => [i.name, i]));
+    let n = 0;
+    for (const row of excelImport.rows) {
+      if (row.status !== 'ok') continue;
+      const reactor = rMap.get(row.reactorCode!);
+      const indicator = iMap.get(row.indicatorName!);
+      if (!reactor || !indicator || row.value == null || !row.date) continue;
+      await db.measurements.add({
+        scene: 'daily',
+        date: row.date,
+        phase: null,
+        reactorId: reactor.id!,
+        indicatorId: indicator.id!,
+        inputType: indicator.method === 'direct' ? 'direct' : 'absorbance',
+        sampleAbs: null,
+        blankAbs: null,
+        dilution: null,
+        value: row.value,
+        curveId: null,
+        blankOverridden: false,
+        dilutionOverridden: false,
+        note: row.note || 'Excel 导入',
+      });
+      n++;
+    }
+    setExcelImport(null);
+    toast(`已导入 ${n} 条测量记录`, 'success');
+  }
+
+  function handleDownloadTemplate() {
+    const wb = buildImportTemplate();
+    XLSX.writeFile(wb, 'AGS数据导入模板.xlsx');
   }
 
   async function doImport(mode: 'merge' | 'overwrite') {
@@ -305,6 +361,105 @@ export default function BackupSettings() {
                 className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
               >
                 导出
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="border border-slate-200 rounded-lg p-4">
+        <div className="text-sm font-medium mb-1">导入 Excel</div>
+        <p className="text-xs text-slate-500 mb-3">
+          按固定列模板（日期 / 罐 / 指标 / 浓度 / 备注）上传 Excel，可一次导入多条测量记录。不识别的罐/指标会跳过并提示。
+        </p>
+        <div className="flex gap-2 flex-wrap">
+          <button type="button" onClick={() => excelFileRef.current?.click()} className="px-3 py-1.5 text-xs rounded-md border border-slate-300 text-slate-700">
+            选择 Excel 文件
+          </button>
+          <button type="button" onClick={handleDownloadTemplate} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-500 hover:border-teal-400">
+            下载模板
+          </button>
+          <input
+            ref={excelFileRef}
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            className="hidden"
+            onChange={handleExcelSelected}
+          />
+        </div>
+      </div>
+
+      {excelImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" onClick={() => setExcelImport(null)}>
+          <div className="bg-white rounded-xl p-5 max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-medium mb-3">Excel 导入预览</h3>
+
+            <div className="text-xs text-slate-600 mb-3 space-y-1">
+              <div>
+                共 {excelImport.totalRows} 行，<span className="text-teal-700 font-medium">{excelImport.okCount} 行可导入</span>
+                {excelImport.unknownIndicatorNames.length > 0 && (
+                  <span className="text-amber-600 ml-2">
+                    未识别的指标：{excelImport.unknownIndicatorNames.join('、')}
+                  </span>
+                )}
+                {excelImport.unknownReactorCodes.length > 0 && (
+                  <span className="text-amber-600 ml-2">
+                    未识别的罐：{excelImport.unknownReactorCodes.join('、')}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto -mx-5 px-5 mb-3">
+              <table className="w-full table-fixed border-collapse text-xs min-w-[600px]">
+                <thead>
+                  <tr className="text-slate-500">
+                    <th className="text-left py-1.5 px-2 border-b border-slate-200 w-12">行</th>
+                    <th className="text-left py-1.5 px-2 border-b border-slate-200">日期</th>
+                    <th className="text-left py-1.5 px-2 border-b border-slate-200">罐</th>
+                    <th className="text-left py-1.5 px-2 border-b border-slate-200">指标</th>
+                    <th className="text-right py-1.5 px-2 border-b border-slate-200">浓度</th>
+                    <th className="text-left py-1.5 px-2 border-b border-slate-200">备注</th>
+                    <th className="text-left py-1.5 px-2 border-b border-slate-200">状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {excelImport.rows.map((r) => (
+                    <tr key={r.excelRow}>
+                      <td className="py-1.5 px-2 border-b border-slate-100">{r.excelRow}</td>
+                      <td className="py-1.5 px-2 border-b border-slate-100">{r.date ?? '—'}</td>
+                      <td className="py-1.5 px-2 border-b border-slate-100">{r.reactorCode ?? '—'}</td>
+                      <td className="py-1.5 px-2 border-b border-slate-100">{r.indicatorName ?? '—'}</td>
+                      <td className="py-1.5 px-2 border-b border-slate-100 text-right">
+                        {r.value ?? '—'}
+                      </td>
+                      <td className="py-1.5 px-2 border-b border-slate-100">{r.note}</td>
+                      <td className="py-1.5 px-2 border-b border-slate-100">
+                        {r.status === 'ok' ? (
+                          <span className="text-teal-700">可导入</span>
+                        ) : (
+                          <span className="text-amber-600" title={r.statusDetail}>
+                            {r.status === 'unknown_indicator' ? '指标未定义' : r.status === 'unknown_reactor' ? '罐未定义' : r.status === 'invalid_date' ? '日期无效' : '数值无效'}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setExcelImport(null)} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600">
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmExcelImport}
+                disabled={excelImport.okCount === 0}
+                className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
+              >
+                确认导入 {excelImport.okCount} 条
               </button>
             </div>
           </div>
