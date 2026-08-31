@@ -51,4 +51,46 @@ describe('seedIfEmpty', () => {
     expect((await db.settings.get('influentMode'))?.value).toBe('shared');
     expect((await db.settings.get('targetValue'))?.value).toBe(2);
   });
+
+  it('【升级场景】已有 5 个基础指标（无总氮）时调 seedIfEmpty → 自动补加总氮', async () => {
+    // 模拟老用户：5 个基础指标，但没总氮（升级前装的版本）
+    await db.indicators.bulkAdd([
+      { name: '氨氮', category: 'basic', method: 'absorbance', unit: 'mg/L',
+        defaultDilution: 10, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 1 },
+      { name: '硝态氮', category: 'basic', method: 'absorbance', unit: 'mg/L',
+        defaultDilution: 5, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 2 },
+      { name: '亚硝态氮', category: 'basic', method: 'absorbance', unit: 'mg/L',
+        defaultDilution: 5, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 3 },
+      { name: '总P', category: 'basic', method: 'absorbance', unit: 'mg/L',
+        defaultDilution: 1, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 4 },
+      { name: 'COD', category: 'basic', method: 'direct', unit: 'mg/L',
+        defaultDilution: 1, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 5 },
+    ]);
+    expect(await db.indicators.count()).toBe(5); // 起始只有 5 个
+    expect(await db.indicators.where('name').equals('总氮').first()).toBeUndefined();
+
+    // 升级：调一次 seed
+    await seedIfEmpty();
+
+    // 现在应该有 6 个
+    expect(await db.indicators.count()).toBe(6);
+    const total = await db.indicators.where('name').equals('总氮').first();
+    expect(total).toBeDefined();
+    expect(total?.compositeType).toBe('sumOf');
+    const nh4 = await db.indicators.where('name').equals('氨氮').first();
+    const no2 = await db.indicators.where('name').equals('亚硝态氮').first();
+    const no3 = await db.indicators.where('name').equals('硝态氮').first();
+    expect(total?.compositeRefs).toEqual([nh4!.id, no2!.id, no3!.id]);
+  });
+
+  it('【升级场景】缺反应器时补齐（如新增了第 4 个反应器）', async () => {
+    await db.reactors.add({ code: 'R1', name: 'R1', note: '', active: true, sortOrder: 1, createdAt: '' });
+    expect(await db.reactors.count()).toBe(1);
+
+    await seedIfEmpty();
+
+    expect(await db.reactors.count()).toBe(3); // R2 / R3 被补上
+    const codes = (await db.reactors.toArray()).map((r) => r.code).sort();
+    expect(codes).toEqual(['R1', 'R2', 'R3']);
+  });
 });

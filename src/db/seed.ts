@@ -92,36 +92,47 @@ const DEFAULT_SETTINGS: { key: string; value: unknown }[] = [
   { key: 'targetValue', value: 2 },
 ];
 
-/** 首次启动时初始化内置数据；幂等，重复调用不会重复插入 */
+/**
+ * 启动时同步内置数据 —— 不只在空时初始化，已存在的数据库也会"补齐缺失"。
+ * 这样新增的内置指标（如下午加的"总氮"）对老用户自动可见。
+ * 幂等：重复调用不会重复插入。
+ */
 export async function seedIfEmpty(): Promise<void> {
-  if ((await db.indicators.count()) === 0) {
-    const now = new Date().toISOString();
-    // 先插入基础指标（无 compositeType）
-    await db.indicators.bulkAdd(BUILTIN_INDICATORS);
+  const now = new Date().toISOString();
 
-    // 再插入复合公式型指标（如总氮 = 三氮求和）
-    for (const composite of BUILTIN_COMPOSITE_INDICATORS) {
-      if (composite.name === '总氮') {
-        const nh4 = await db.indicators.where('name').equals('氨氮').first();
-        const no3 = await db.indicators.where('name').equals('硝态氮').first();
-        const no2 = await db.indicators.where('name').equals('亚硝态氮').first();
-        if (nh4?.id && no2?.id && no3?.id) {
-          await db.indicators.add({
-            ...composite,
-            compositeType: 'sumOf',
-            compositeRefs: [nh4.id, no2.id, no3.id],
-          });
-        }
-      } else {
-        await db.indicators.add(composite);
-      }
-    }
-
-    await db.reactors.bulkAdd(
-      DEFAULT_REACTORS.map((r) => ({ ...r, createdAt: now })),
-    );
+  // 1) 反应器：缺失的补齐（不删已有的）
+  for (const r of DEFAULT_REACTORS) {
+    const exists = await db.reactors.where('code').equals(r.code).first();
+    if (!exists) await db.reactors.add({ ...r, createdAt: now });
   }
 
+  // 2) 基础指标：缺失的补齐（用 name 判断）
+  for (const ind of BUILTIN_INDICATORS) {
+    const exists = await db.indicators.where('name').equals(ind.name).first();
+    if (!exists) await db.indicators.add(ind);
+  }
+
+  // 3) 复合公式型内置指标（如总氮）：依赖其他指标 id，缺失的补齐
+  for (const composite of BUILTIN_COMPOSITE_INDICATORS) {
+    const exists = await db.indicators.where('name').equals(composite.name).first();
+    if (exists) continue;
+    if (composite.name === '总氮') {
+      const nh4 = await db.indicators.where('name').equals('氨氮').first();
+      const no3 = await db.indicators.where('name').equals('硝态氮').first();
+      const no2 = await db.indicators.where('name').equals('亚硝态氮').first();
+      if (nh4?.id && no2?.id && no3?.id) {
+        await db.indicators.add({
+          ...composite,
+          compositeType: 'sumOf',
+          compositeRefs: [nh4.id, no2.id, no3.id],
+        });
+      }
+    } else {
+      await db.indicators.add(composite);
+    }
+  }
+
+  // 4) 默认 settings
   for (const s of DEFAULT_SETTINGS) {
     if (!(await db.settings.get(s.key))) {
       await db.settings.put(s);
