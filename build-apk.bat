@@ -1,7 +1,7 @@
 @echo off
-setlocal
+setlocal EnableExtensions
 echo ==========================================
-echo  AGS Data App - Build APK (release signed)
+echo  AGS Data App - Build APK
 echo ==========================================
 echo.
 
@@ -9,111 +9,108 @@ set "JAVA_HOME=C:\jdk21\jdk"
 set "ANDROID_HOME=C:\android-sdk"
 set "ANDROID_SDK_ROOT=C:\android-sdk"
 set "GRADLE_USER_HOME=C:\Users\sky\gradle-home"
-
-rem ======== [0/6] Sync latest source code to build dir ========
-echo [0/6] Syncing source code...
+set "BUILD=C:\Users\sky\ags-build2"
+set "LOG=%BUILD%\build-log.txt"
 set "SRC=%~dp0"
-xcopy /D /E /I /Y /Q "%SRC%src"       "C:\Users\sky\ags-build2\src"       >nul
-xcopy /D /E /I /Y /Q "%SRC%public"    "C:\Users\sky\ags-build2\public"    >nul
-xcopy /D /E /I /Y /Q "%SRC%scripts"   "C:\Users\sky\ags-build2\scripts"   >nul
-copy /Y "%SRC%package.json"       "C:\Users\sky\ags-build2\package.json"       >nul
-copy /Y "%SRC%package-lock.json"  "C:\Users\sky\ags-build2\package-lock.json"  >nul
-copy /Y "%SRC%vite.config.ts"     "C:\Users\sky\ags-build2\vite.config.ts"     >nul
-copy /Y "%SRC%tsconfig.json"      "C:\Users\sky\ags-build2\tsconfig.json"      >nul
-copy /Y "%SRC%tailwind.config.js" "C:\Users\sky\ags-build2\tailwind.config.js" >nul
-copy /Y "%SRC%postcss.config.js"  "C:\Users\sky\ags-build2\postcss.config.js"  >nul
-copy /Y "%SRC%index.html"         "C:\Users\sky\ags-build2\index.html"         >nul
-echo      source synced.
 
-rem ======== [1/6] Ensure release keystore exists (固定签名 → 升级保留数据) ========
-echo [1/6] Ensuring release keystore...
+echo Log file: %LOG%
+if exist "%LOG%" del /q "%LOG%" >nul 2>&1
+
+rem ======== [1/7] Ensure release keystore (fixed signature keeps data on update) ========
+echo [1/7] Ensuring release keystore...
 set "KEYSTORE_DIR=C:\Users\sky\ags-release-keystore"
 set "KEYSTORE_FILE=%KEYSTORE_DIR%\ags-release.keystore"
 set "KS_PASS=ags-release-2026"
 if not exist "%KEYSTORE_FILE%" (
     if not exist "%KEYSTORE_DIR%" mkdir "%KEYSTORE_DIR%"
-    "%JAVA_HOME%\bin\keytool.exe" -genkeypair -v -keystore "%KEYSTORE_FILE%" -alias ags -keyalg RSA -keysize 2048 -validity 36500 -storepass %KS_PASS% -keypass %KS_PASS% -dname "CN=AGS Data,O=Local,C=CN" >nul
-    if errorlevel 1 (
-        echo FAILED: keytool failed. Send the error above to the assistant.
-        pause
-        exit /b 1
-    )
-    echo      generated new keystore at %KEYSTORE_FILE%
+    "%JAVA_HOME%\bin\keytool.exe" -genkeypair -v -keystore "%KEYSTORE_FILE%" -alias ags -keyalg RSA -keysize 2048 -validity 36500 -storepass %KS_PASS% -keypass %KS_PASS% -dname "CN=AGS Data,O=Local,C=CN" >> "%LOG%" 2>&1
+    if errorlevel 1 goto fail
+    echo      keystore created.
 ) else (
-    echo      reusing existing keystore at %KEYSTORE_FILE%
+    echo      keystore exists.
 )
-
-rem 把 keystore.properties 写到 android/ 目录（build.gradle 从这里读），不提交 git
 (
     echo storeFile=%KEYSTORE_FILE%
     echo storePassword=%KS_PASS%
     echo keyAlias=ags
     echo keyPassword=%KS_PASS%
-) > "C:\Users\sky\ags-build2\android\keystore.properties"
+) > "%BUILD%\android\keystore.properties"
+if errorlevel 1 goto fail
 echo      keystore.properties written.
 
-rem ======== [2/6] Install any new dependencies ========
-echo [2/6] Installing dependencies (incremental)...
-cd /d C:\Users\sky\ags-build2
-call npm install --no-audit --no-fund
-if errorlevel 1 (
-    echo.
-    echo FAILED: npm install failed. Send the error above to the assistant.
-    pause
-    exit /b 1
-)
+rem ======== [2/7] Sync latest source code ========
+echo [2/7] Syncing source code...
+xcopy /D /E /I /Y /Q "%SRC%src"       "%BUILD%\src"       >> "%LOG%" 2>&1
+xcopy /D /E /I /Y /Q "%SRC%public"    "%BUILD%\public"    >> "%LOG%" 2>&1
+xcopy /D /E /I /Y /Q "%SRC%scripts"   "%BUILD%\scripts"   >> "%LOG%" 2>&1
+copy /Y "%SRC%package.json"       "%BUILD%\package.json"       >> "%LOG%" 2>&1
+copy /Y "%SRC%package-lock.json"  "%BUILD%\package-lock.json"  >> "%LOG%" 2>&1
+copy /Y "%SRC%vite.config.ts"     "%BUILD%\vite.config.ts"     >> "%LOG%" 2>&1
+copy /Y "%SRC%tsconfig.json"      "%BUILD%\tsconfig.json"      >> "%LOG%" 2>&1
+copy /Y "%SRC%tailwind.config.js" "%BUILD%\tailwind.config.js" >> "%LOG%" 2>&1
+copy /Y "%SRC%postcss.config.js"  "%BUILD%\postcss.config.js"  >> "%LOG%" 2>&1
+copy /Y "%SRC%index.html"         "%BUILD%\index.html"         >> "%LOG%" 2>&1
+copy /Y "%SRC%capacitor.config.ts" "%BUILD%\capacitor.config.ts" >> "%LOG%" 2>&1
+copy /Y "%SRC%android\app\build.gradle" "%BUILD%\android\app\build.gradle" >> "%LOG%" 2>&1
+echo      source synced.
+
+rem ======== [3/7] Install dependencies ========
+echo [3/7] Installing dependencies (this may take a few minutes)...
+cd /d "%BUILD%"
+call npm install --no-audit --no-fund >> "%LOG%" 2>&1
+if errorlevel 1 goto fail
 echo      dependencies ok.
 
-rem ======== [3/6] Build web assets ========
-echo [3/6] Building web assets...
-call npm run build
-if errorlevel 1 (
-    echo.
-    echo FAILED: web build failed. Send the error above to the assistant.
-    pause
-    exit /b 1
-)
+rem ======== [4/7] Build web assets ========
+echo [4/7] Building web assets...
+call npm run build >> "%LOG%" 2>&1
+if errorlevel 1 goto fail
 echo      web build ok.
 
-rem ======== [4/6] Sync web assets into Android project ========
-echo [4/6] Syncing into Android project...
-call node node_modules\@capacitor\cli\bin\capacitor sync android
-if errorlevel 1 (
-    echo.
-    echo FAILED: capacitor sync failed. Send the error above to the assistant.
-    pause
-    exit /b 1
-)
+rem ======== [5/7] Sync web assets into Android project ========
+echo [5/7] Syncing into Android project...
+call node node_modules\@capacitor\cli\bin\capacitor sync android >> "%LOG%" 2>&1
+if errorlevel 1 goto fail
 echo      android sync ok.
 
-rem ======== [5/6] Build APK ========
-echo [5/6] Building APK (first run may take 5-10 min)...
-cd /d C:\Users\sky\ags-build2\android
-call "C:\Users\sky\gradle-dist\gradle-8.14.3\bin\gradle.bat" assembleRelease --no-daemon
-if errorlevel 1 (
-    echo.
-    echo BUILD FAILED. Please send the error above to the assistant.
-    pause
-    exit /b 1
-)
+rem ======== [6/7] Build APK (gradle) ========
+echo [6/7] Building APK. First run downloads dependencies, it can take 5-15 min. Do not close this window.
+cd /d "%BUILD%\android"
+call "C:\Users\sky\gradle-dist\gradle-8.14.3\bin\gradle.bat" assembleRelease --no-daemon >> "%LOG%" 2>&1
+if errorlevel 1 goto fail
+echo      apk build ok.
 
-rem ======== [6/6] Copy APK to Desktop ========
-set "APK=C:\Users\sky\ags-build2\android\app\build\outputs\apk\release\app-release.apk"
+rem ======== [7/7] Copy APK to Desktop ========
+set "APK=%BUILD%\android\app\build\outputs\apk\release\app-release.apk"
 if exist "%APK%" (
-    copy /y "%APK%" "%USERPROFILE%\Desktop\AGS-data-app.apk" >nul
+    copy /y "%APK%" "%USERPROFILE%\Desktop\AGS-data-app.apk" >> "%LOG%" 2>&1
     echo.
     echo ==========================================
     echo  SUCCESS!
     echo  APK copied to your Desktop:
     echo  %USERPROFILE%\Desktop\AGS-data-app.apk
     echo.
-    echo  IMPORTANT - 升级安装保留数据:
-    echo    * 直接点新 APK 安装（覆盖安装），不要先卸载
-    echo    * 签名已固定 (release)，重复构建 APK 的包名/签名一致
-    echo    * 数据会保留。如果不小心卸载了，数据会清。
+    echo  IMPORTANT for updating:
+    echo    * Install the new APK directly over the old one (do NOT uninstall first).
+    echo    * Signature is fixed (release), so app data is kept.
     echo ==========================================
+    echo.
+    goto end
 ) else (
-    echo APK file not found. Build may not have completed.
+    echo APK file not found. See log for details.
+    goto fail
 )
+
+:fail
 echo.
+echo ==========================================
+echo  BUILD FAILED - window will stay open.
+echo  Full log: %LOG%
+echo  Please send the log file to your AI assistant.
+echo ==========================================
+echo.
+pause
+exit /b 1
+
+:end
 pause
