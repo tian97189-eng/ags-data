@@ -301,14 +301,14 @@ async function reconcile(): Promise<void> {
 
 // ---------- 生命周期 ----------
 
-export async function initSync(envId: string, accessKey: string): Promise<void> {
+export async function initSync(appId: string, appKey: string, serverURL?: string): Promise<void> {
   if (running) return;
   syncState.status = 'connecting';
-  syncState.envId = envId;
+  syncState.envId = appId;
   syncState.lastError = '';
   emit();
   try {
-    await initCloud(envId, accessKey);
+    await initCloud({ appId, appKey, serverURL });
     await replayQueue(); // 先补传离线修改
     await reconcile(); // 再双向对账
     startWatch();
@@ -360,23 +360,33 @@ export async function syncNow(): Promise<void> {
   }
 }
 
-/** 读取已保存的环境 ID */
+/** 读取已保存的 AppID */
 export async function getSavedEnvId(): Promise<string> {
-  const s = await db.settings.get('cloudEnvId');
+  const s = await db.settings.get('lcAppId');
   return (s?.value as string) ?? '';
 }
 
-/** 读取已保存的 API 密钥 */
+/** 读取已保存的 AppKey */
 export async function getSavedAccessKey(): Promise<string> {
-  const s = await db.settings.get('cloudAccessKey');
+  const s = await db.settings.get('lcAppKey');
   return (s?.value as string) ?? '';
 }
 
-/** 保存环境 ID 和 API 密钥（不自动连接） */
-export async function saveEnvId(envId: string): Promise<void> {
-  await db.settings.put({ key: 'cloudEnvId', value: envId.trim() });
+/** 读取已保存的服务器地址 */
+export async function getSavedServerURL(): Promise<string> {
+  const s = await db.settings.get('lcServerURL');
+  return (s?.value as string) ?? '';
 }
 
-export async function saveAccessKey(accessKey: string): Promise<void> {
-  await db.settings.put({ key: 'cloudAccessKey', value: accessKey.trim() });
+/** 保存配置（不自动连接） */
+export async function saveEnvId(appId: string): Promise<void> {
+  await db.settings.put({ key: 'lcAppId', value: appId.trim() });
+}
+
+export async function saveAccessKey(appKey: string): Promise<void> {
+  await db.settings.put({ key: 'lcAppKey', value: appKey.trim() });
+}
+
+export async function saveServerURL(serverURL: string): Promise<void> {
+  await db.settings.put({ key: 'lcServerURL', value: serverURL.trim() });
 }

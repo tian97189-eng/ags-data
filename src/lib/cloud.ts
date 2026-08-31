@@ -1,17 +1,19 @@
 /**
- * CloudBase 云数据库接入层（腾讯云开发）
+ * LeanCloud 云数据库接入层（国内免费 Serverless 数据存储）
  *
- * 职责：初始化云环境、匿名登录、集合 CRUD 封装、watch 实时监听。
+ * 职责：初始化、游客登录（匿名）、集合 CRUD 封装、LiveQuery 实时监听。
  * 设计：本地 IndexedDB 仍是 UI 的数据源（页面代码不动），本模块负责
  *       把本地数据推到云端、把云端变化拉回本地（见 sync.ts）。
  *
- * 未配置 envId 时，所有函数安全地返回空/失败，不影响纯本地使用。
+ * 免费额度（开发版）：1GB 存储、3 万次请求/天、LiveQuery 100 订阅/天。
+ *
+ * 跨设备共享关键：所有对象设置「公共读写」ACL，任意设备（含游客）都可读写。
+ * 未配置 AppID/AppKey 时，所有函数安全返回/失败，不影响纯本地使用。
  */
-import cloudbase from '@cloudbase/js-sdk';
+import AV from 'leancloud-storage';
 
-let app: any = null;
-let cdb: any = null;
-let authed = false;
+let ready = false;
+let publicACL: AV.ACL | null = null;
 
 /** 集合名与本地 Dexie 表一一对应 */
 export const COLLECTIONS = [
@@ -27,19 +29,25 @@ export const COLLECTIONS = [
 
 export type CloudCollection = (typeof COLLECTIONS)[number];
 
-/** 已配置（填过 envId）且已初始化 */
-export function isCloudReady(): boolean {
-  return !!cdb && authed;
+export interface CloudConfig {
+  appId: string;
+  appKey: string;
+  serverURL?: string;
 }
 
-/** 是否已填入环境 ID（未初始化也算） */
+/** 已初始化且游客已登录 */
+export function isCloudReady(): boolean {
+  return ready && !!AV.User.current();
+}
+
+/** 是否已填入 AppID */
 export function hasEnvId(envId?: string): boolean {
   return !!envId && envId.trim().length > 0;
 }
 
 /**
  * 把任意错误对象转成可读字符串。
- * SDK 经常抛非标准对象（带 code/errCode/msg 字段），直接 err.message 会得到空或 [object Object]。
+ * SDK 经常抛非标准对象（带 code/error 字段），直接 err.message 会得到空或 [object Object]。
  */
 export function formatError(err: unknown): string {
   if (!err) return '未知错误';
@@ -64,62 +72,74 @@ export function formatError(err: unknown): string {
 }
 
 /**
- * 初始化云环境并匿名登录。
- * 匿名登录：用户无需注册账号，CloudBase 自动分配匿名身份；
- * 集合权限设为「所有用户可读写」即可跨设备共享同一份数据。
- *
- * 重要（SDK 3.x）：
- *  - 必须传 accessKey（发布密钥，从控制台「Web 安全域名 / API Key」页拿）
- *  - 默认 app.auth() 在已签发 token 后不再走 signInAnonymously；
- *    getLoginState() 不可靠（即使无真实登录也返回状态），这里强制调用匿名登录
- *  - 匿名登录默认**禁用**，需控制台「用户管理 → 登录方式」里启用
+ * 初始化 LeanCloud 并登录（游客身份，无需注册）。
+ * 所有对象使用公共读写 ACL，实现跨设备共享同一份数据。
  */
-export async function initCloud(envId: string, accessKey: string, region?: string): Promise<void> {
-  if (!hasEnvId(envId)) throw new Error('请先填写云环境 ID');
-  if (!accessKey || !accessKey.trim()) throw new Error('请先填写 API 密钥（accessKey）');
-  if (app && authed) return; // 已就绪
-  if (!app) {
-    app = cloudbase.init({
-      env: envId.trim(),
-      accessKey: accessKey.trim(),
-      ...(region?.trim() ? { region: region.trim() } : {}),
+export async function initCloud(cfg: CloudConfig): Promise<void> {
+  if (!cfg?.appId?.trim() || !cfg?.appKey?.trim()) {
+    throw new Error('请先填写 AppID 和 AppKey');
+  }
+  if (ready && AV.User.current()) return;
+  if (!AV.applicationId) {
+    AV.init({
+      appId: cfg.appId.trim(),
+      appKey: cfg.appKey.trim(),
+      ...(cfg.serverURL?.trim() ? { serverURL: cfg.serverURL.trim() } : {}),
     });
   }
-  cdb = app.database();
-  const auth = app.auth();
-  // 3.x 的 signInAnonymously 返回 { data, error }（Supabase-like）；不抛错
-  const res = await auth.signInAnonymously();
-  if (res?.error) {
-    throw new Error(formatError(res.error));
+  const user = AV.User.current();
+  if (!user) {
+    try {
+      await AV.User.loginAnonymously();
+    } catch (err) {
+      throw new Error(`游客登录失败（如提示未开通，请到 LeanCloud 控制台「设置 → 安全设置」开启游客/匿名登录）：${formatError(err)}`);
+    }
   }
-  authed = true;
+  publicACL = new AV.ACL();
+  publicACL.setPublicReadAccess(true);
+  publicACL.setPublicWriteAccess(true);
+  ready = true;
 }
 
 /** 退出并清理（供设置页停用云同步） */
 export function disposeCloud(): void {
-  app = null;
-  cdb = null;
-  authed = false;
+  ready = false;
+  publicACL = null;
 }
 
-function requireDb(): any {
-  if (!cdb || !authed) throw new Error('云同步未连接');
-  return cdb;
+function requireReady(): void {
+  if (!ready || !AV.User.current()) throw new Error('云同步未连接');
 }
 
-/** 新增一条文档，返回云端 _id */
+function toPlain(obj: AV.Object): Record<string, unknown> {
+  return { ...obj.attributes, _id: obj.id } as Record<string, unknown>;
+}
+
+/** 新增一条文档（公共读写 ACL），返回云端 _id */
 export async function cloudAdd(collection: CloudCollection, data: Record<string, unknown>): Promise<string> {
-  const db = requireDb();
-  const res = await db.collection(collection).add({ ...data, syncedAt: Date.now() });
-  return res._id as string;
+  requireReady();
+  const { id: _i, _id: _d, ...rest } = data as Record<string, unknown>;
+  const Obj = AV.Object.extend(collection);
+  const o = new Obj();
+  o.setAll({ ...rest, syncedAt: Date.now() });
+  if (publicACL) o.setACL(publicACL);
+  const saved = await o.save();
+  return saved.id as string;
 }
 
 /** 按条件查集合（默认全量，最多 1000 条） */
 export async function cloudGet(collection: CloudCollection, where?: Record<string, unknown>): Promise<any[]> {
-  const db = requireDb();
-  const query = where ? db.collection(collection).where(where) : db.collection(collection);
-  const res = await query.limit(1000).get();
-  return res.data as any[];
+  requireReady();
+  const q = new AV.Query(collection);
+  if (where) {
+    for (const [k, v] of Object.entries(where)) {
+      if (v === null || v === undefined) q.doesNotExist(k);
+      else q.equalTo(k, v);
+    }
+  }
+  q.limit(1000);
+  const res = await q.find();
+  return res.map((o) => toPlain(o));
 }
 
 /** 按 localId 条件更新一条文档 */
@@ -128,24 +148,35 @@ export async function cloudUpdateByLocalId(
   localId: number,
   data: Record<string, unknown>,
 ): Promise<void> {
-  const db = requireDb();
-  await db
-    .collection(collection)
-    .where({ localId })
-    .update({ ...data, syncedAt: Date.now() });
+  requireReady();
+  const q = new AV.Query(collection);
+  q.equalTo('localId', localId);
+  q.limit(1);
+  const res = await q.find();
+  if (!res.length) return; // 云端没有（可能已被删），忽略
+  const { id: _i, _id: _d, ...rest } = data as Record<string, unknown>;
+  res[0].setAll({ ...rest, syncedAt: Date.now() });
+  await res[0].save();
 }
 
 /** 按 localId 条件删除一条文档 */
 export async function cloudRemoveByLocalId(collection: CloudCollection, localId: number): Promise<void> {
-  const db = requireDb();
-  await db.collection(collection).where({ localId }).remove();
+  requireReady();
+  const q = new AV.Query(collection);
+  q.equalTo('localId', localId);
+  q.limit(1);
+  const res = await q.find();
+  if (res.length) await res[0].destroy();
 }
 
 /** 按 localId 查询云端文档（用于确认同步状态） */
 export async function cloudFindByLocalId(collection: CloudCollection, localId: number): Promise<any | null> {
-  const db = requireDb();
-  const res = await db.collection(collection).where({ localId }).limit(1).get();
-  return (res.data as any[])[0] ?? null;
+  requireReady();
+  const q = new AV.Query(collection);
+  q.equalTo('localId', localId);
+  q.limit(1);
+  const res = await q.find();
+  return res.length ? toPlain(res[0]) : null;
 }
 
 export interface WatchSnapshot {
@@ -157,7 +188,7 @@ export interface WatchSnapshot {
 }
 
 /**
- * 实时监听一个集合的所有变化。
+ * 实时监听一个集合的所有变化（LiveQuery）。
  * @returns 取消监听的函数
  */
 export function cloudWatch(
@@ -165,23 +196,39 @@ export function cloudWatch(
   onChange: (snapshot: WatchSnapshot) => void,
   onError?: (err: unknown) => void,
 ): () => void {
-  const db = requireDb();
+  const q = new AV.Query(collection);
+  let sub: { unsubscribe: () => void } | null = null;
   let closed = false;
-  const cancel = db
-    .collection(collection)
-    .where({})
-    .watch({
-      onChange: (snapshot: WatchSnapshot) => {
-        if (!closed) onChange(snapshot);
-      },
-      onError: (err: unknown) => {
+
+  const emit = (dataType: WatchSnapshot['docChanges'][number]['dataType'], obj: AV.Object) => {
+    if (closed) return;
+    onChange({ docs: [], docChanges: [{ dataType, doc: toPlain(obj) }] });
+  };
+
+  q.subscribe()
+    .then((s) => {
+      if (closed) {
+        s.unsubscribe();
+        return;
+      }
+      sub = s;
+      s.on('create', (obj: AV.Object) => emit('add', obj));
+      s.on('update', (obj: AV.Object) => emit('update', obj));
+      s.on('enter', (obj: AV.Object) => emit('add', obj));
+      s.on('leave', (obj: AV.Object) => emit('remove', obj));
+      s.on('delete', (obj: AV.Object) => emit('remove', obj));
+      s.on('error', (err: unknown) => {
         if (!closed) onError?.(err);
-      },
+      });
+    })
+    .catch((err: unknown) => {
+      if (!closed) onError?.(err);
     });
+
   return () => {
     closed = true;
     try {
-      cancel?.();
+      sub?.unsubscribe();
     } catch {
       /* 忽略重复取消 */
     }

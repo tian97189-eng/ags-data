@@ -3,14 +3,18 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 import { seedIfEmpty } from './db/seed';
-import { getSavedEnvId, getSavedAccessKey, initSync } from './lib/sync';
+import { getSavedEnvId, getSavedAccessKey, getSavedServerURL, initSync } from './lib/sync';
 
 seedIfEmpty().then(async () => {
-  // 若已配置云环境，自动开启云同步（实时互通）。失败不阻塞使用，可到设置页查看原因。
-  const [envId, accessKey] = await Promise.all([getSavedEnvId(), getSavedAccessKey()]);
-  if (envId && accessKey) {
-    initSync(envId, accessKey).catch(() => {
-      /* 静默：离线或登录方式未启用/集合权限未配置 */
+  // 若已配置云同步，自动开启（实时互通）。失败不阻塞使用，可到设置页查看原因。
+  const [appId, appKey, serverURL] = await Promise.all([
+    getSavedEnvId(),
+    getSavedAccessKey(),
+    getSavedServerURL(),
+  ]);
+  if (appId && appKey) {
+    initSync(appId, appKey, serverURL).catch(() => {
+      /* 静默：离线或配置不完整，用户可在「系统设置 → 云同步」查看 */
     });
   }
   ReactDOM.createRoot(document.getElementById('root')!).render(
