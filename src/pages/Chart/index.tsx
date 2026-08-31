@@ -3,12 +3,15 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import ReactECharts from 'echarts-for-react';
 import { db } from '../../db/schema';
 import { buildDailyTrend, buildCycleSeries, buildCycleOverlay, type TrendSeries } from '../../lib/chart';
+import { computeParticleDistribution } from '../../lib/extras';
 import { formatNumber } from '../../lib/format';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
 import Chip from '../../components/common/Chip';
 
-type Mode = 'daily' | 'cycle' | 'overlay';
+type Mode = 'daily' | 'cycle' | 'overlay' | 'extras';
+type ExtrasKind = 'mlss' | 'particle' | 'eps';
+type ExtrasField = 'mlss' | 'mlvss' | 'd50' | 'psContent' | 'pnContent' | 'pnPsRatio';
 
 export default function ChartPage() {
   const chartRef = useRef<ReactECharts>(null);
@@ -19,8 +22,14 @@ export default function ChartPage() {
   const [dateTo, setDateTo] = useState('');
   const [cycleId, setCycleId] = useState<number | null>(null);
   const [overlayReactorId, setOverlayReactorId] = useState<number | null>(null);
+  const [extrasKind, setExtrasKind] = useState<ExtrasKind>('mlss');
+  const [extrasField, setExtrasField] = useState<ExtrasField>('mlss');
 
   const measurements = useLiveQuery(() => db.measurements.toArray(), []);
+  const mlss = useLiveQuery(() => db.mlssRecords.toArray(), []);
+  const particle = useLiveQuery(() => db.particleSizeRecords.toArray(), []);
+  const particleRanges = useLiveQuery(() => db.particleSizeRanges.toArray(), []);
+  const eps = useLiveQuery(() => db.epsRecords.toArray(), []);
   const reactors = useLiveQuery(async () => {
     const all = await db.reactors.toArray();
     return all.filter((r) => r.active).sort((a, b) => a.sortOrder - b.sortOrder);
@@ -30,7 +39,7 @@ export default function ChartPage() {
 
   const indicator = indicators?.find((i) => i.id === indicatorId);
 
-  const series = useMemo<TrendSeries[]>(() => {
+  const measurementSeries = useMemo<TrendSeries[]>(() => {
     if (!indicatorId) return [];
     const rs = (reactors ?? []).filter((r) => (reactorIds.length ? reactorIds.includes(r.id!) : true));
     if (mode === 'daily') {
@@ -57,6 +66,106 @@ export default function ChartPage() {
     }
     return [];
   }, [measurements, reactors, reactorIds, indicatorId, mode, dateFrom, dateTo, cycleId, overlayReactorId, cycles]);
+
+  const series = mode === 'extras' ? extrasSeries : measurementSeries;
+    if (!indicatorId) return [];
+    const rs = (reactors ?? []).filter((r) => (reactorIds.length ? reactorIds.includes(r.id!) : true));
+    if (mode === 'daily') {
+      const filtered = (measurements ?? []).filter(
+        (m) =>
+          m.indicatorId === indicatorId &&
+          m.scene === 'daily' &&
+          (!dateFrom || m.date >= dateFrom) &&
+          (!dateTo || m.date <= dateTo),
+      );
+      return buildDailyTrend(filtered, rs);
+    }
+    if (mode === 'cycle' && cycleId != null) {
+      const filtered = (measurements ?? []).filter(
+        (m) => m.indicatorId === indicatorId && m.scene === 'cycle' && m.cycleRunId === cycleId,
+      );
+      return buildCycleSeries(filtered, rs, cycleId);
+    }
+    if (mode === 'overlay' && overlayReactorId != null) {
+      const filtered = (measurements ?? []).filter(
+        (m) => m.indicatorId === indicatorId && m.scene === 'cycle' && m.reactorId === overlayReactorId,
+      );
+      return buildCycleOverlay(filtered, cycles ?? [], overlayReactorId);
+    }
+    return [];
+  }, [measurements, reactors, reactorIds, indicatorId, mode, dateFrom, dateTo, cycleId, overlayReactorId, cycles]);
+
+  /** 其他指标（污泥浓度/粒径 d50/EPS）按日期聚合时间序列 */
+  const extrasSeries = useMemo<TrendSeries[]>(() => {
+    if (mode !== 'extras') return [];
+    if (extrasKind === 'mlss') {
+      const map = new Map<string, number[]>();
+      for (const r of mlss ?? []) {
+        if (dateFrom && r.date < dateFrom) continue;
+        if (dateTo && r.date > dateTo) continue;
+        const v = extrasField === 'mlvss' ? r.mlvss : r.mlss;
+        if (v == null) continue;
+        const list = map.get(r.date) ?? [];
+        list.push(v);
+        map.set(r.date, list);
+      }
+      const data = Array.from(map.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([d, vs]) => [d, vs.reduce((s, v) => s + v, 0) / vs.length]);
+      return [{ name: extrasField === 'mlvss' ? 'MLVSS (g/L)' : 'MLSS (g/L)', data }];
+    }
+    if (extrasKind === 'particle') {
+      // 每天的 d50：用 lib/extras.computeParticleDistribution
+      // 按 date + rangeId 聚合：同一日期同一范围的干重求和
+      const rangeIdToMid = new Map<number, number>();
+      for (const r of particleRanges ?? []) {
+        if (r.id != null) rangeIdToMid.set(r.id, r.mid);
+      }
+      const dayRows = new Map<string, { mid: number; paperWeight: number | null; sampleWeight: number | null }[]>();
+      for (const r of particle ?? []) {
+        if (dateFrom && r.date < dateFrom) continue;
+        if (dateTo && r.date > dateTo) continue;
+        const mid = r.rangeId != null ? rangeIdToMid.get(r.rangeId) ?? 0 : 0;
+        const list = dayRows.get(r.date) ?? [];
+        list.push({ mid, paperWeight: r.paperWeight, sampleWeight: r.sampleWeight });
+        dayRows.set(r.date, list);
+      }
+      const data: Array<[string, number]> = [];
+      for (const [d, rows] of Array.from(dayRows.entries()).sort()) {
+        const dist = computeParticleDistribution(rows.map((r) => ({
+          rangeId: 0,
+          paperWeight: r.paperWeight,
+          sampleWeight: r.sampleWeight,
+          mid: r.mid,
+        })));
+        if (dist.d50 != null) data.push([d, dist.d50]);
+      }
+      return [{ name: 'd50 (μm)', data }];
+    }
+    // EPS
+    const map = new Map<string, number[]>();
+    for (const r of eps ?? []) {
+      if (dateFrom && r.date < dateFrom) continue;
+      if (dateTo && r.date > dateTo) continue;
+      let v: number | null = null;
+      if (extrasField === 'psContent') v = r.psContent;
+      else if (extrasField === 'pnContent') v = r.pnContent;
+      else if (extrasField === 'pnPsRatio') v = r.pnPsRatio;
+      if (v == null) continue;
+      const list = map.get(r.date) ?? [];
+      list.push(v);
+      map.set(r.date, list);
+    }
+    const labels: Record<ExtrasField, string> = {
+      psContent: 'PS 含量 (mg/g VSS)',
+      pnContent: 'PN 含量 (mg/g VSS)',
+      pnPsRatio: 'PN/PS 比',
+    };
+    const data = Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([d, vs]) => [d, vs.reduce((s, v) => s + v, 0) / vs.length]);
+    return [{ name: labels[extrasField], data }];
+  }, [mode, extrasKind, extrasField, mlss, particle, particleRanges, eps, dateFrom, dateTo]);
 
   const option = useMemo(() => {
     return {
@@ -114,8 +223,62 @@ export default function ChartPage() {
               <button type="button" onClick={() => setMode('daily')} className={`block w-full text-left px-2 py-1 rounded ${mode === 'daily' ? 'bg-teal-50 text-teal-800' : 'text-slate-600'}`}>日常趋势</button>
               <button type="button" onClick={() => setMode('cycle')} className={`block w-full text-left px-2 py-1 rounded ${mode === 'cycle' ? 'bg-teal-50 text-teal-800' : 'text-slate-600'}`}>周期曲线</button>
               <button type="button" onClick={() => setMode('overlay')} className={`block w-full text-left px-2 py-1 rounded ${mode === 'overlay' ? 'bg-teal-50 text-teal-800' : 'text-slate-600'}`}>周期叠周期</button>
+              <button type="button" onClick={() => { setMode('extras'); setExtrasKind('mlss'); setExtrasField('mlss'); }} className={`block w-full text-left px-2 py-1 rounded ${mode === 'extras' ? 'bg-teal-50 text-teal-800' : 'text-slate-600'}`}>其他指标趋势</button>
             </div>
           </div>
+
+          {mode === 'extras' && (
+            <>
+              <div>
+                <div className="text-slate-500 mb-1.5">数据类型</div>
+                <select
+                  className="w-full border border-slate-200 rounded px-2 py-1"
+                  value={extrasKind}
+                  onChange={(e) => {
+                    const k = e.target.value as ExtrasKind;
+                    setExtrasKind(k);
+                    if (k === 'mlss') setExtrasField('mlss');
+                    else if (k === 'particle') setExtrasField('d50');
+                    else setExtrasField('psContent');
+                  }}
+                >
+                  <option value="mlss">污泥浓度</option>
+                  <option value="particle">筛分粒径（d50）</option>
+                  <option value="eps">EPS（PS/PN）</option>
+                </select>
+              </div>
+              <div>
+                <div className="text-slate-500 mb-1.5">指标字段</div>
+                <select
+                  className="w-full border border-slate-200 rounded px-2 py-1"
+                  value={extrasField}
+                  onChange={(e) => setExtrasField(e.target.value as ExtrasField)}
+                >
+                  {extrasKind === 'mlss' && (
+                    <>
+                      <option value="mlss">MLSS (g/L)</option>
+                      <option value="mlvss">MLVSS (g/L)</option>
+                    </>
+                  )}
+                  {extrasKind === 'particle' && <option value="d50">d50 (μm)</option>}
+                  {extrasKind === 'eps' && (
+                    <>
+                      <option value="psContent">PS 含量 (mg/g VSS)</option>
+                      <option value="pnContent">PN 含量 (mg/g VSS)</option>
+                      <option value="pnPsRatio">PN/PS 比</option>
+                    </>
+                  )}
+                </select>
+              </div>
+              <div>
+                <div className="text-slate-500 mb-1.5">日期范围</div>
+                <div className="space-y-1">
+                  <input type="date" className="w-full border border-slate-200 rounded px-2 py-1" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                  <input type="date" className="w-full border border-slate-200 rounded px-2 py-1" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                </div>
+              </div>
+            </>
+          )}
 
           {mode === 'daily' && (
             <div>

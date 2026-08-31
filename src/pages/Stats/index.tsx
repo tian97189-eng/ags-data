@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import ReactECharts from 'echarts-for-react';
 import { db } from '../../db/schema';
-import { removalRate, nar, mean, stdev, pearson, attainmentRate } from '../../lib/stats';
+import { removalRate, nar, mean, stdev, min as statsMin, max as statsMax, pearson, attainmentRate } from '../../lib/stats';
+import { computeParticleDistribution } from '../../lib/extras';
 import { formatNumber, formatPercent } from '../../lib/format';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
@@ -14,6 +15,11 @@ export default function StatsPage() {
   const [corrXId, setCorrXId] = useState<number | null>(null);
   const [corrYId, setCorrYId] = useState<number | null>(null);
   const [corrReactorId, setCorrReactorId] = useState<number | null>(null);
+
+  const mlss = useLiveQuery(() => db.mlssRecords.toArray(), []);
+  const particle = useLiveQuery(() => db.particleSizeRecords.toArray(), []);
+  const particleRanges = useLiveQuery(() => db.particleSizeRanges.toArray(), []);
+  const eps = useLiveQuery(() => db.epsRecords.toArray(), []);
 
   const measurements = useLiveQuery(() => db.measurements.toArray(), []);
   const influents = useLiveQuery(() => db.influents.toArray(), []);
@@ -112,8 +118,45 @@ export default function StatsPage() {
     };
   }, [corr, corrXId, corrYId, indicators]);
 
-  const corrX = indicators?.find((i) => i.id === corrXId);
-  const corrY = indicators?.find((i) => i.id === corrYId);
+const corrX = indicators?.find((i) => i.id === corrXId);
+const corrY = indicators?.find((i) => i.id === corrYId);
+
+// —— 其他指标（污泥浓度/粒径 d50/EPS）统计 ——
+const extrasStats = useMemo(() => {
+  const inRangeDate = (d: string) => (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo);
+  const mlssAll = (mlss ?? []).filter((r) => inRangeDate(r.date));
+  const epsAll = (eps ?? []).filter((r) => inRangeDate(r.date));
+  const particleAll = (particle ?? []).filter((r) => inRangeDate(r.date));
+
+  // 粒径 d50：按 date 分组，每组内复用 computeParticleDistribution
+  const rangeIdToMid = new Map<number, number>();
+  for (const r of particleRanges ?? []) {
+    if (r.id != null) rangeIdToMid.set(r.id, r.mid);
+  }
+  const dayRows = new Map<string, { mid: number; paperWeight: number | null; sampleWeight: number | null }[]>();
+  for (const r of particleAll) {
+    const mid = r.rangeId != null ? rangeIdToMid.get(r.rangeId) ?? 0 : 0;
+    const list = dayRows.get(r.date) ?? [];
+    list.push({ mid, paperWeight: r.paperWeight, sampleWeight: r.sampleWeight });
+    dayRows.set(r.date, list);
+  }
+  const d50Values: number[] = [];
+  for (const rows of dayRows.values()) {
+    const dist = computeParticleDistribution(rows.map((r) => ({ rangeId: 0, paperWeight: r.paperWeight, sampleWeight: r.sampleWeight, mid: r.mid })));
+    if (dist.d50 != null) {
+      d50Values.push(statsMean([dist.d50]));
+    }
+  }
+
+  return {
+    mlssValues: mlssAll.map((r) => r.mlss).filter((v): v is number => v != null),
+    mlvssValues: mlssAll.map((r) => r.mlvss).filter((v): v is number => v != null),
+    psContentValues: epsAll.map((r) => r.psContent).filter((v): v is number => v != null),
+    pnContentValues: epsAll.map((r) => r.pnContent).filter((v): v is number => v != null),
+    pnPsRatioValues: epsAll.map((r) => r.pnPsRatio).filter((v): v is number => v != null),
+    d50Values,
+  };
+}, [mlss, particle, particleRanges, eps, dateFrom, dateTo]);
 
   return (
     <div>
@@ -225,6 +268,44 @@ export default function StatsPage() {
           ) : (
             <ReactECharts option={corrOption} style={{ height: 300 }} notMerge lazyUpdate />
           )}
+        </div>
+
+        <div className="border border-slate-200 rounded-lg p-4 md:col-span-2">
+          <div className="text-sm font-medium mb-3">其他指标统计（污泥浓度 / 粒径 d50 / EPS）</div>
+          <table className="w-full table-fixed border-collapse text-xs">
+            <thead>
+              <tr className="text-slate-500">
+                <th className="text-left py-2 px-2 border-b border-slate-200">指标</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200 w-12">n</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200">均值</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200">标准差</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200">最小</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200">最大</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { name: 'MLSS (g/L)', values: extrasStats.mlssValues },
+                { name: 'MLVSS (g/L)', values: extrasStats.mlvssValues },
+                { name: '粒径 d50 (μm)', values: extrasStats.d50Values },
+                { name: 'PS 含量 (mg/g VSS)', values: extrasStats.psContentValues },
+                { name: 'PN 含量 (mg/g VSS)', values: extrasStats.pnContentValues },
+                { name: 'PN/PS 比', values: extrasStats.pnPsRatioValues },
+              ].map((r) => {
+                const d = statsDescribe(r.values);
+                return (
+                  <tr key={r.name}>
+                    <td className="py-2 px-2 border-b border-slate-100">{r.name}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 text-right">{d.count}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 text-right font-medium">{formatNumber(d.mean)}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 text-right">{formatNumber(d.stdev)}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 text-right">{formatNumber(d.min)}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 text-right">{formatNumber(d.max)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

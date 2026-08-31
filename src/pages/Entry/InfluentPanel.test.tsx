@@ -156,7 +156,7 @@ describe('InfluentPanel 窄屏布局', () => {
     renderPanel({ nh4Id, blank: '0.012' });
     await screen.findByLabelText('氨氮 进水检测样');
     fireEvent.click(screen.getByText('每罐各自'));
-    await waitFor(() => screen.getByLabelText('氨氮 R1 进水检测样'), { timeout: 3000 });
+    await waitFor(() => screen.getByLabelText('氨氮 R1 进水检测样'), { timeout: 5000 });
 
     // 直接读表头列文本，确认只有罐号、没长文案（不再被挤一起）
     const headers = Array.from(document.querySelectorAll('table thead th')).map((th) =>

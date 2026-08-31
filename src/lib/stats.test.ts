@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { removalRate, nar, mean, stdev, pearson, attainmentRate } from './stats';
+import { removalRate, nar, mean, stdev, min as statsMin, max as statsMax, pearson, attainmentRate, describe as statsDescribe } from './stats';
 
 describe('removalRate', () => {
   it('基本计算', () => {
@@ -65,5 +65,22 @@ describe('attainmentRate', () => {
   it('阈值为 null 或空数组返回 null', () => {
     expect(attainmentRate([1, 2, 3], null, 'below')).toBeNull();
     expect(attainmentRate([], 5, 'below')).toBeNull();
+  });
+});
+
+describe('min / max / describe', () => {
+  it('min/max 返回最小/最大值；空数组返回 null', () => {
+    expect(statsMin([3, 1, 4, 1, 5, 9, 2, 6])).toBe(1);
+    expect(statsMax([3, 1, 4, 1, 5, 9, 2, 6])).toBe(9);
+    expect(statsMin([])).toBeNull();
+    expect(statsMax([])).toBeNull();
+  });
+  it('describe 一次返回 count/mean/stdev/min/max', () => {
+    const d = statsDescribe([2, 4, 4, 4, 5, 5, 7, 9]);
+    expect(d.count).toBe(8);
+    expect(d.mean).toBeCloseTo(5, 4);
+    expect(d.stdev).toBeCloseTo(2.138, 3);
+    expect(d.min).toBe(2);
+    expect(d.max).toBe(9);
   });
 });

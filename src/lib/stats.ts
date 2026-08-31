@@ -55,3 +55,26 @@ export function attainmentRate(
   const ok = values.filter((v) => (direction === 'below' ? v <= threshold : v >= threshold)).length;
   return (ok / values.length) * 100;
 }
+
+/** 最小值（空数组返回 null） */
+export function min(xs: number[]): number | null {
+  if (xs.length === 0) return null;
+  return Math.min(...xs);
+}
+
+/** 最大值（空数组返回 null） */
+export function max(xs: number[]): number | null {
+  if (xs.length === 0) return null;
+  return Math.max(...xs);
+}
+
+/** 描述性统计：一次返回 count/mean/stdev/min/max */
+export function describe(xs: number[]): { count: number; mean: number | null; stdev: number | null; min: number | null; max: number | null } {
+  return {
+    count: xs.length,
+    mean: mean(xs),
+    stdev: stdev(xs),
+    min: min(xs),
+    max: max(xs),
+  };
+}
