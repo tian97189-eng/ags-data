@@ -74,10 +74,10 @@ if errorlevel 1 goto fail
 echo      android sync ok.
 
 rem ======== [6/7] Build APK (gradle) ========
-echo [6/7] Building APK. First run downloads dependencies, it can take 5-15 min. Do not close this window.
+echo [6/7] Building APK. It takes 1-10 minutes. Please WAIT - this window will stay open.
 cd /d "%BUILD%\android"
-rem 直接用 java 启动 gradle（绕开 gradle.bat 结尾的 exit 行为，防止窗口被关闭导致后续步骤丢失）
-"%JAVA_HOME%\bin\java.exe" -Dorg.gradle.appname=gradlew -classpath "C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar" org.gradle.launcher.GradleMain assembleRelease --no-daemon >> "%LOG%" 2>&1
+rem 用 PowerShell Tee 让 gradle 输出同时显示在窗口 AND 写入日志（窗口有动静，用户不会以为卡死）
+powershell -NoProfile -Command "& 'C:\jdk21\jdk\bin\java.exe' -Dorg.gradle.appname=gradlew -classpath 'C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar' org.gradle.launcher.GradleMain assembleRelease --no-daemon --console=plain 2>&1 | Tee-Object -Append -FilePath 'C:\Users\sky\ags-build2\build-log.txt'"
 if errorlevel 1 goto fail
 echo      apk build ok.
 
