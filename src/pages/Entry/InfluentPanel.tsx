@@ -177,28 +177,32 @@ const InfluentPanel = forwardRef<
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full table-fixed border-collapse text-xs">
+      <div className="overflow-x-auto -mx-3 px-3">
+        <table className="w-full table-fixed border-collapse text-xs min-w-[640px]">
           <thead>
             <tr className="text-slate-500">
-              <th className="text-left py-1.5 px-2 border-b border-slate-100 w-20">指标</th>
-              <th className="text-left py-1.5 px-2 border-b border-slate-100 w-24">
-                空白吸光度(同出水)
+              <th className="text-left py-1.5 px-2 border-b border-slate-100 w-16">指标</th>
+              <th className="text-left py-1.5 px-2 border-b border-slate-100 w-20">
+                空白（同出水）
               </th>
-              <th className="text-left py-1.5 px-2 border-b border-slate-100 w-24">稀释倍数</th>
+              <th className="text-left py-1.5 px-2 border-b border-slate-100 w-20">稀释</th>
               {mode === 'shared' ? (
                 <>
-                  <th className="text-left py-1.5 px-2 border-b border-slate-100">
-                    检测样吸光度
+                  <th className="text-left py-1.5 px-2 border-b border-slate-100 whitespace-nowrap">
+                    检测样
                   </th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100 w-24">
+                  <th className="text-right py-1.5 px-2 border-b border-slate-100 w-20 whitespace-nowrap">
                     浓度 mg/L
                   </th>
                 </>
               ) : (
                 (reactors ?? []).map((r) => (
-                  <th key={r.id} className="text-left py-1.5 px-2 border-b border-slate-100">
-                    {r.code} 检测样 → 浓度
+                  <th
+                    key={r.id}
+                    className="text-center py-1.5 px-2 border-b border-slate-100 whitespace-nowrap"
+                    title={`${r.code} 检测样 → 浓度`}
+                  >
+                    {r.code}
                   </th>
                 ))
               )}
@@ -214,7 +218,7 @@ const InfluentPanel = forwardRef<
                     {ind.name}
                     {isDirect && <span className="ml-1 text-[10px] text-slate-400">直读</span>}
                   </td>
-                  <td className="py-1.5 px-2 border-b border-slate-50 text-slate-400">
+                  <td className="py-1.5 px-2 border-b border-slate-50 text-slate-400 whitespace-nowrap">
                     {isDirect ? '—' : blankByIndicator[ind.id!] || '—'}
                   </td>
                   <td className="py-1.5 px-2 border-b border-slate-50">
@@ -225,7 +229,7 @@ const InfluentPanel = forwardRef<
                         type="number"
                         step="any"
                         aria-label={`${ind.name} 进水稀释`}
-                        className="w-full border border-slate-200 rounded px-2 py-1"
+                        className="w-full min-w-[3.5rem] border border-slate-200 rounded px-2 py-1"
                         value={dilution}
                         onChange={(e) => setDilution(ind.id!, e.target.value)}
                       />
@@ -238,12 +242,12 @@ const InfluentPanel = forwardRef<
                           type="number"
                           step="any"
                           aria-label={`${ind.name} 进水检测样`}
-                          className="w-full border border-slate-200 rounded px-2 py-1"
+                          className="w-full min-w-[3.5rem] border border-slate-200 rounded px-2 py-1"
                           value={state.samples[`${ind.id}:shared`] ?? ''}
                           onChange={(e) => setSample(`${ind.id}:shared`, e.target.value)}
                         />
                       </td>
-                      <td className="py-1.5 px-2 border-b border-slate-50 text-right font-medium text-teal-700">
+                      <td className="py-1.5 px-2 border-b border-slate-50 text-right font-medium text-teal-700 whitespace-nowrap">
                         {formatNumber(computedValue(ind.id!, state.samples[`${ind.id}:shared`] ?? ''))}
                       </td>
                     </>
@@ -254,11 +258,11 @@ const InfluentPanel = forwardRef<
                           type="number"
                           step="any"
                           aria-label={`${ind.name} ${r.code} 进水检测样`}
-                          className="w-full border border-slate-200 rounded px-2 py-1"
+                          className="w-full min-w-[3.5rem] border border-slate-200 rounded px-2 py-1"
                           value={state.samples[`${ind.id}:${r.id}`] ?? ''}
                           onChange={(e) => setSample(`${ind.id}:${r.id}`, e.target.value)}
                         />
-                        <span className="block text-right text-teal-700">
+                        <span className="block text-right text-teal-700 whitespace-nowrap">
                           {formatNumber(computedValue(ind.id!, state.samples[`${ind.id}:${r.id}`] ?? ''))}
                         </span>
                       </td>

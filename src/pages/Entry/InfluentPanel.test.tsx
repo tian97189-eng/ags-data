@@ -147,3 +147,55 @@ describe('InfluentPanel', () => {
     });
   });
 });
+
+describe('InfluentPanel 窄屏布局', () => {
+  beforeEach(clearAll);
+
+  it('每罐各自表头只显示罐号（不再挤在一起的"检测样→浓度"长文案）', async () => {
+    const { nh4Id } = await seed();
+    renderPanel({ nh4Id, blank: '0.012' });
+    await screen.findByLabelText('氨氮 进水检测样');
+    fireEvent.click(screen.getByText('每罐各自'));
+    await waitFor(() => screen.getByLabelText('氨氮 R1 进水检测样'), { timeout: 3000 });
+
+    // 直接读表头列文本，确认只有罐号、没长文案（不再被挤一起）
+    const headers = Array.from(document.querySelectorAll('table thead th')).map((th) =>
+      (th.textContent ?? '').trim(),
+    );
+    expect(headers).toContain('R1');
+    expect(headers).toContain('R2');
+    expect(headers.join('|')).not.toContain('检测样');
+  });
+
+  it('每罐各自表头带完整 title 提示', async () => {
+    const { nh4Id } = await seed();
+    renderPanel({ nh4Id, blank: '0.012' });
+    await screen.findByLabelText('氨氮 进水检测样');
+    fireEvent.click(screen.getByText('每罐各自'));
+    await waitFor(() => screen.getByLabelText('氨氮 R1 进水检测样'), { timeout: 3000 });
+    // 用 title 属性查找（鼠标悬停才显示的辅助说明）
+    expect(screen.getByTitle('R1 检测样 → 浓度')).toBeInTheDocument();
+    expect(screen.getByTitle('R2 检测样 → 浓度')).toBeInTheDocument();
+  });
+
+  it('表格设置最小宽度保证多罐时窄屏能横向滚动而不重叠', async () => {
+    const { nh4Id } = await seed();
+    // 加第3个罐模拟多罐
+    await db.reactors.add({
+      code: 'R3', name: 'R3', note: '', active: true, sortOrder: 3, createdAt: '',
+    });
+    renderPanel({ nh4Id, blank: '0.012' });
+    await screen.findByLabelText('氨氮 进水检测样');
+    fireEvent.click(screen.getByText('每罐各自'));
+    await waitFor(() => screen.getByLabelText('氨氮 R3 进水检测样'), { timeout: 3000 });
+
+    const tables = document.querySelectorAll('table');
+    expect(tables.length).toBeGreaterThan(0);
+    const table = tables[0];
+    // 表格设了 min-w-[640px] 类，避免被压缩重叠
+    expect(table.className).toMatch(/min-w-\[640px\]/);
+    // 父容器提供横向滚动
+    const scrollContainer = table.parentElement!;
+    expect(scrollContainer.className).toMatch(/overflow-x-auto/);
+  });
+});
