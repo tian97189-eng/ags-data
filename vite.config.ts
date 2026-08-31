@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import fs from 'node:fs';
+import path from 'node:path';
 import { ensureCert, readCert } from './scripts/cert.mjs';
 
 const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
@@ -15,6 +16,19 @@ export default defineConfig(async () => {
   return {
     plugins: [
       react(),
+      // Capacitor（安卓 APK）加载本地 file:///android_asset/public/ 时，
+      // 绝对路径 /assets/... 会指向 file:///assets/... 找不到；改成相对路径
+      {
+        name: 'fix-absolute-paths-for-capacitor',
+        apply: 'build',
+        closeBundle() {
+          const htmlPath = path.resolve('dist/index.html');
+          if (!fs.existsSync(htmlPath)) return;
+          let html = fs.readFileSync(htmlPath, 'utf8');
+          html = html.replace(/src="\//g, 'src="./').replace(/href="\//g, 'href="./');
+          fs.writeFileSync(htmlPath, html);
+        },
+      },
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['icon.svg'],
@@ -50,6 +64,9 @@ export default defineConfig(async () => {
     },
     build: {
       emptyOutDir: false,
+      // base 用相对路径 './'：电脑浏览器/PWA/Capacitor 本地三种环境都能正确解析
+      // （绝对路径 /assets/... 在 Capacitor 加载 file:// 时会指向 file:///assets/...，找不到）
+      base: './',
     },
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
