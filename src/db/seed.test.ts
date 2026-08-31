@@ -9,9 +9,9 @@ async function clearAll() {
 describe('seedIfEmpty', () => {
   beforeEach(clearAll);
 
-  it('首次初始化 6 个指标（含总氮）和 3 个反应器', async () => {
+  it('首次初始化 7 个指标（含总氮、DO）和 3 个反应器', async () => {
     await seedIfEmpty();
-    expect(await db.indicators.count()).toBe(6);
+    expect(await db.indicators.count()).toBe(7);
     expect(await db.reactors.count()).toBe(3);
   });
 
@@ -19,15 +19,16 @@ describe('seedIfEmpty', () => {
     await seedIfEmpty();
     await seedIfEmpty();
     await seedIfEmpty();
-    expect(await db.indicators.count()).toBe(6);
+    expect(await db.indicators.count()).toBe(7);
     expect(await db.reactors.count()).toBe(3);
   });
 
-  it('内置指标计量方式正确：氨氮为吸光度，COD 为直读', async () => {
+  it('内置指标计量方式正确：氨氮为吸光度，COD/DO 为直读', async () => {
     await seedIfEmpty();
     const all = await db.indicators.toArray();
     expect(all.find((i) => i.name === '氨氮')?.method).toBe('absorbance');
     expect(all.find((i) => i.name === 'COD')?.method).toBe('direct');
+    expect(all.find((i) => i.name === 'DO')?.method).toBe('direct');
     expect(
       all.filter((i) => i.method === 'absorbance').map((i) => i.name).sort(),
     ).toEqual(['亚硝态氮', '总P', '总氮', '氨氮', '硝态氮'].sort());
@@ -52,8 +53,8 @@ describe('seedIfEmpty', () => {
     expect((await db.settings.get('targetValue'))?.value).toBe(2);
   });
 
-  it('【升级场景】已有 5 个基础指标（无总氮）时调 seedIfEmpty → 自动补加总氮', async () => {
-    // 模拟老用户：5 个基础指标，但没总氮（升级前装的版本）
+  it('【升级场景】已有 5 个基础指标（无总氮/DO）时调 seedIfEmpty → 自动补加总氮和 DO', async () => {
+    // 模拟老用户：5 个基础指标，但没总氮、没 DO（升级前装的版本）
     await db.indicators.bulkAdd([
       { name: '氨氮', category: 'basic', method: 'absorbance', unit: 'mg/L',
         defaultDilution: 10, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 1 },
@@ -68,15 +69,19 @@ describe('seedIfEmpty', () => {
     ]);
     expect(await db.indicators.count()).toBe(5); // 起始只有 5 个
     expect(await db.indicators.where('name').equals('总氮').first()).toBeUndefined();
+    expect(await db.indicators.where('name').equals('DO').first()).toBeUndefined();
 
     // 升级：调一次 seed
     await seedIfEmpty();
 
-    // 现在应该有 6 个
-    expect(await db.indicators.count()).toBe(6);
+    // 现在应该有 7 个（补上总氮和 DO）
+    expect(await db.indicators.count()).toBe(7);
     const total = await db.indicators.where('name').equals('总氮').first();
     expect(total).toBeDefined();
     expect(total?.compositeType).toBe('sumOf');
+    const doInd = await db.indicators.where('name').equals('DO').first();
+    expect(doInd).toBeDefined();
+    expect(doInd?.method).toBe('direct');
     const nh4 = await db.indicators.where('name').equals('氨氮').first();
     const no2 = await db.indicators.where('name').equals('亚硝态氮').first();
     const no3 = await db.indicators.where('name').equals('硝态氮').first();

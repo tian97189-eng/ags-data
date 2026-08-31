@@ -6,6 +6,7 @@ import { buildExportRows, buildFullWorkbook, type ExportFilter } from '../../lib
 import { parseImportFile, buildImportTemplate, type ImportPreview } from '../../lib/importExcel';
 import { saveAndShare } from '../../lib/share';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import ReportDialog from './ReportDialog';
 import { useAppStore } from '../../store/useAppStore';
 import * as XLSX from 'xlsx';
 
@@ -27,6 +28,7 @@ export default function BackupSettings() {
   const [modeChoiceOpen, setModeChoiceOpen] = useState(false);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   // 导出过滤条件
   const [dateFrom, setDateFrom] = useState('');
@@ -279,6 +281,18 @@ export default function BackupSettings() {
           导出 Excel
         </button>
       </div>
+
+      <div className="border border-slate-200 rounded-lg p-4">
+        <div className="text-sm font-medium mb-1">生成 Word 报告</div>
+        <p className="text-xs text-slate-500 mb-3">
+          选时间段、罐和指标，生成一份带统计表（平均值 / 标准差 / 去除率 / 亚硝积累率）和趋势图的 Word 报告，可直接放进实验记录或论文。
+        </p>
+        <button type="button" onClick={() => setReportOpen(true)} className="px-3 py-1.5 text-xs rounded-md border border-slate-300 text-slate-700">
+          生成报告
+        </button>
+      </div>
+
+      <ReportDialog open={reportOpen} onClose={() => setReportOpen(false)} />
 
       {/* 导出 Excel 对话框 */}
       {exportOpen && (
