@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AGS数据台</string>
+    <string name="title_activity_main">AGS数据台</string>
+    <string name="package_name">com.ags.data</string>
+    <string name="custom_url_scheme">com.ags.data</string>
+</resources>
