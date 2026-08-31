@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Indicator } from '../../db/schema';
+import { db, type Indicator, type IndicatorMethod } from '../../db/schema';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useAppStore } from '../../store/useAppStore';
 
@@ -31,6 +31,7 @@ export default function IndicatorSettings() {
       await db.indicators.update(editing.id, {
         name,
         unit: editing.unit || 'mg/L',
+        method: editing.method ?? 'direct',
         defaultDilution: editing.defaultDilution ?? 1,
         refLow: editing.refLow ?? null,
         refHigh: editing.refHigh ?? null,
@@ -41,7 +42,7 @@ export default function IndicatorSettings() {
       await db.indicators.add({
         name,
         category: 'custom',
-        method: 'direct',
+        method: editing.method ?? 'direct',
         unit: editing.unit || 'mg/L',
         defaultDilution: editing.defaultDilution ?? 1,
         refLow: editing.refLow ?? null,
@@ -180,12 +181,33 @@ export default function IndicatorSettings() {
                     type="number"
                     className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5"
                     value={editing.defaultDilution ?? 1}
+                    disabled={editing.method === 'direct'}
                     onChange={(e) =>
                       setEditing({ ...editing, defaultDilution: Number(e.target.value) })
                     }
                   />
                 </label>
               </div>
+              <label className="block" htmlFor="ind-method">
+                <span className="text-slate-500">计量方式</span>
+                <select
+                  id="ind-method"
+                  className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5 bg-white disabled:bg-slate-100"
+                  value={editing.method ?? 'direct'}
+                  disabled={isBasic(editing)}
+                  onChange={(e) =>
+                    setEditing({ ...editing, method: e.target.value as IndicatorMethod })
+                  }
+                >
+                  <option value="direct">直读浓度（直接填 mg/L）</option>
+                  <option value="absorbance">吸光度换算（建标曲后自动算浓度）</option>
+                </select>
+                {editing.method === 'absorbance' && (
+                  <span className="text-[11px] text-amber-600 block mt-1">
+                    保存后请到「标准曲线」为该指标建标曲（拟合多点或手动公式）
+                  </span>
+                )}
+              </label>
               <div className="grid grid-cols-3 gap-3">
                 <label className="block">
                   <span className="text-slate-500">参考下限</span>
