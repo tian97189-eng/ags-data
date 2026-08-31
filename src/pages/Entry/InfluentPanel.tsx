@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type CalibrationCurve, type InfluentMode } from '../../db/schema';
+import { db, type CalibrationCurve, type Indicator, type InfluentMode } from '../../db/schema';
 import { computeConcentration } from '../../lib/calibration';
 import { getInfluents, saveInfluent } from '../../lib/entry';
 import { formatNumber } from '../../lib/format';
@@ -99,6 +99,26 @@ const InfluentPanel = forwardRef<
     }).value;
   }
 
+  /** composite（如总氮）：由 compositeRefs 对应指标的进水浓度求和（任一缺失则整行为空） */
+  function compositeValue(ind: Indicator, keyOf: (refId: number) => string): number | null {
+    const refs = ind.compositeRefs ?? [];
+    if (refs.length === 0) return null;
+    let sum = 0;
+    for (const refId of refs) {
+      const v = computedValue(refId, state.samples[keyOf(refId)] ?? '');
+      if (v == null) return null;
+      sum += v;
+    }
+    return sum;
+  }
+
+  /** composite 指标进水浓度：shared 用共用检测样；perReactor 用该罐检测样 */
+  function compositeForReactor(ind: Indicator, reactorId: number | null): number | null {
+    return compositeValue(ind, (refId) =>
+      reactorId != null ? `${refId}:${reactorId}` : `${refId}:shared`,
+    );
+  }
+
   function setDilution(indicatorId: number, v: string) {
     setState((p) => ({ ...p, dilution: { ...p.dilution, [indicatorId]: v } }));
   }
@@ -115,6 +135,32 @@ const InfluentPanel = forwardRef<
         .equals(date)
         .filter((i) => i.indicatorId === ind.id)
         .delete();
+
+      // composite（总氮）不走吸光度：浓度 = 三氮进水之和，直接写 value
+      if (ind.compositeType != null) {
+        if (mode === 'shared') {
+          const v = compositeForReactor(ind, null);
+          if (v != null) {
+            await db.influents.add({
+              date, mode: 'shared', reactorId: null, indicatorId: ind.id!,
+              inputType: 'direct', sampleAbs: null, blankAbs: null, dilution: null,
+              value: v, curveId: null,
+            });
+          }
+        } else {
+          for (const r of reactors ?? []) {
+            const v = compositeForReactor(ind, r.id!);
+            if (v != null) {
+              await db.influents.add({
+                date, mode: 'perReactor', reactorId: r.id!, indicatorId: ind.id!,
+                inputType: 'direct', sampleAbs: null, blankAbs: null, dilution: null,
+                value: v, curveId: null,
+              });
+            }
+          }
+        }
+        continue;
+      }
 
       const blank = blankByIndicator[ind.id!] ?? '';
       const dilution = state.dilution[ind.id!] ?? '';
@@ -211,18 +257,22 @@ const InfluentPanel = forwardRef<
           <tbody>
             {indicators?.map((ind) => {
               const isDirect = ind.method === 'direct';
+              const isComposite = ind.compositeType != null;
               const dilution = state.dilution[ind.id!] ?? '';
               return (
                 <tr key={ind.id}>
                   <td className="py-1.5 px-2 border-b border-slate-50">
                     {ind.name}
                     {isDirect && <span className="ml-1 text-[10px] text-slate-400">直读</span>}
+                    {isComposite && (
+                      <span className="ml-1 text-[10px] text-teal-500">自动求和</span>
+                    )}
                   </td>
                   <td className="py-1.5 px-2 border-b border-slate-50 text-slate-400 whitespace-nowrap">
-                    {isDirect ? '—' : blankByIndicator[ind.id!] || '—'}
+                    {isDirect || isComposite ? '—' : blankByIndicator[ind.id!] || '—'}
                   </td>
                   <td className="py-1.5 px-2 border-b border-slate-50">
-                    {isDirect ? (
+                    {isDirect || isComposite ? (
                       <span className="text-slate-300">—</span>
                     ) : (
                       <input
@@ -236,37 +286,54 @@ const InfluentPanel = forwardRef<
                     )}
                   </td>
                   {mode === 'shared' ? (
-                    <>
-                      <td className="py-1.5 px-2 border-b border-slate-50">
-                        <input
-                          type="number"
-                          step="any"
-                          aria-label={`${ind.name} 进水检测样`}
-                          className="w-full min-w-[3.5rem] border border-slate-200 rounded px-2 py-1"
-                          value={state.samples[`${ind.id}:shared`] ?? ''}
-                          onChange={(e) => setSample(`${ind.id}:shared`, e.target.value)}
-                        />
-                      </td>
-                      <td className="py-1.5 px-2 border-b border-slate-50 text-right font-medium text-teal-700 whitespace-nowrap">
-                        {formatNumber(computedValue(ind.id!, state.samples[`${ind.id}:shared`] ?? ''))}
-                      </td>
-                    </>
+                    isComposite ? (
+                      <>
+                        <td className="py-1.5 px-2 border-b border-slate-50 text-slate-400">
+                          自动 = 氨氮 + 亚硝 + 硝态
+                        </td>
+                        <td className="py-1.5 px-2 border-b border-slate-50 text-right font-medium text-teal-700 whitespace-nowrap">
+                          {formatNumber(compositeForReactor(ind, null))}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="py-1.5 px-2 border-b border-slate-50">
+                          <input
+                            type="number"
+                            step="any"
+                            aria-label={`${ind.name} 进水检测样`}
+                            className="w-full min-w-[3.5rem] border border-slate-200 rounded px-2 py-1"
+                            value={state.samples[`${ind.id}:shared`] ?? ''}
+                            onChange={(e) => setSample(`${ind.id}:shared`, e.target.value)}
+                          />
+                        </td>
+                        <td className="py-1.5 px-2 border-b border-slate-50 text-right font-medium text-teal-700 whitespace-nowrap">
+                          {formatNumber(computedValue(ind.id!, state.samples[`${ind.id}:shared`] ?? ''))}
+                        </td>
+                      </>
+                    )
                   ) : (
-                    (reactors ?? []).map((r) => (
-                      <td key={r.id} className="py-1.5 px-2 border-b border-slate-50">
-                        <input
-                          type="number"
-                          step="any"
-                          aria-label={`${ind.name} ${r.code} 进水检测样`}
-                          className="w-full min-w-[3.5rem] border border-slate-200 rounded px-2 py-1"
-                          value={state.samples[`${ind.id}:${r.id}`] ?? ''}
-                          onChange={(e) => setSample(`${ind.id}:${r.id}`, e.target.value)}
-                        />
-                        <span className="block text-right text-teal-700 whitespace-nowrap">
-                          {formatNumber(computedValue(ind.id!, state.samples[`${ind.id}:${r.id}`] ?? ''))}
-                        </span>
-                      </td>
-                    ))
+                    (reactors ?? []).map((r) =>
+                      isComposite ? (
+                        <td key={r.id} className="py-1.5 px-2 border-b border-slate-50 text-right font-medium text-teal-700 whitespace-nowrap">
+                          {formatNumber(compositeForReactor(ind, r.id!))}
+                        </td>
+                      ) : (
+                        <td key={r.id} className="py-1.5 px-2 border-b border-slate-50">
+                          <input
+                            type="number"
+                            step="any"
+                            aria-label={`${ind.name} ${r.code} 进水检测样`}
+                            className="w-full min-w-[3.5rem] border border-slate-200 rounded px-2 py-1"
+                            value={state.samples[`${ind.id}:${r.id}`] ?? ''}
+                            onChange={(e) => setSample(`${ind.id}:${r.id}`, e.target.value)}
+                          />
+                          <span className="block text-right text-teal-700 whitespace-nowrap">
+                            {formatNumber(computedValue(ind.id!, state.samples[`${ind.id}:${r.id}`] ?? ''))}
+                          </span>
+                        </td>
+                      ),
+                    )
                   )}
                 </tr>
               );
