@@ -133,6 +133,81 @@ export interface SettingKV {
   value: unknown;
 }
 
+// —— 「其他指标」功能区：污泥浓度/筛分粒径/EPS 等自建计算工作表 ——
+
+/** 污泥浓度（MLSS / MLVSS）记录
+ * 用户填：M1 滤纸重、M2 滤纸+坩埚+泥、M3 坩埚、M4 坩埚+灼烧残渣、V 取样体积
+ * 自动算：MLSS = (M2-M1)/V；MLVSS = (M2+M3-M4)/V
+ */
+export interface MLSSRecord {
+  id?: number;
+  date: string;
+  reactorId: number | null;
+  paperNo: string; // 滤纸编号
+  m1: number | null;
+  m2: number | null;
+  m3: number | null;
+  m4: number | null;
+  v: number | null;
+  mlss: number | null; // 自动算
+  mlvss: number | null; // 自动算
+  note: string;
+  createdAt: string;
+}
+
+/** 筛分粒径范围配置（用户可自行添加/编辑） */
+export interface ParticleSizeRange {
+  id?: number;
+  /** 粒径下限 μm（含） */
+  from: number;
+  /** 粒径上限 μm（不含；最后一段如 ">500" 用 Number=∞ 表示无上限） */
+  to: number;
+  /** 中位径 = (from + to) / 2，最后一段 (>500) 等手动给一个代表值 */
+  mid: number;
+  sortOrder: number;
+}
+
+/** 筛分粒径记录 */
+export interface ParticleSizeRecord {
+  id?: number;
+  date: string;
+  reactorId: number | null;
+  /** 滤纸重 M1 */
+  paperWeight: number | null;
+  /** 滤纸+泥重 M2 */
+  sampleWeight: number | null;
+  /** 泥重 = M2 - M1（自动算） */
+  dryWeight: number | null;
+  /** 占总重的比例 %（自动算） */
+  percent: number | null;
+  /** 中位径贡献 = percent% × mid（自动算） */
+  contribution: number | null;
+  /** 所属粒径范围 id（选填，记录的是哪一段的泥重） */
+  rangeId: number | null;
+  note: string;
+  createdAt: string;
+}
+
+/** EPS 胞外聚合物（PS 多糖 / PN 蛋白质）记录
+ * 用户填：VSS 质量、PS 浓度、PN 浓度、提取液体积
+ * 自动算：PS 含量 = PS浓度 × 体积 / VSS；PN 含量 = PN浓度 × 体积 / VSS；PN/PS 比
+ */
+export interface EPSRecord {
+  id?: number;
+  date: string;
+  reactorId: number | null;
+  sampleCode: string; // 样品编号
+  vssMg: number | null; // VSS 质量 mg
+  psConc: number | null; // PS 浓度 mg/L
+  pnConc: number | null; // PN 浓度 mg/L
+  extractVolume: number | null; // 提取液体积 mL
+  psContent: number | null; // mg/g VSS（自动算）
+  pnContent: number | null; // mg/g VSS（自动算）
+  pnPsRatio: number | null; // PN/PS 比（自动算）
+  note: string;
+  createdAt: string;
+}
+
 export class AgsDB extends Dexie {
   reactors!: Table<Reactor, number>;
   indicators!: Table<Indicator, number>;
@@ -143,6 +218,10 @@ export class AgsDB extends Dexie {
   defaults!: Table<DailyDefault, number>;
   customRecords!: Table<CustomRecord, number>;
   settings!: Table<SettingKV, string>;
+  mlssRecords!: Table<MLSSRecord, number>;
+  particleSizeRanges!: Table<ParticleSizeRange, number>;
+  particleSizeRecords!: Table<ParticleSizeRecord, number>;
+  epsRecords!: Table<EPSRecord, number>;
 
   constructor() {
     super('ags-data');
@@ -157,6 +236,10 @@ export class AgsDB extends Dexie {
       defaults: '++id, &[scopeKey+indicatorId]',
       customRecords: '++id, date, reactorId, indicatorId',
       settings: 'key',
+      mlssRecords: '++id, date, reactorId',
+      particleSizeRanges: '++id, sortOrder',
+      particleSizeRecords: '++id, date, reactorId',
+      epsRecords: '++id, date, reactorId',
     });
   }
 }
