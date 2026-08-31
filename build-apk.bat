@@ -30,7 +30,7 @@ if not exist "%KEYSTORE_FILE%" (
     echo      keystore exists.
 )
 (
-    echo storeFile=%KEYSTORE_FILE:/=\/%
+    echo storeFile=%KEYSTORE_FILE:\=/%
     echo storePassword=%KS_PASS%
     echo keyAlias=ags
     echo keyPassword=%KS_PASS%
