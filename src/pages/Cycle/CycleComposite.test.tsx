@@ -84,8 +84,9 @@ describe('CyclePage 总氮（composite）', () => {
     await screen.findByText('总氮');
     screen.getByText('总氮').click();
     await waitFor(() => expect(screen.getAllByText('17').length).toBeGreaterThan(0));
-    // 顶部空白/稀释输入框不应存在
-    expect(document.querySelector('input')).toBeNull();
+    // 顶部空白/稀释输入框不应存在（取样提醒的间隔/次数输入框不在此列）
+    expect(screen.queryByLabelText('空白')).toBeNull();
+    expect(screen.queryByLabelText('稀释')).toBeNull();
   });
 
   it('保存后：总氮 measurement 记录 value=三氮和（T1=17，T2=13）', async () => {
