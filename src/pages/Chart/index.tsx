@@ -68,32 +68,6 @@ export default function ChartPage() {
   }, [measurements, reactors, reactorIds, indicatorId, mode, dateFrom, dateTo, cycleId, overlayReactorId, cycles]);
 
   const series = mode === 'extras' ? extrasSeries : measurementSeries;
-    if (!indicatorId) return [];
-    const rs = (reactors ?? []).filter((r) => (reactorIds.length ? reactorIds.includes(r.id!) : true));
-    if (mode === 'daily') {
-      const filtered = (measurements ?? []).filter(
-        (m) =>
-          m.indicatorId === indicatorId &&
-          m.scene === 'daily' &&
-          (!dateFrom || m.date >= dateFrom) &&
-          (!dateTo || m.date <= dateTo),
-      );
-      return buildDailyTrend(filtered, rs);
-    }
-    if (mode === 'cycle' && cycleId != null) {
-      const filtered = (measurements ?? []).filter(
-        (m) => m.indicatorId === indicatorId && m.scene === 'cycle' && m.cycleRunId === cycleId,
-      );
-      return buildCycleSeries(filtered, rs, cycleId);
-    }
-    if (mode === 'overlay' && overlayReactorId != null) {
-      const filtered = (measurements ?? []).filter(
-        (m) => m.indicatorId === indicatorId && m.scene === 'cycle' && m.reactorId === overlayReactorId,
-      );
-      return buildCycleOverlay(filtered, cycles ?? [], overlayReactorId);
-    }
-    return [];
-  }, [measurements, reactors, reactorIds, indicatorId, mode, dateFrom, dateTo, cycleId, overlayReactorId, cycles]);
 
   /** 其他指标（污泥浓度/粒径 d50/EPS）按日期聚合时间序列 */
   const extrasSeries = useMemo<TrendSeries[]>(() => {
