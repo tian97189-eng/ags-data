@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, type ReactNode } from 'react';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Layout from './components/layout/Layout';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import EntryPage from './pages/Entry';
 import CyclePage from './pages/Cycle';
 import QueryPage from './pages/Query';
@@ -39,19 +40,33 @@ export default function App() {
 
   return (
     <HashRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route index element={<Navigate to="/entry" replace />} />
-          <Route path="/entry" element={<EntryPage />} />
-          <Route path="/cycle" element={<CyclePage />} />
-          <Route path="/query" element={<QueryPage />} />
-          <Route path="/extras" element={<ExtrasPage />} />
-          <Route path="/chart" element={<ChartPage />} />
-          <Route path="/stats" element={<StatsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/entry" replace />} />
-        </Route>
-      </Routes>
+      <AppRoutes />
     </HashRouter>
+  );
+}
+
+/**
+ * 每个页面单独包一层 ErrorBoundary：
+ * 某页崩溃时左侧导航仍在，用户可切到别的页面，不会整页白屏卡死。
+ * key 用 pathname —— 切路由时重置错误状态，回到崩溃页会重新尝试渲染。
+ */
+function AppRoutes() {
+  const { pathname } = useLocation();
+  const wrap = (node: ReactNode) => <ErrorBoundary key={pathname}>{node}</ErrorBoundary>;
+
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route index element={<Navigate to="/entry" replace />} />
+        <Route path="/entry" element={wrap(<EntryPage />)} />
+        <Route path="/cycle" element={wrap(<CyclePage />)} />
+        <Route path="/query" element={wrap(<QueryPage />)} />
+        <Route path="/extras" element={wrap(<ExtrasPage />)} />
+        <Route path="/chart" element={wrap(<ChartPage />)} />
+        <Route path="/stats" element={wrap(<StatsPage />)} />
+        <Route path="/settings" element={wrap(<SettingsPage />)} />
+        <Route path="*" element={<Navigate to="/entry" replace />} />
+      </Route>
+    </Routes>
   );
 }

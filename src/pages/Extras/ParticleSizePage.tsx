@@ -74,19 +74,20 @@ export default function ParticleSizePage() {
 
   async function handleSaveRow(rangeId: number, paperWeight: number | null, sampleWeight: number | null) {
     const existing = dayRecords.find((r) => r.rangeId === rangeId);
-    const { dryWeight, percent, contribution } = computeParticleDistribution([
-      { rangeId, paperWeight, sampleWeight, mid: 0 }, // mid 没用，下面重算
-    ]);
-    // 上面调用只是为了算这一行；这里直接用单独行逻辑：
-    const dry = paperWeight != null && sampleWeight != null && sampleWeight > paperWeight ? sampleWeight - paperWeight : null;
+    // 单行泥重 = 烘干后（滤纸+泥）− 烘干滤纸
+    const dry =
+      paperWeight != null && sampleWeight != null && sampleWeight > paperWeight
+        ? sampleWeight - paperWeight
+        : null;
     if (dry == null) {
       if (existing?.id) await db.particleSizeRecords.delete(existing.id);
       return;
     }
-    const total = dist.dryWeights.reduce((s, w) => s + (w ?? 0), 0);
+    const total = (dist.dryWeights ?? []).reduce<number>((s, w) => s + (w ?? 0), 0);
     const percentVal = total > 0 ? (dry / total) * 100 : 0;
-    const rng = (ranges ?? []).find((r) => r.id === rangeId)!;
-    const contribVal = (percentVal * rng.mid) / 100;
+    const rng = (ranges ?? []).find((r) => r.id === rangeId);
+    const mid = rng?.mid ?? 0;
+    const contribVal = (percentVal * mid) / 100;
     if (existing?.id) {
       await db.particleSizeRecords.update(existing.id, {
         paperWeight, sampleWeight, dryWeight: dry, percent: percentVal, contribution: contribVal,

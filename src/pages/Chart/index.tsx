@@ -67,8 +67,6 @@ export default function ChartPage() {
     return [];
   }, [measurements, reactors, reactorIds, indicatorId, mode, dateFrom, dateTo, cycleId, overlayReactorId, cycles]);
 
-  const series = mode === 'extras' ? extrasSeries : measurementSeries;
-
   /** 其他指标（污泥浓度/粒径 d50/EPS）按日期聚合时间序列 */
   const extrasSeries = useMemo<TrendSeries[]>(() => {
     if (mode !== 'extras') return [];
@@ -141,6 +139,9 @@ export default function ChartPage() {
     return [{ name: labels[extrasField], data }];
   }, [mode, extrasKind, extrasField, mlss, particle, particleRanges, eps, dateFrom, dateTo]);
 
+  // 必须在 extrasSeries 声明之后，否则切到「其他指标」模式会因 TDZ 报错白屏
+  const series = mode === 'extras' ? extrasSeries : measurementSeries;
+
   const option = useMemo(() => {
     return {
       tooltip: { trigger: 'axis' as const },
@@ -206,6 +207,7 @@ export default function ChartPage() {
               <div>
                 <div className="text-slate-500 mb-1.5">数据类型</div>
                 <select
+                  aria-label="其他指标数据类型"
                   className="w-full border border-slate-200 rounded px-2 py-1"
                   value={extrasKind}
                   onChange={(e) => {
@@ -224,6 +226,7 @@ export default function ChartPage() {
               <div>
                 <div className="text-slate-500 mb-1.5">指标字段</div>
                 <select
+                  aria-label="其他指标字段"
                   className="w-full border border-slate-200 rounded px-2 py-1"
                   value={extrasField}
                   onChange={(e) => setExtrasField(e.target.value as ExtrasField)}

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import ReactECharts from 'echarts-for-react';
 import { db } from '../../db/schema';
-import { removalRate, nar, mean, stdev, min as statsMin, max as statsMax, pearson, attainmentRate } from '../../lib/stats';
+import { removalRate, nar, mean, stdev, min as statsMin, max as statsMax, pearson, attainmentRate, describe as statsDescribe } from '../../lib/stats';
 import { computeParticleDistribution } from '../../lib/extras';
 import { formatNumber, formatPercent } from '../../lib/format';
 import PageHeader from '../../components/layout/PageHeader';
@@ -144,7 +144,7 @@ const extrasStats = useMemo(() => {
   for (const rows of dayRows.values()) {
     const dist = computeParticleDistribution(rows.map((r) => ({ rangeId: 0, paperWeight: r.paperWeight, sampleWeight: r.sampleWeight, mid: r.mid })));
     if (dist.d50 != null) {
-      d50Values.push(statsMean([dist.d50]));
+      d50Values.push(mean([dist.d50]) ?? dist.d50);
     }
   }
 

@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, beforeBeforeEach, beforeEach, expect } from 'vitest';
+import { describe, it, beforeEach, expect } from 'vitest';
 import { db } from '../../db/schema';
 import IndicatorCard from './IndicatorCard';
 
