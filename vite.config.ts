@@ -59,8 +59,10 @@ export default defineConfig(async () => {
     },
     preview: {
       host: true,
-      port: 4173,
-      https: httpsOptions,
+      port: 5173,
+      // Use plain HTTP for the dev preview (no self-signed HTTPS certificate warning).
+      // APK is the production target; HTTPS was only needed for PWA on phone LAN,
+      // and we no longer use the PWA (phone uses the APK).
     },
     build: {
       emptyOutDir: false,
