@@ -38,6 +38,59 @@ export function computeParticleDryWeight(paperWeight: number | null, sampleWeigh
   return w > 0 ? w : null;
 }
 
+// —— 污泥沉降性（SV / SVI）——
+// 标准方法：取混合液于量筒，静置 5min / 30min 后读污泥层体积刻度（mL）。
+// SV(%) = 污泥层体积(mL) / 量筒总体积(mL) × 100
+// SVI(mL/g) = SV(%) × 10 / MLSS(g/L)
+// 常规活性污泥 SVI 约 50~150；好氧颗粒污泥 SVI 通常更低（约 20~60）。
+
+export interface SVIInput {
+  /** 量筒总体积 mL（如 100 或 1000） */
+  cylinderVolumeMl: number | null;
+  /** 5 分钟沉降后污泥层体积刻度 mL */
+  v5Ml: number | null;
+  /** 30 分钟沉降后污泥层体积刻度 mL */
+  v30Ml: number | null;
+  /** 混合液悬浮固体浓度 g/L */
+  mlss: number | null;
+}
+
+export interface SVIResult {
+  /** 5 分钟沉降比 % */
+  sv5: number | null;
+  /** 30 分钟沉降比 % */
+  sv30: number | null;
+  /** SVI5 mL/g */
+  svi5: number | null;
+  /** SVI30 mL/g */
+  svi30: number | null;
+}
+
+export function computeSVI(input: SVIInput): SVIResult {
+  const { cylinderVolumeMl, v5Ml, v30Ml, mlss } = input;
+  const out: SVIResult = { sv5: null, sv30: null, svi5: null, svi30: null };
+  if (
+    cylinderVolumeMl == null || mlss == null ||
+    !Number.isFinite(cylinderVolumeMl) || !Number.isFinite(mlss) ||
+    cylinderVolumeMl <= 0 || mlss <= 0
+  ) {
+    return out;
+  }
+  const sv = (v: number | null): number | null => {
+    if (v == null || !Number.isFinite(v) || v < 0) return null;
+    const pct = (v / cylinderVolumeMl) * 100;
+    return Number.isFinite(pct) ? pct : null;
+  };
+  const svi = (svPct: number | null): number | null =>
+    svPct != null && Number.isFinite(svPct) ? (svPct * 10) / mlss : null;
+
+  out.sv5 = sv(v5Ml);
+  out.sv30 = sv(v30Ml);
+  out.svi5 = svi(out.sv5);
+  out.svi30 = svi(out.sv30);
+  return out;
+}
+
 /** 一组粒径记录（同一日期）→ 计算每行占比% + 中位径贡献；以及累计 d50
  *  - percent[row] = dryWeight[row] / Σ dryWeight * 100
  *  - contribution[row] = percent[row]% × mid[row]

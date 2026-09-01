@@ -5,6 +5,7 @@ import {
   computeParticleDistribution,
   computeEPS,
   computeEPSFromAbsorbance,
+  computeSVI,
   planPNSchedule,
   buildPNScheduleTimes,
   formatScheduleOffset,
@@ -212,6 +213,39 @@ describe('planPNSchedule', () => {
   it('样品数或间隔非法返回空步骤', () => {
     expect(planPNSchedule({ sampleCount: 0, intervalSec: 20, settleAMin: 10, settleBMin: 10, prepareMin: 0 }).steps).toEqual([]);
     expect(planPNSchedule({ sampleCount: 5, intervalSec: 0, settleAMin: 10, settleBMin: 10, prepareMin: 0 }).steps).toEqual([]);
+  });
+});
+
+describe('computeSVI', () => {
+  it('正常输入：SV=污泥层/量筒×100%，SVI=SV×10/MLSS', () => {
+    // 100mL 量筒，5min 读 30mL，30min 读 20mL，MLSS 3 g/L
+    const r = computeSVI({ cylinderVolumeMl: 100, v5Ml: 30, v30Ml: 20, mlss: 3 });
+    expect(r.sv5).toBeCloseTo(30, 4);
+    expect(r.sv30).toBeCloseTo(20, 4);
+    expect(r.svi5).toBeCloseTo(100, 4); // 30×10/3
+    expect(r.svi30).toBeCloseTo(66.6667, 2); // 20×10/3
+  });
+
+  it('1000mL 量筒标准场景（好氧颗粒污泥 SVI 约 20~60）', () => {
+    // 1000mL 量筒，30min 读 200mL，MLSS 5 g/L → SV30=20%，SVI30=40 mL/g
+    const r = computeSVI({ cylinderVolumeMl: 1000, v5Ml: 250, v30Ml: 200, mlss: 5 });
+    expect(r.sv30).toBeCloseTo(20, 4);
+    expect(r.svi30).toBeCloseTo(40, 4);
+    expect(r.svi5).toBeCloseTo(50, 4); // 25×10/5
+  });
+
+  it('缺失量筒体积或 MLSS → 全 null', () => {
+    expect(computeSVI({ cylinderVolumeMl: null, v5Ml: 30, v30Ml: 20, mlss: 3 }).svi30).toBeNull();
+    expect(computeSVI({ cylinderVolumeMl: 100, v5Ml: 30, v30Ml: 20, mlss: null }).sv5).toBeNull();
+    expect(computeSVI({ cylinderVolumeMl: 0, v5Ml: 30, v30Ml: 20, mlss: 3 }).svi5).toBeNull();
+  });
+
+  it('污泥层读数缺失时，对应 SV/SVI 为 null，其余正常', () => {
+    const r = computeSVI({ cylinderVolumeMl: 100, v5Ml: 30, v30Ml: null, mlss: 3 });
+    expect(r.sv5).toBeCloseTo(30, 4);
+    expect(r.svi5).toBeCloseTo(100, 4);
+    expect(r.sv30).toBeNull();
+    expect(r.svi30).toBeNull();
   });
 });
 

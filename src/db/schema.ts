@@ -218,6 +218,27 @@ export interface EPSRecord {
   createdAt: string;
 }
 
+/** 污泥沉降性（SV / SVI）记录
+ * 用户填：量筒体积、5min/30min 污泥层刻度读数、MLSS
+ * 自动算：SV5/SV30(%) 和 SVI5/SVI30(mL/g)
+ */
+export interface SVIRecord {
+  id?: number;
+  date: string;
+  reactorId: number | null;
+  sampleCode: string; // 样品编号
+  cylinderVolumeMl: number | null; // 量筒总体积 mL
+  v5Ml: number | null; // 5min 污泥层体积 mL
+  v30Ml: number | null; // 30min 污泥层体积 mL
+  mlss: number | null; // MLSS g/L
+  sv5: number | null; // % 自动算
+  sv30: number | null; // % 自动算
+  svi5: number | null; // mL/g 自动算
+  svi30: number | null; // mL/g 自动算
+  note: string;
+  createdAt: string;
+}
+
 export class AgsDB extends Dexie {
   reactors!: Table<Reactor, number>;
   indicators!: Table<Indicator, number>;
@@ -232,6 +253,7 @@ export class AgsDB extends Dexie {
   particleSizeRanges!: Table<ParticleSizeRange, number>;
   particleSizeRecords!: Table<ParticleSizeRecord, number>;
   epsRecords!: Table<EPSRecord, number>;
+  sviRecords!: Table<SVIRecord, number>;
 
   constructor() {
     super('ags-data');
@@ -250,6 +272,10 @@ export class AgsDB extends Dexie {
       particleSizeRanges: '++id, sortOrder',
       particleSizeRecords: '++id, date, reactorId',
       epsRecords: '++id, date, reactorId',
+    });
+    // v2：新增污泥沉降性 SVI 表
+    this.version(2).stores({
+      sviRecords: '++id, date, reactorId',
     });
   }
 }
