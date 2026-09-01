@@ -4,6 +4,7 @@ import ReportDialog from './ReportDialog';
 import { db } from '../../db/schema';
 import { seedIfEmpty } from '../../db/seed';
 import { useAppStore } from '../../store/useAppStore';
+import { today } from '../../lib/format';
 
 const mocks = vi.hoisted(() => ({
   renderTrendCharts: vi.fn(),
@@ -36,7 +37,7 @@ async function seedOneDay(nh4Value: number, doValue: number) {
   ] as const) {
     await db.measurements.add({
       scene: 'daily',
-      date: '2026-08-01',
+      date: today(), // 用今天（本月内），ReportDialog 默认统计本月，避免跨月导致 0 条
       phase: null,
       reactorId: r1.id!,
       indicatorId: ind.id!,
@@ -56,8 +57,10 @@ async function seedOneDay(nh4Value: number, doValue: number) {
 describe('ReportDialog', () => {
   beforeEach(async () => {
     await clearAll();
+    const t = today();
+    const dateFrom = `${t.slice(0, 7)}-01`;
     mocks.renderTrendCharts.mockReset().mockResolvedValue([null]);
-    mocks.buildDocx.mockReset().mockResolvedValue({ base64: 'UEsDBQAAAAA=', filename: 'AGS实验报告-2026-08-01~2026-08-31.docx' });
+    mocks.buildDocx.mockReset().mockResolvedValue({ base64: 'UEsDBQAAAAA=', filename: `AGS实验报告-${dateFrom}~${t}.docx` });
     mocks.saveAndShare.mockReset().mockResolvedValue({ ok: true, method: 'web' });
   });
 
@@ -81,6 +84,8 @@ describe('ReportDialog', () => {
 
   it('点击生成：收集数据 → 画图 → 组 docx → 保存，成功后关闭并提示', async () => {
     await seedOneDay(10, 6);
+    const t = today();
+    const dateFrom = `${t.slice(0, 7)}-01`;
     const onClose = vi.fn();
     render(<ReportDialog open onClose={onClose} />);
     await screen.findByText('生成 Word 实验报告');
@@ -95,11 +100,11 @@ describe('ReportDialog', () => {
     });
     expect(mocks.renderTrendCharts).toHaveBeenCalledTimes(1);
     expect(mocks.buildDocx).toHaveBeenCalledWith(
-      expect.objectContaining({ dailyCount: 2, dateFrom: '2026-08-01' }),
+      expect.objectContaining({ dailyCount: 2, dateFrom }),
       [null],
     );
     expect(mocks.saveAndShare).toHaveBeenCalledWith(
-      expect.objectContaining({ filename: 'AGS实验报告-2026-08-01~2026-08-31.docx', encoding: 'base64' }),
+      expect.objectContaining({ filename: `AGS实验报告-${dateFrom}~${t}.docx`, encoding: 'base64' }),
     );
     await waitFor(() => {
       expect(onClose).toHaveBeenCalled();
