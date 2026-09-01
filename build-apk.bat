@@ -86,12 +86,17 @@ rem file contention because this handler has been closed"）使 java 退出码�
 rem 失败而跳 :fail、[7/7] 拷贝被跳过（之前每次桌面没 APK 的真正原因，不是用户关窗）。
 rem 因此这里不检查退出码，直接进 [7/7] 用 if exist APK 判断。
 "%JAVA_HOME%\bin\java.exe" -Dorg.gradle.appname=gradlew -classpath "C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar" org.gradle.launcher.GradleMain assembleRelease --no-daemon --console=plain
+echo [DIAG] gradle returned, errorlevel=%errorlevel% >> "%LOG%"
 echo      gradle finished, checking APK...
 
 rem ======== [7/7] Copy APK to Desktop ========
 set "APK=%BUILD%\android\app\build\outputs\apk\release\app-release.apk"
+echo [DIAG] APK path=%APK% >> "%LOG%"
+echo [DIAG] USERPROFILE=%USERPROFILE% >> "%LOG%"
 if exist "%APK%" (
+    echo [DIAG] APK exists, copying... >> "%LOG%"
     copy /y "%APK%" "%USERPROFILE%\Desktop\AGS-data-app.apk" >> "%LOG%" 2>&1
+    echo [DIAG] copy done, errorlevel=%errorlevel% >> "%LOG%"
     echo.
     echo ==========================================
     echo  SUCCESS!
@@ -106,6 +111,7 @@ if exist "%APK%" (
     echo.
     goto end
 ) else (
+    echo [DIAG] APK NOT found >> "%LOG%"
     echo APK file not found. Build may have failed - check the gradle output above.
     goto fail
 )
