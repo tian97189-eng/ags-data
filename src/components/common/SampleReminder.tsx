@@ -1,10 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
-import { buildReminderTimes, msToNext, notifySample, playBeep } from '../../lib/reminder';
+import {
+  buildReminderTimes,
+  cancelSampleReminders,
+  ensureNotificationPermission,
+  isNativePlatform,
+  msToNext,
+  notifySample,
+  playBeep,
+  scheduleSampleReminders,
+} from '../../lib/reminder';
 
 /**
- * 取样提醒面板：全周期实验时按间隔提醒取样（系统通知 + 提示音 + 页面提示）。
- * 兼容电脑浏览器与手机 APK WebView（Notification API）。
+ * 取样提醒面板：全周期实验时按间隔提醒取样。
+ * - 原生 App（APK）：用 LocalNotifications 提前排程，到点系统响铃 + 弹通知（后台/锁屏也能响）；
+ *   页面内再做一次 toast 提示。
+ * - 浏览器：用 setTimeout + Web Notification + 蜂鸣音。
  */
 export default function SampleReminder({
   defaultInterval = 30,
@@ -30,6 +41,7 @@ export default function SampleReminder({
   function stop() {
     if (timerRef.current != null) window.clearTimeout(timerRef.current);
     timerRef.current = null;
+    void cancelSampleReminders();
     setRunning(false);
     setNext(null);
     setDone(0);
@@ -44,18 +56,28 @@ export default function SampleReminder({
     }
     setDone(0);
     const times = buildReminderTimes(new Date(), iv, ct);
-    const now = new Date();
+    setRunning(true);
+
+    // 请求通知权限（原生弹系统授权；浏览器弹浏览器授权）
+    await ensureNotificationPermission();
+    // 原生：提前排程所有提醒（到点系统响铃）；浏览器返回 false
+    const nativeScheduled = await scheduleSampleReminders(times, '取样提醒');
+
     const fire = async (idx: number) => {
       setDone(idx);
       setNext(null);
       playBeep();
-      const notified = await notifySample(idx);
-      toast(
-        notified
-          ? `第 ${idx} 次取样时间到`
-          : `第 ${idx} 次取样时间到（浏览器未授权通知，请看时间）`,
-        'success',
-      );
+      if (nativeScheduled) {
+        toast(`第 ${idx} 次取样时间到`, 'success');
+      } else {
+        const notified = await notifySample(idx);
+        toast(
+          notified
+            ? `第 ${idx} 次取样时间到`
+            : `第 ${idx} 次取样时间到（未授权通知，请看时间）`,
+          'success',
+        );
+      }
       scheduleNext(idx + 1);
     };
     const scheduleNext = (nextIdx: number) => {
@@ -68,7 +90,6 @@ export default function SampleReminder({
       setNext(new Date(Date.now() + ms).toLocaleTimeString('zh-CN', { hour12: false }));
       timerRef.current = window.setTimeout(() => void fire(nextIdx), ms);
     };
-    setRunning(true);
     // 立即提醒第一次，然后按间隔排程
     void fire(1);
   }
@@ -127,7 +148,9 @@ export default function SampleReminder({
         </div>
       )}
       <p className="text-[11px] text-slate-400 mt-1.5">
-        到点会响铃并弹系统通知；手机首次使用请允许通知权限。建议先用"开始提醒"试试提示音。
+        {isNativePlatform()
+          ? '到点会响铃并弹系统通知（含锁屏）；请先在系统弹窗中允许通知权限。'
+          : '到点会响铃并弹系统通知；手机首次使用请允许通知权限。建议先用"开始提醒"试试提示音。'}
       </p>
     </div>
   );

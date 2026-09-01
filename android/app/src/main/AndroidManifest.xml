@@ -38,4 +38,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 13+ 通知运行时权限（取样/DO 提醒需要） -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

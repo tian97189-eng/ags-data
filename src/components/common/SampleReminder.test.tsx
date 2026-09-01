@@ -6,6 +6,10 @@ import { useAppStore } from '../../store/useAppStore';
 const mocks = vi.hoisted(() => ({
   notifySample: vi.fn(),
   playBeep: vi.fn(),
+  ensureNotificationPermission: vi.fn(),
+  scheduleSampleReminders: vi.fn(),
+  cancelSampleReminders: vi.fn(),
+  isNativePlatform: vi.fn(),
 }));
 
 vi.mock('../../lib/reminder', () => ({
@@ -25,6 +29,10 @@ vi.mock('../../lib/reminder', () => ({
   }),
   notifySample: mocks.notifySample,
   playBeep: mocks.playBeep,
+  ensureNotificationPermission: mocks.ensureNotificationPermission,
+  scheduleSampleReminders: mocks.scheduleSampleReminders,
+  cancelSampleReminders: mocks.cancelSampleReminders,
+  isNativePlatform: mocks.isNativePlatform,
 }));
 
 describe('SampleReminder', () => {
@@ -33,6 +41,10 @@ describe('SampleReminder', () => {
   beforeEach(() => {
     mocks.notifySample.mockReset().mockResolvedValue(true);
     mocks.playBeep.mockReset();
+    mocks.ensureNotificationPermission.mockReset().mockResolvedValue(true);
+    mocks.scheduleSampleReminders.mockReset().mockResolvedValue(false);
+    mocks.cancelSampleReminders.mockReset().mockResolvedValue(undefined);
+    mocks.isNativePlatform.mockReset().mockReturnValue(false);
     // 用真实 timers 跑 React 渲染；只 spy 捕获组件里设置的定时器
     setTimeoutSpy = vi.spyOn(window, 'setTimeout');
     clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
@@ -65,6 +77,20 @@ describe('SampleReminder', () => {
     expect(cb).toBeTruthy();
     // 界面进入运行态
     expect(screen.getByText('停止')).toBeTruthy();
+  });
+
+  it('原生环境：开始提醒会请求权限并排程原生通知', async () => {
+    mocks.isNativePlatform.mockReturnValue(true);
+    mocks.scheduleSampleReminders.mockResolvedValue(true);
+    render(<SampleReminder defaultInterval={30} defaultCount={3} />);
+    fireEvent.click(screen.getByText('开始提醒'));
+
+    await waitFor(() => {
+      expect(mocks.ensureNotificationPermission).toHaveBeenCalled();
+      expect(mocks.scheduleSampleReminders).toHaveBeenCalled();
+    });
+    // 原生排程后不再走浏览器 notifySample
+    expect(mocks.notifySample).not.toHaveBeenCalled();
   });
 
   it('点停止：清除定时器并回到未运行态', async () => {
