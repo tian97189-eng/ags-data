@@ -52,7 +52,7 @@ copy /Y "%SRC%postcss.config.js"  "%BUILD%\postcss.config.js"  >> "%LOG%" 2>&1
 copy /Y "%SRC%index.html"         "%BUILD%\index.html"         >> "%LOG%" 2>&1
 copy /Y "%SRC%capacitor.config.ts" "%BUILD%\capacitor.config.ts" >> "%LOG%" 2>&1
 copy /Y "%SRC%android\app\build.gradle" "%BUILD%\android\app\build.gradle" >> "%LOG%" 2>&1
-rem MainActivity.java 必须同步（包名 com.ags.data，漏了会用旧包名导致启动闪退）
+rem MainActivity.java must be synced (package com.ags.data; missing it causes startup crash)
 copy /Y "%SRC%android\app\src\main\java\com\ags\data\MainActivity.java" "%BUILD%\android\app\src\main\java\com\ags\data\MainActivity.java" >> "%LOG%" 2>&1
 echo      source synced.
 
@@ -77,14 +77,14 @@ echo      android sync ok.
 
 rem ======== [6/7] Build APK (gradle) ========
 echo [6/7] Building APK. Progress is shown below, takes 1-10 minutes.
-echo      看到窗口在滚动 gradle 日志就说明正在构建，请等到出现 SUCCESS 或 BUILD FAILED。
+echo      If you see gradle logs scrolling below, it is building. Wait for SUCCESS or BUILD FAILED.
 cd /d "%BUILD%\android"
-rem gradle 输出直接显示在窗口（不再重定向进日志）。
-rem 关键：不能用 if errorlevel 判断 gradle 成败——gradle 即使 BUILD SUCCESSFUL，
-rem 它停止 single-use daemon 时也常抛 IllegalStateException（"Cannot start managing
-rem file contention because this handler has been closed"）使 java 退出码非 0，误判
-rem 失败而跳 :fail、[7/7] 拷贝被跳过（之前每次桌面没 APK 的真正原因，不是用户关窗）。
-rem 因此这里不检查退出码，直接进 [7/7] 用 if exist APK 判断。
+rem gradle output goes directly to the window (not redirected to log).
+rem IMPORTANT: do NOT use "if errorlevel" to judge gradle success. Even when gradle
+rem says BUILD SUCCESSFUL, its single-use daemon often throws IllegalStateException
+rem ("Cannot start managing file contention because this handler has been closed")
+rem on shutdown, making java exit non-zero. That misjudged failure and skipped [7/7].
+rem So we do NOT check exit code here; [7/7] checks the APK file directly.
 "%JAVA_HOME%\bin\java.exe" -Dorg.gradle.appname=gradlew -classpath "C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar" org.gradle.launcher.GradleMain assembleRelease --no-daemon --console=plain
 echo [DIAG] gradle returned, errorlevel=%errorlevel% >> "%LOG%"
 echo      gradle finished, checking APK...
@@ -104,8 +104,8 @@ if exist "%APK%" (
     echo  %USERPROFILE%\Desktop\AGS-data-app.apk
     echo.
     echo  IMPORTANT for updating:
-    echo    * Install the new APK directly over the old one (do NOT uninstall first).
-    echo    * Signature is fixed (release), so app data is kept.
+    echo    * Install the new APK directly over the old one - do NOT uninstall first.
+    echo    * Signature is fixed, so app data is kept.
     echo    * If you DON'T see the APK icon on desktop, press F5 to refresh.
     echo ==========================================
     echo.
