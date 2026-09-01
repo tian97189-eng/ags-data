@@ -77,10 +77,14 @@ echo.
 start "" http://localhost:5173
 rem Start dev in BACKGROUND so Ctrl+C / close-window does not kill dev.
 rem Previously call npm run dev was foreground; any Ctrl+C killed dev silently.
-set "DEVLOG=%~dp0dev.log"
-start /b "" cmd /c "npm run dev -- --port 5173 --host --strictPort > %DEVLOG% 2>&1"
+rem Run dev in its OWN window (independent console). Closing the batch window
+rem or pressing Ctrl+C there will NOT affect dev. Close the "AGS Dev Server"
+rem window to stop the dev server (or taskkill node.exe).
+start "AGS Dev Server (close this window to stop)" cmd /k "npm run dev -- --port 5173 --host --strictPort"
 echo.
-echo  Dev server started in BACKGROUND. You can close this window safely.
+echo  Dev server started in its own window [AGS Dev Server].
+echo  Keep that window open while using the app.
+echo  Close the [AGS Dev Server] window to STOP the dev server.
 echo  App URL:    https://localhost:5173
 echo  Logs:       %~dp0dev.log
 echo.
