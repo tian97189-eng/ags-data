@@ -92,7 +92,8 @@ rem The dev window stays open (cmd /k) but shows nothing (output -> log).
 rem Closing this batch window does NOT affect dev.
 rem Check if dev is running: open browser to https://localhost:5173 or tail dev.log.
 rem Stop dev: close the "AGS Dev Server" window OR taskkill node.exe.
-start "AGS Preview (close to stop)" cmd /k "npm run preview -- --port 5173 --strictPort"
+set "PREVIEWLOG=%~dp0preview.log"
+start "AGS Preview (close to stop)" cmd /k "npm run preview -- --port 5173 --strictPort > %PREVIEWLOG% 2>&1"
 echo.
 echo  Preview server running in its own window [AGS Preview].
 echo  Keep that window open while using the app.
