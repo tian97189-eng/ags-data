@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/schema';
-import { computeEPS, planPNSchedule, formatScheduleOffset } from '../../lib/extras';
+import {
+  computeEPS,
+  planPNSchedule,
+  buildPNScheduleTimes,
+  formatScheduleOffset,
+} from '../../lib/extras';
 import { useAppStore } from '../../store/useAppStore';
 import { today } from '../../lib/format';
 import EmptyState from '../../components/common/EmptyState';
+import SampleReminder from '../../components/common/SampleReminder';
 
 /** EPS 胞外聚合物（PS 多糖 / PN 蛋白质）
  * 用户填：日期、样品编号、VSS 质量、PS 浓度、PN 浓度、提取液体积
@@ -53,6 +59,19 @@ export default function EPSPage() {
     settleBMin: Number(pnSettleB) || 0,
     prepareMin: Number(pnPrepareMin) || 0,
   });
+
+  // 响铃时刻：点「开始提醒」那一刻按当前计时参数重新生成（绝对时间 + 动作文案）
+  const buildReminders = () =>
+    buildPNScheduleTimes(
+      planPNSchedule({
+        sampleCount: Math.max(0, Math.floor(Number(pnSampleCount) || 0)),
+        intervalSec: Number(pnIntervalSec) || 0,
+        settleAMin: Number(pnSettleA) || 0,
+        settleBMin: Number(pnSettleB) || 0,
+        prepareMin: Number(pnPrepareMin) || 0,
+      }),
+      new Date(),
+    );
 
   async function handleAdd() {
     if (!date || !sampleCode.trim()) {
@@ -185,6 +204,16 @@ export default function EPSPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {pnSchedule.steps.length > 0 && (
+          <div className="mt-3">
+            <SampleReminder
+              label="PN 加药提醒"
+              buildExternalTimes={buildReminders}
+              externalHint="点开始后，到每个样品「加甲液 / 加乙液 / 测吸光度」时间点响铃"
+            />
           </div>
         )}
       </div>

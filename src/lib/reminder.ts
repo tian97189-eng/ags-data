@@ -20,6 +20,8 @@ export interface ReminderTime {
   at: string;
   /** 第几次取样（1 起） */
   index: number;
+  /** 可选：自定义提醒文案（如「#3 加乙液」）。缺省时用「第 N 次取样」 */
+  text?: string;
 }
 
 /** 生成取样提醒时刻。start 为开始时刻（含），间隔 intervalMin 分钟，共 count 次 */
@@ -155,7 +157,11 @@ export async function ensureNotificationPermission(): Promise<boolean> {
 }
 
 /** 发送一条"取样"系统通知（Web 浏览器）。未授权时返回 false。 */
-export async function notifySample(index: number, label = '取样提醒'): Promise<boolean> {
+export async function notifySample(
+  index: number,
+  label = '取样提醒',
+  text?: string,
+): Promise<boolean> {
   try {
     if (!('Notification' in window)) return false;
     if (Notification.permission === 'default') {
@@ -164,7 +170,7 @@ export async function notifySample(index: number, label = '取样提醒'): Promi
     }
     if (Notification.permission !== 'granted') return false;
     const n = new Notification(label, {
-      body: `第 ${index} 次取样时间到，请记录数据`,
+      body: text ?? `第 ${index} 次取样时间到，请记录数据`,
       tag: `ags-sample-${index}`,
     });
     n.onclick = () => window.focus();
@@ -202,7 +208,7 @@ export async function scheduleSampleReminders(
     const notifications = times.map((t) => ({
       id: baseId + t.index,
       title: label,
-      body: `第 ${t.index} 次取样时间到，请记录数据`,
+      body: t.text ?? `第 ${t.index} 次取样时间到，请记录数据`,
       schedule: { at: new Date(t.at), allowWhileIdle: true },
       sound: 'default',
       smallIcon: 'ic_launcher',

@@ -1,7 +1,8 @@
 /**
- * 其他指标工作表计算函数（MLSS / 筛分粒径 / EPS）
+ * 其他指标工作表计算函数（MLSS / 筛分粒径 / EPS / 沉降性）
  * 全部纯函数，不依赖 React/Dexie，方便单测。
  */
+import type { ReminderTime } from './reminder';
 
 /** 算 MLSS / MLVSS（g/L）。输入重量单位 g，V 单位 mL → 需 ×1000 转 L。 */
 export function computeMLSS(input: {
@@ -181,6 +182,48 @@ export function planPNSchedule(opts: {
     });
   }
   return { prepareSec, steps };
+}
+
+/**
+ * 把 PN 加药计时规划转成"响铃提醒时刻列表"（绝对时间 + 具体动作文案）。
+ * - startAt：用户点「开始提醒」那一刻（毫秒）
+ * - 准备阶段（prepareSec>0）也作为第一个提醒（"开始准备"）
+ * - 每个样品 3 个动作：加甲液 / 加乙液 / 测吸光度
+ * - 全部按时间升序排列，index 重新连续编号（供 SampleReminder 用）
+ */
+export function buildPNScheduleTimes(schedule: PNSchedule, startAt: Date): ReminderTime[] {
+  const out: ReminderTime[] = [];
+  let idx = 1;
+  if (schedule.prepareSec > 0) {
+    out.push({
+      at: new Date(startAt.getTime()).toISOString(),
+      index: idx++,
+      text: '开始准备（加甲液前）',
+    });
+  }
+  const base = startAt.getTime() + schedule.prepareSec * 1000;
+  for (const s of schedule.steps) {
+    out.push({
+      at: new Date(base + s.addAOffsetSec * 1000).toISOString(),
+      index: idx++,
+      text: `#${s.sampleNo} 加甲液`,
+    });
+    out.push({
+      at: new Date(base + s.addBOffsetSec * 1000).toISOString(),
+      index: idx++,
+      text: `#${s.sampleNo} 加乙液`,
+    });
+    out.push({
+      at: new Date(base + s.measureOffsetSec * 1000).toISOString(),
+      index: idx++,
+      text: `#${s.sampleNo} 测吸光度`,
+    });
+  }
+  out.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+  out.forEach((r, i) => {
+    r.index = i + 1;
+  });
+  return out;
 }
 
 /** 把秒数偏移格式化成 MM:SS（超过 1 小时则 H:MM:SS） */

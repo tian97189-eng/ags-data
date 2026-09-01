@@ -15,7 +15,9 @@ import {
 /**
  * 通用提醒面板：可自定义标题与提醒时刻。
  * - 常规用法：传 defaultInterval/defaultCount，组件自己按间隔生成时刻（如"取样提醒"）
- * - 好氧段 DO 测值：传 externalTimes（外部算好的好氧段时刻），组件不再按间隔生成
+ * - 外部静态时刻：传 externalTimes（好氧段 DO 测值等，提前算好的绝对时刻）
+ * - 运行时生成时刻：传 buildExternalTimes 回调（点「开始」那一刻才生成，如 EPS PN 加药
+ *   计时规划——时刻基于"现在"起算，且带具体动作文案 text）
  *
  * 原生 App（APK）：用 LocalNotifications 提前排程，到点系统响铃 + 弹通知；
  * 浏览器：setTimeout + Web Notification + 蜂鸣音。
@@ -25,11 +27,15 @@ export default function SampleReminder({
   defaultInterval = 30,
   defaultCount = 12,
   externalTimes,
+  buildExternalTimes,
+  externalHint,
 }: {
   label?: string;
   defaultInterval?: number;
   defaultCount?: number;
   externalTimes?: ReminderTime[];
+  buildExternalTimes?: () => ReminderTime[];
+  externalHint?: string;
 }) {
   const toast = useAppStore((s) => s.toast);
   const [running, setRunning] = useState(false);
@@ -37,6 +43,7 @@ export default function SampleReminder({
   const [count, setCount] = useState(String(defaultCount));
   const [next, setNext] = useState<string | null>(null);
   const [done, setDone] = useState(0);
+  const [total, setTotal] = useState(0);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -52,11 +59,18 @@ export default function SampleReminder({
     setRunning(false);
     setNext(null);
     setDone(0);
+    setTotal(0);
   }
 
   async function start() {
     let times: ReminderTime[];
-    if (externalTimes) {
+    if (buildExternalTimes) {
+      times = buildExternalTimes();
+      if (times.length === 0) {
+        toast(`没有可用的「${label}」时刻`, 'warning');
+        return;
+      }
+    } else if (externalTimes) {
       times = externalTimes;
       if (times.length === 0) {
         toast(`没有可用的「${label}」时刻（请先标记好氧段）`, 'warning');
@@ -73,6 +87,7 @@ export default function SampleReminder({
     }
 
     setDone(0);
+    setTotal(times.length);
     setRunning(true);
 
     // 请求通知权限（原生弹系统授权；浏览器弹浏览器授权）
@@ -81,17 +96,19 @@ export default function SampleReminder({
     const nativeScheduled = await scheduleSampleReminders(times, label);
 
     const fire = async (idx: number) => {
+      const t = times[idx - 1];
+      const msg = t?.text ?? `第 ${idx} 次${label}时间到`;
       setDone(idx);
       setNext(null);
       playBeep();
       if (nativeScheduled) {
-        toast(`第 ${idx} 次${label}时间到`, 'success');
+        toast(msg, 'success');
       } else {
-        const notified = await notifySample(idx, label);
+        const notified = t?.text
+          ? await notifySample(idx, label, t.text)
+          : await notifySample(idx, label);
         toast(
-          notified
-            ? `第 ${idx} 次${label}时间到`
-            : `第 ${idx} 次${label}时间到（未授权通知，请看时间）`,
+          notified ? msg : `${msg}（未授权通知，请看时间）`,
           'success',
         );
       }
@@ -111,11 +128,13 @@ export default function SampleReminder({
     void fire(1);
   }
 
+  const isExternal = !!(externalTimes || buildExternalTimes);
+
   return (
     <div className="border border-slate-200 rounded-lg p-3 text-xs">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-slate-500">{label}</span>
-        {!externalTimes && (
+        {!isExternal && (
           <>
             <label className="flex items-center gap-1">
               <span className="text-slate-400">间隔</span>
@@ -144,8 +163,11 @@ export default function SampleReminder({
             </label>
           </>
         )}
-        {externalTimes && (
-          <span className="text-slate-400">好氧段共 {externalTimes.length} 个测点</span>
+        {isExternal && (
+          <span className="text-slate-400">
+            {externalHint ??
+              (externalTimes ? `好氧段共 ${externalTimes.length} 个测点` : '按计时规划响铃')}
+          </span>
         )}
         {!running ? (
           <button
@@ -167,7 +189,7 @@ export default function SampleReminder({
       </div>
       {running && (
         <div className="mt-2 text-teal-700">
-          {done > 0 && <span>已提醒 {done} 次 · </span>}
+          {done > 0 && <span>已提醒 {done}/{total} 次 · </span>}
           {next ? <span>下次提醒 {next}</span> : <span>等待中…</span>}
         </div>
       )}

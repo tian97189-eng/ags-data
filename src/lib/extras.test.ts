@@ -5,6 +5,7 @@ import {
   computeParticleDistribution,
   computeEPS,
   planPNSchedule,
+  buildPNScheduleTimes,
   formatScheduleOffset,
 } from './extras';
 
@@ -139,5 +140,49 @@ describe('formatScheduleOffset', () => {
     expect(formatScheduleOffset(600)).toBe('10:00');
     expect(formatScheduleOffset(1200)).toBe('20:00');
     expect(formatScheduleOffset(3661)).toBe('1:01:01');
+  });
+});
+
+describe('buildPNScheduleTimes', () => {
+  const startAt = new Date('2026-09-01T08:00:00.000Z');
+
+  it('准备时间>0：第一个提醒是"开始准备"，且发生在 startAt 时刻', () => {
+    const sched = planPNSchedule({ sampleCount: 2, intervalSec: 20, settleAMin: 10, settleBMin: 10, prepareMin: 5 });
+    const times = buildPNScheduleTimes(sched, startAt);
+    expect(times[0].text).toBe('开始准备（加甲液前）');
+    expect(times[0].at).toBe('2026-09-01T08:00:00.000Z');
+  });
+
+  it('每个样品生成 3 个动作提醒（加甲液/加乙液/测吸光度），index 连续', () => {
+    const sched = planPNSchedule({ sampleCount: 2, intervalSec: 20, settleAMin: 10, settleBMin: 10, prepareMin: 0 });
+    const times = buildPNScheduleTimes(sched, startAt);
+    // 无准备时间：2 样 × 3 动作 = 6 个提醒
+    expect(times).toHaveLength(6);
+    // 按时间升序：样1加甲液(0s) < 样2加甲液(20s) < 样1加乙液(600s) < 样2加乙液(620s) < 样1测量(1200s) < 样2测量(1220s)
+    const texts = times.map((t) => t.text);
+    expect(texts).toEqual([
+      '#1 加甲液', '#2 加甲液', '#1 加乙液', '#2 加乙液', '#1 测吸光度', '#2 测吸光度',
+    ]);
+    // index 连续从 1 开始
+    expect(times.map((t) => t.index)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it('加甲液偏移正确（含准备时间）', () => {
+    const sched = planPNSchedule({ sampleCount: 3, intervalSec: 20, settleAMin: 10, settleBMin: 10, prepareMin: 5 });
+    const times = buildPNScheduleTimes(sched, startAt);
+    // 样1加甲液 = startAt + 5min = 08:05:00
+    const addA1 = times.find((t) => t.text === '#1 加甲液')!;
+    expect(addA1.at).toBe('2026-09-01T08:05:00.000Z');
+    // 样1加乙液 = 加甲液 + 10min = 08:15:00
+    const addB1 = times.find((t) => t.text === '#1 加乙液')!;
+    expect(addB1.at).toBe('2026-09-01T08:15:00.000Z');
+    // 样1测吸光度 = 加乙液 + 10min = 08:25:00
+    const measure1 = times.find((t) => t.text === '#1 测吸光度')!;
+    expect(measure1.at).toBe('2026-09-01T08:25:00.000Z');
+  });
+
+  it('空步骤返回空数组', () => {
+    const sched = planPNSchedule({ sampleCount: 0, intervalSec: 20, settleAMin: 10, settleBMin: 10, prepareMin: 0 });
+    expect(buildPNScheduleTimes(sched, startAt)).toEqual([]);
   });
 });

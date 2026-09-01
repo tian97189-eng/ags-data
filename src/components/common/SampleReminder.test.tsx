@@ -114,4 +114,41 @@ describe('SampleReminder', () => {
     });
     expect(mocks.notifySample).not.toHaveBeenCalled();
   });
+
+  it('buildExternalTimes 回调：点开始用回调生成的时刻，且文案用 text', async () => {
+    const now = Date.now();
+    const times = [
+      { at: new Date(now + 1000).toISOString(), index: 1, text: '#1 加甲液' },
+      { at: new Date(now + 2000).toISOString(), index: 2, text: '#2 加甲液' },
+    ];
+    const build = vi.fn(() => times);
+    render(
+      <SampleReminder label="PN 加药提醒" buildExternalTimes={build} externalHint="测试提示" />,
+    );
+    // 不显示间隔/次数输入框
+    expect(screen.queryByLabelText('PN 加药提醒间隔')).toBeNull();
+    expect(screen.getByText('测试提示')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('开始提醒'));
+
+    await waitFor(() => {
+      expect(build).toHaveBeenCalled();
+      // notifySample 带上了 text 文案
+      expect(mocks.notifySample).toHaveBeenCalledWith(1, 'PN 加药提醒', '#1 加甲液');
+    });
+    // 立即触发第一次后，界面显示进度
+    expect(screen.getByText('停止')).toBeTruthy();
+  });
+
+  it('buildExternalTimes 返回空：提示且不提醒', async () => {
+    const build = vi.fn(() => []);
+    render(<SampleReminder label="PN 加药提醒" buildExternalTimes={build} />);
+    fireEvent.click(screen.getByText('开始提醒'));
+
+    await waitFor(() => {
+      const toasts = useAppStore.getState().toasts;
+      expect(toasts.some((t) => t.text.includes('没有可用的'))).toBe(true);
+    });
+    expect(mocks.notifySample).not.toHaveBeenCalled();
+  });
 });
