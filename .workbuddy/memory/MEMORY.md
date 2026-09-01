@@ -109,6 +109,13 @@ P0 地基 → P9 收尾全部完成，**104 个测试通过**，git 存档点 P0
    对策：start.bat **主动在常见位置找 node.exe**（`C:\nodejs`、
    `C:\Program Files\nodejs`、`%LOCALAPPDATA%\Programs\nodejs`、scoop），找到后
    把它的目录临时 `set PATH=...;%PATH%`，**不依赖系统环境变量**。
+8. **PowerShell `&` 调外部程序时 `-D` 等 `-` 开头参数被吞**：PowerShell 会把
+   `-Dorg.gradle.appname=gradlew` 这类参数当成自己的 cmdlet 参数尝试绑定，解析失败
+   时把 `-D` 前缀吃掉，导致 java 等外部程序收到的是 `.gradle.appname=gradlew`（当成主类名）
+   → ClassNotFoundException。**对策**：`& 'prog.exe'` 后立刻加 `--%`（stop-parsing token），
+   告诉 PowerShell「从这开始所有 token 原样传递给外部程序」。`--%` 后 PowerShell 重定向语法
+   （如 `2>&1`）不再生效，会被当成外部程序参数；如需 stderr 进管道，可放 Tee-Object 的参数里
+   或直接依赖程序的 `--console=plain` 让错误走 stdout。
 
 ### 用户当前环境（2026-08-30 验证后）
 - Windows 10.0.26200

@@ -79,7 +79,10 @@ rem ======== [6/7] Build APK (gradle) ========
 echo [6/7] Building APK. It takes 1-10 minutes. Please WAIT - this window will stay open.
 cd /d "%BUILD%\android"
 rem 用 PowerShell Tee 让 gradle 输出同时显示在窗口 AND 写入日志（窗口有动静，用户不会以为卡死）
-powershell -NoProfile -Command "& 'C:\jdk21\jdk\bin\java.exe' -Dorg.gradle.appname=gradlew -classpath 'C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar' org.gradle.launcher.GradleMain assembleRelease --no-daemon --console=plain 2>&1 | Tee-Object -Append -FilePath 'C:\Users\sky\ags-build2\build-log.txt'"
+rem 关键：PowerShell 的 & 会把以 "-" 开头的参数（如 -Dorg.gradle.appname=gradlew）当成自己的 cmdlet 参数，
+rem 把 "-D" 前缀吃掉，导致 java 收到 ".gradle.appname=gradlew" 当成主类 → ClassNotFoundException。
+rem 用 "--%" stop-parsing token 让 PowerShell 原样把后续参数传给 java。
+powershell -NoProfile -Command "& 'C:\jdk21\jdk\bin\java.exe' --% -Dorg.gradle.appname=gradlew -classpath \"C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar\" org.gradle.launcher.GradleMain assembleRelease --no-daemon --console=plain | Tee-Object -Append -FilePath \"C:\Users\sky\ags-build2\build-log.txt\""
 if errorlevel 1 goto fail
 echo      apk build ok.
 
