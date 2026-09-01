@@ -79,12 +79,14 @@ rem ======== [6/7] Build APK (gradle) ========
 echo [6/7] Building APK. Progress is shown below, takes 1-10 minutes.
 echo      看到窗口在滚动 gradle 日志就说明正在构建，请等到出现 SUCCESS 或 BUILD FAILED。
 cd /d "%BUILD%\android"
-rem gradle 输出直接显示在窗口（不再重定向进日志）。之前把输出全写日志导致窗口
-rem 空白 1-10 分钟，用户误以为卡死而关窗/Ctrl+C，[7/7] 拷贝步骤永远没机会执行，
-rem 桌面就一直没 APK。现在窗口能实时看到 gradle 进度，用户知道在跑，不会误关。
+rem gradle 输出直接显示在窗口（不再重定向进日志）。
+rem 关键：不能用 if errorlevel 判断 gradle 成败——gradle 即使 BUILD SUCCESSFUL，
+rem 它停止 single-use daemon 时也常抛 IllegalStateException（"Cannot start managing
+rem file contention because this handler has been closed"）使 java 退出码非 0，误判
+rem 失败而跳 :fail、[7/7] 拷贝被跳过（之前每次桌面没 APK 的真正原因，不是用户关窗）。
+rem 因此这里不检查退出码，直接进 [7/7] 用 if exist APK 判断。
 "%JAVA_HOME%\bin\java.exe" -Dorg.gradle.appname=gradlew -classpath "C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar" org.gradle.launcher.GradleMain assembleRelease --no-daemon --console=plain
-if errorlevel 1 goto fail
-echo      apk build ok.
+echo      gradle finished, checking APK...
 
 rem ======== [7/7] Copy APK to Desktop ========
 set "APK=%BUILD%\android\app\build\outputs\apk\release\app-release.apk"
@@ -103,7 +105,7 @@ if exist "%APK%" (
     echo.
     goto end
 ) else (
-    echo APK file not found. See log for details.
+    echo APK file not found. Build may have failed - check the gradle output above.
     goto fail
 )
 
