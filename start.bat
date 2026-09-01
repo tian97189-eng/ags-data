@@ -77,7 +77,8 @@ echo.
 start "" http://localhost:5173
 rem Start dev in BACKGROUND so Ctrl+C / close-window does not kill dev.
 rem Previously call npm run dev was foreground; any Ctrl+C killed dev silently.
-start /b "" cmd /c "npm run dev -- --port 5173 --host --strictPort > \"%~dp0dev.log\" 2>&1"
+set "DEVLOG=%~dp0dev.log"
+start /b "" cmd /c "npm run dev -- --port 5173 --host --strictPort > %DEVLOG% 2>&1"
 echo.
 echo  Dev server started in BACKGROUND. You can close this window safely.
 echo  App URL:    https://localhost:5173
