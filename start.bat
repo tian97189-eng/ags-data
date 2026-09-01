@@ -47,10 +47,20 @@ if not exist node_modules (
     )
 )
 
-rem Use DEV server (not build + preview) so the browser always shows the LATEST code.
-rem Build + preview loaded a PWA service worker that cached an old version, and users
-rem kept seeing stale pages. Dev mode has no service worker, so no stale cache.
-echo [2/3] Starting dev server - always shows the latest code...
+rem Use BUILD + PREVIEW (not dev). Dev was crashing in the user environment when
+rem esbuild tried to optimize large deps (docx / echarts) on first HTTP request.
+rem Build does the heavy esbuild work once; preview serves the stable dist.
+rem No optimizeDeps at runtime -> no surprise crash on access.
+echo [2/3] Building app (takes 30-60s on first run, a few seconds when cached)...
+if exist dist rmdir /s /q dist
+call npm run build
+if errorlevel 1 (
+    echo.
+    echo Build failed. See error above. If it is a Node version error,
+    echo try Node 22 LTS: https://nodejs.org/dist/v22.11.0/
+    pause
+    exit /b 1
+)
 
 rem Free port 5173 in case a previous preview is still running
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr :5173 ^| findstr LISTENING') do (
@@ -82,14 +92,12 @@ rem The dev window stays open (cmd /k) but shows nothing (output -> log).
 rem Closing this batch window does NOT affect dev.
 rem Check if dev is running: open browser to https://localhost:5173 or tail dev.log.
 rem Stop dev: close the "AGS Dev Server" window OR taskkill node.exe.
-set "DEVLOG=%~dp0dev.log"
-start "AGS Dev Server (close to stop)" cmd /k "npm run dev -- --port 5173 --host --strictPort > %DEVLOG% 2>&1"
+start "AGS Preview (close to stop)" cmd /k "npm run preview -- --port 5173 --strictPort"
 echo.
-echo  Dev server started in its own window [AGS Dev Server].
+echo  Preview server running in its own window [AGS Preview].
 echo  Keep that window open while using the app.
-echo  Close the [AGS Dev Server] window to STOP the dev server.
+echo  Close the [AGS Preview] window to STOP the server.
 echo  App URL:    https://localhost:5173
-echo  Logs:       %~dp0dev.log
 echo.
 echo  To stop dev later: run this in cmd -
 echo    for /f "tokens=5" %%P in ('netstat -ano ^| findstr :5173 ^| findstr LISTENING') do taskkill /F /PID %%P
