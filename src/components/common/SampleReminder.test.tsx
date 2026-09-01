@@ -67,7 +67,7 @@ describe('SampleReminder', () => {
     fireEvent.click(screen.getByText('开始提醒'));
 
     await waitFor(() => {
-      expect(mocks.notifySample).toHaveBeenCalledWith(1);
+      expect(mocks.notifySample).toHaveBeenCalledWith(1, '取样提醒');
     });
     expect(mocks.playBeep).toHaveBeenCalled();
     // 组件为第 2 次安排了 setTimeout（30 分钟）
@@ -96,7 +96,7 @@ describe('SampleReminder', () => {
   it('点停止：清除定时器并回到未运行态', async () => {
     render(<SampleReminder defaultInterval={30} defaultCount={5} />);
     fireEvent.click(screen.getByText('开始提醒'));
-    await waitFor(() => expect(mocks.notifySample).toHaveBeenCalledWith(1));
+    await waitFor(() => expect(mocks.notifySample).toHaveBeenCalledWith(1, '取样提醒'));
 
     fireEvent.click(screen.getByText('停止'));
     expect(clearTimeoutSpy).toHaveBeenCalled();

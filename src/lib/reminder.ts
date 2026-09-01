@@ -13,6 +13,7 @@
  */
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import type { Phase } from '../db/schema';
 
 export interface ReminderTime {
   /** ISO 时间戳 */
@@ -34,6 +35,56 @@ export function buildReminderTimes(
     list.push({ at: t.toISOString(), index: i + 1 });
   }
   return list;
+}
+
+/**
+ * 生成"好氧段内的 DO 测值时刻"。
+ * - times：全周期时间点（HH:mm，升序）
+ * - phases：time -> 阶段标记
+ * - date：周期日期（YYYY-MM-DD）
+ * - doIntervalMin：DO 测值间隔（分钟，如 15）
+ *
+ * 只保留标记为 oxic（好氧）的连续时间段，段内从段首到段尾按 doIntervalMin 生成时刻
+ * （含段首与段尾）。没有好氧段时返回空数组。
+ */
+export function buildDOReminderTimes(
+  times: string[],
+  phases: Record<string, Phase>,
+  date: string,
+  doIntervalMin: number,
+): ReminderTime[] {
+  if (!(doIntervalMin > 0) || times.length === 0) return [];
+  const oxic = times.filter((t) => phases[t] === 'oxic');
+  if (oxic.length === 0) return [];
+
+  // 连续 oxic 段分组：[start, end]
+  const segments: [string, string][] = [];
+  let segStart = oxic[0];
+  let prev = oxic[0];
+  for (let i = 1; i < oxic.length; i++) {
+    const cur = oxic[i];
+    const pi = times.indexOf(prev);
+    const ci = times.indexOf(cur);
+    if (ci === pi + 1) {
+      prev = cur;
+    } else {
+      segments.push([segStart, prev]);
+      segStart = cur;
+      prev = cur;
+    }
+  }
+  segments.push([segStart, prev]);
+
+  const out: ReminderTime[] = [];
+  let idx = 1;
+  for (const [s, e] of segments) {
+    const startMs = new Date(`${date}T${s}:00`).getTime();
+    const endMs = new Date(`${date}T${e}:00`).getTime();
+    for (let t = startMs; t <= endMs + 1; t += doIntervalMin * 60_000) {
+      out.push({ at: new Date(t).toISOString(), index: idx++ });
+    }
+  }
+  return out;
 }
 
 /** 距下一次提醒的毫秒数；没有下一次返回 null */
@@ -138,7 +189,7 @@ export async function scheduleSampleReminders(
     try {
       await LocalNotifications.createChannel({
         id: CHANNEL_ID,
-        name: '取样提醒',
+        name: label,
         description: '全周期取样与 DO 测值提醒',
         importance: 5,
         sound: 'default',

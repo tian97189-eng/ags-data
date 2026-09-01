@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import {
   buildReminderTimes,
+  buildDOReminderTimes,
   msToNext,
   ensureNotificationPermission,
   isNativePlatform,
@@ -65,6 +66,43 @@ describe('msToNext', () => {
   it('全部已过返回 null', () => {
     const times = [{ at: '2026-09-01T08:00:00.000Z', index: 1 }];
     expect(msToNext(times, new Date('2026-09-01T09:00:00.000Z'))).toBeNull();
+  });
+});
+
+describe('buildDOReminderTimes', () => {
+  it('只在连续好氧段内按 15 分钟生成 DO 时刻（含段首段尾）', () => {
+    const times = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00'];
+    const phases: Record<string, string> = {
+      '08:00': 'oxic', '08:30': 'oxic', '09:00': 'oxic',
+      '09:30': 'anoxic', '10:00': 'anoxic',
+      '10:30': 'oxic', '11:00': 'oxic',
+    };
+    const list = buildDOReminderTimes(times, phases as never, '2026-09-01', 15);
+    // 好氧段1: 08:00~09:00（60min）→ 5 点；好氧段2: 10:30~11:00（30min）→ 3 点
+    expect(list).toHaveLength(8);
+    const gaps = list.slice(1).map((r, i) => new Date(r.at).getTime() - new Date(list[i].at).getTime());
+    // 段内每 15 分钟：前 4 个间隔 + 后 2 个间隔都是 15min；段间（09:00→10:30）是 90min
+    expect(gaps[0]).toBe(15 * 60_000);
+    expect(gaps[1]).toBe(15 * 60_000);
+    expect(gaps[2]).toBe(15 * 60_000);
+    expect(gaps[3]).toBe(15 * 60_000);
+    expect(gaps[4]).toBe(90 * 60_000); // 跨越缺氧段
+    expect(gaps[5]).toBe(15 * 60_000);
+    expect(gaps[6]).toBe(15 * 60_000);
+    expect(list[0].index).toBe(1);
+    expect(list[7].index).toBe(8);
+  });
+
+  it('没有好氧段时返回空', () => {
+    const times = ['08:00', '08:30'];
+    const phases: Record<string, string> = { '08:00': 'anoxic', '08:30': 'anoxic' };
+    expect(buildDOReminderTimes(times, phases as never, '2026-09-01', 15)).toEqual([]);
+  });
+
+  it('间隔非法时返回空', () => {
+    const times = ['08:00'];
+    const phases: Record<string, string> = { '08:00': 'oxic' };
+    expect(buildDOReminderTimes(times, phases as never, '2026-09-01', 0)).toEqual([]);
   });
 });
 

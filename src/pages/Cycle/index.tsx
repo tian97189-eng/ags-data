@@ -10,6 +10,7 @@ import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import Chip from '../../components/common/Chip';
 import SampleReminder from '../../components/common/SampleReminder';
+import { buildDOReminderTimes } from '../../lib/reminder';
 import { useAppStore } from '../../store/useAppStore';
 
 interface CycleCell {
@@ -89,6 +90,12 @@ export default function CyclePage() {
   const times = useMemo(
     () => (cycle ? generateTimes(cycle.startTime, cycle.intervalMinutes, cycle.count) : []),
     [cycle],
+  );
+
+  // 好氧段 DO 测值提醒时刻：只在标记为「好氧(oxic)」的连续时间段内，每 15 分钟一次
+  const doTimes = useMemo(
+    () => (cycle ? buildDOReminderTimes(times, phases, cycle.date, 15) : []),
+    [cycle, timeKey, phases],
   );
 
   useEffect(() => {
@@ -317,6 +324,9 @@ export default function CyclePage() {
               defaultInterval={cycle?.intervalMinutes ?? 30}
               defaultCount={times.length}
             />
+            <div className="mt-2">
+              <SampleReminder label="DO 测值提醒" externalTimes={doTimes} />
+            </div>
           </div>
 
           <div className="overflow-x-auto">

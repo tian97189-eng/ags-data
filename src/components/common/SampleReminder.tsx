@@ -9,20 +9,27 @@ import {
   notifySample,
   playBeep,
   scheduleSampleReminders,
+  type ReminderTime,
 } from '../../lib/reminder';
 
 /**
- * 取样提醒面板：全周期实验时按间隔提醒取样。
- * - 原生 App（APK）：用 LocalNotifications 提前排程，到点系统响铃 + 弹通知（后台/锁屏也能响）；
- *   页面内再做一次 toast 提示。
- * - 浏览器：用 setTimeout + Web Notification + 蜂鸣音。
+ * 通用提醒面板：可自定义标题与提醒时刻。
+ * - 常规用法：传 defaultInterval/defaultCount，组件自己按间隔生成时刻（如"取样提醒"）
+ * - 好氧段 DO 测值：传 externalTimes（外部算好的好氧段时刻），组件不再按间隔生成
+ *
+ * 原生 App（APK）：用 LocalNotifications 提前排程，到点系统响铃 + 弹通知；
+ * 浏览器：setTimeout + Web Notification + 蜂鸣音。
  */
 export default function SampleReminder({
+  label = '取样提醒',
   defaultInterval = 30,
   defaultCount = 12,
+  externalTimes,
 }: {
+  label?: string;
   defaultInterval?: number;
   defaultCount?: number;
+  externalTimes?: ReminderTime[];
 }) {
   const toast = useAppStore((s) => s.toast);
   const [running, setRunning] = useState(false);
@@ -48,33 +55,43 @@ export default function SampleReminder({
   }
 
   async function start() {
-    const iv = Number(intervalMin);
-    const ct = Number(count);
-    if (!(iv > 0) || !(ct > 0)) {
-      toast('请填写有效的间隔和次数', 'warning');
-      return;
+    let times: ReminderTime[];
+    if (externalTimes) {
+      times = externalTimes;
+      if (times.length === 0) {
+        toast(`没有可用的「${label}」时刻（请先标记好氧段）`, 'warning');
+        return;
+      }
+    } else {
+      const iv = Number(intervalMin);
+      const ct = Number(count);
+      if (!(iv > 0) || !(ct > 0)) {
+        toast('请填写有效的间隔和次数', 'warning');
+        return;
+      }
+      times = buildReminderTimes(new Date(), iv, ct);
     }
+
     setDone(0);
-    const times = buildReminderTimes(new Date(), iv, ct);
     setRunning(true);
 
     // 请求通知权限（原生弹系统授权；浏览器弹浏览器授权）
     await ensureNotificationPermission();
     // 原生：提前排程所有提醒（到点系统响铃）；浏览器返回 false
-    const nativeScheduled = await scheduleSampleReminders(times, '取样提醒');
+    const nativeScheduled = await scheduleSampleReminders(times, label);
 
     const fire = async (idx: number) => {
       setDone(idx);
       setNext(null);
       playBeep();
       if (nativeScheduled) {
-        toast(`第 ${idx} 次取样时间到`, 'success');
+        toast(`第 ${idx} 次${label}时间到`, 'success');
       } else {
-        const notified = await notifySample(idx);
+        const notified = await notifySample(idx, label);
         toast(
           notified
-            ? `第 ${idx} 次取样时间到`
-            : `第 ${idx} 次取样时间到（未授权通知，请看时间）`,
+            ? `第 ${idx} 次${label}时间到`
+            : `第 ${idx} 次${label}时间到（未授权通知，请看时间）`,
           'success',
         );
       }
@@ -84,7 +101,7 @@ export default function SampleReminder({
       const ms = msToNext(times.slice(nextIdx - 1), new Date());
       if (ms == null) {
         setRunning(false);
-        toast('全部取样提醒完成', 'info');
+        toast(`${label}全部完成`, 'info');
         return;
       }
       setNext(new Date(Date.now() + ms).toLocaleTimeString('zh-CN', { hour12: false }));
@@ -97,32 +114,39 @@ export default function SampleReminder({
   return (
     <div className="border border-slate-200 rounded-lg p-3 text-xs">
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-slate-500">取样提醒</span>
-        <label className="flex items-center gap-1">
-          <span className="text-slate-400">间隔</span>
-          <input
-            type="number"
-            min={1}
-            aria-label="取样提醒间隔"
-            className="w-14 border border-slate-200 rounded px-1.5 py-1"
-            value={intervalMin}
-            disabled={running}
-            onChange={(e) => setIntervalMin(e.target.value)}
-          />
-          <span className="text-slate-400">分</span>
-        </label>
-        <label className="flex items-center gap-1">
-          <span className="text-slate-400">次数</span>
-          <input
-            type="number"
-            min={1}
-            aria-label="取样提醒次数"
-            className="w-14 border border-slate-200 rounded px-1.5 py-1"
-            value={count}
-            disabled={running}
-            onChange={(e) => setCount(e.target.value)}
-          />
-        </label>
+        <span className="text-slate-500">{label}</span>
+        {!externalTimes && (
+          <>
+            <label className="flex items-center gap-1">
+              <span className="text-slate-400">间隔</span>
+              <input
+                type="number"
+                min={1}
+                aria-label={`${label}间隔`}
+                className="w-14 border border-slate-200 rounded px-1.5 py-1"
+                value={intervalMin}
+                disabled={running}
+                onChange={(e) => setIntervalMin(e.target.value)}
+              />
+              <span className="text-slate-400">分</span>
+            </label>
+            <label className="flex items-center gap-1">
+              <span className="text-slate-400">次数</span>
+              <input
+                type="number"
+                min={1}
+                aria-label={`${label}次数`}
+                className="w-14 border border-slate-200 rounded px-1.5 py-1"
+                value={count}
+                disabled={running}
+                onChange={(e) => setCount(e.target.value)}
+              />
+            </label>
+          </>
+        )}
+        {externalTimes && (
+          <span className="text-slate-400">好氧段共 {externalTimes.length} 个测点</span>
+        )}
         {!running ? (
           <button
             type="button"
@@ -150,7 +174,7 @@ export default function SampleReminder({
       <p className="text-[11px] text-slate-400 mt-1.5">
         {isNativePlatform()
           ? '到点会响铃并弹系统通知（含锁屏）；请先在系统弹窗中允许通知权限。'
-          : '到点会响铃并弹系统通知；手机首次使用请允许通知权限。建议先用"开始提醒"试试提示音。'}
+          : '到点会响铃并弹系统通知；手机首次使用请允许通知权限。'}
       </p>
     </div>
   );
