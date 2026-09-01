@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f6e56" />
     <title>AGS 数据台</title>
+    <script>
+      // 卸载旧版「离线缓存」（Service Worker），避免一直显示旧页面。
+      // 旧版 start.bat 用预览模式注册过 SW，改成开发模式后旧 SW 仍会拦截请求。
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (reg) { reg.unregister(); });
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
