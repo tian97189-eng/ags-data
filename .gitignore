@@ -11,3 +11,6 @@ android/keystore.properties
 *.keystore
 *.jks
 ags-release-keystore
+dev.log
+preview.log
+*.log
