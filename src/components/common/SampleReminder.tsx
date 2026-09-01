@@ -42,9 +42,13 @@ export default function SampleReminder({
   const [intervalMin, setIntervalMin] = useState(String(defaultInterval));
   const [count, setCount] = useState(String(defaultCount));
   const [next, setNext] = useState<string | null>(null);
+  /** 下次提醒的绝对时刻（Date）— 驱动大倒计时显示 */
+  const [nextAt, setNextAt] = useState<Date | null>(null);
   const [done, setDone] = useState(0);
   const [total, setTotal] = useState(0);
   const timerRef = useRef<number | null>(null);
+  /** 每 100ms 触发一次 re-render，让大倒计时秒级刷新（0.1 秒精度） */
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     return () => {
@@ -52,12 +56,20 @@ export default function SampleReminder({
     };
   }, []);
 
+  // 运行时启动 100ms 心跳 tick；停止时自动清理
+  useEffect(() => {
+    if (!running) return;
+    const t = window.setInterval(() => setTick((x) => x + 1), 100);
+    return () => window.clearInterval(t);
+  }, [running]);
+
   function stop() {
     if (timerRef.current != null) window.clearTimeout(timerRef.current);
     timerRef.current = null;
     void cancelSampleReminders();
     setRunning(false);
     setNext(null);
+    setNextAt(null);
     setDone(0);
     setTotal(0);
   }
@@ -121,7 +133,9 @@ export default function SampleReminder({
         toast(`${label}全部完成`, 'info');
         return;
       }
-      setNext(new Date(Date.now() + ms).toLocaleTimeString('zh-CN', { hour12: false }));
+      const at = new Date(Date.now() + ms);
+      setNextAt(at);
+      setNext(at.toLocaleTimeString('zh-CN', { hour12: false }));
       timerRef.current = window.setTimeout(() => void fire(nextIdx), ms);
     };
     // 立即提醒第一次，然后按间隔排程
@@ -187,17 +201,56 @@ export default function SampleReminder({
           </button>
         )}
       </div>
-      {running && (
-        <div className="mt-2 text-teal-700">
-          {done > 0 && <span>已提醒 {done}/{total} 次 · </span>}
-          {next ? <span>下次提醒 {next}</span> : <span>等待中…</span>}
-        </div>
+      {running && nextAt && (
+        <CountdownDisplay nextAt={nextAt} done={done} total={total} />
       )}
       <p className="text-[11px] text-slate-400 mt-1.5">
         {isNativePlatform()
           ? '到点会响铃并弹系统通知（含锁屏）；请先在系统弹窗中允许通知权限。'
           : '到点会响铃并弹系统通知；手机首次使用请允许通知权限。'}
       </p>
+    </div>
+  );
+}
+
+/**
+ * 大字号倒计时：MM:SS.t（0.1 秒精度），参照图片风格——深色大字 + 红色脉冲心跳点。
+ * 自身驱动 100ms tick，独立 re-render，不影响外层表单输入。
+ */
+function CountdownDisplay({
+  nextAt,
+  done,
+  total,
+}: {
+  nextAt: Date;
+  done: number;
+  total: number;
+}) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = window.setInterval(() => setTick((x) => x + 1), 100);
+    return () => window.clearInterval(t);
+  }, []);
+  const msLeft = Math.max(0, nextAt.getTime() - Date.now());
+  const totalSec = Math.floor(msLeft / 1000);
+  const minutes = Math.floor(totalSec / 60);
+  const seconds = totalSec % 60;
+  const tenths = Math.floor((msLeft % 1000) / 100);
+  const mm = String(minutes).padStart(2, '0');
+  const ss = String(seconds).padStart(2, '0');
+  const nextTime = nextAt.toLocaleTimeString('zh-CN', { hour12: false });
+  return (
+    <div className="mt-3 flex flex-col items-center select-none" data-testid="countdown-display">
+      <div className="font-mono font-light tracking-tight flex items-baseline">
+        <span className="text-4xl text-slate-400">{mm}</span>
+        <span className="text-4xl text-slate-400">:</span>
+        <span className="text-4xl text-slate-800">{ss}</span>
+        <span className="text-red-500 text-3xl leading-none mx-0.5 animate-pulse">.</span>
+        <span className="text-4xl text-slate-900">{tenths}</span>
+      </div>
+      <div className="text-[11px] text-slate-500 mt-1">
+        已提醒 {done}/{total} 次 · 下次 {nextTime} 响铃
+      </div>
     </div>
   );
 }

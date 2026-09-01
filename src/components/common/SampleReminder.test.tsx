@@ -151,4 +151,27 @@ describe('SampleReminder', () => {
     });
     expect(mocks.notifySample).not.toHaveBeenCalled();
   });
+
+  it('运行时显示大字号倒计时（MM:SS.t 格式 + 红色心跳点）', async () => {
+    const now = Date.now();
+    const times = [
+      { at: new Date(now + 300).toISOString(), index: 1, text: '#1 加甲液' },
+      // 第二个时刻留够余量，避免 scheduleNext 找不到下一个导致 running=false
+      { at: new Date(now + 600_000).toISOString(), index: 2, text: '#2 加甲液' },
+    ];
+    const build = vi.fn(() => times);
+    render(<SampleReminder label="PN 加药提醒" buildExternalTimes={build} />);
+    fireEvent.click(screen.getByText('开始提醒'));
+
+    // 等待大倒计时出现（第一个 fire 触发后，scheduleNext 排程第二个，倒计时持续显示）
+    await waitFor(() => {
+      expect(screen.getByTestId('countdown-display')).toBeTruthy();
+    });
+
+    const display = screen.getByTestId('countdown-display');
+    expect(display.querySelector('.text-red-500')).toBeTruthy(); // 红点
+    expect(display.querySelector('.animate-pulse')).toBeTruthy(); // 脉冲动画
+    expect(display.textContent).toMatch(/已提醒 1\/2 次/);
+    expect(display.textContent).toMatch(/下次 \d{2}:\d{2}:\d{2} 响铃/);
+  });
 });
