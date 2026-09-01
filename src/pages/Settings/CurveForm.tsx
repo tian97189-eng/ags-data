@@ -114,7 +114,7 @@ export default function CurveForm({
         className="bg-white rounded-xl p-5 w-full max-w-xl max-h-[90vh] overflow-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-sm font-medium">新建标曲 · {indicator.name}</h3>
+        <h3 className="text-base font-medium">新建标曲 · {indicator.name}</h3>
 
         <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
           <label className="block">
@@ -200,11 +200,11 @@ export default function CurveForm({
             <div className="grid grid-cols-3 gap-2 mt-2 text-center">
               <div className="bg-slate-50 rounded-md p-2">
                 <div className="text-[11px] text-slate-500">k</div>
-                <div className="text-sm font-medium">{fit ? formatNumber(fit.k, 4) : '—'}</div>
+                <div className="text-base font-medium">{fit ? formatNumber(fit.k, 4) : '—'}</div>
               </div>
               <div className="bg-slate-50 rounded-md p-2">
                 <div className="text-[11px] text-slate-500">b</div>
-                <div className="text-sm font-medium">{fit ? formatNumber(fit.b, 4) : '—'}</div>
+                <div className="text-base font-medium">{fit ? formatNumber(fit.b, 4) : '—'}</div>
               </div>
               <div className="bg-slate-50 rounded-md p-2">
                 <div className="text-[11px] text-slate-500">R²</div>

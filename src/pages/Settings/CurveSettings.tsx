@@ -171,7 +171,7 @@ export default function CurveSettings() {
               desc="点右上角「新建标曲（多点）」录入标液点自动拟合，或「手动公式」直接填公式"
             />
           ) : isFormula ? (
-            <div className="border border-slate-200 rounded-lg p-4 mb-4">
+            <div className="bg-white rounded-lg shadow-card p-4 mb-4">
               <div className="text-xs text-slate-500 mb-2">当前公式</div>
               <div className="font-mono text-sm bg-slate-50 border border-slate-200 rounded-md px-3 py-2 mb-3 break-all">
                 {current.formula}
@@ -193,17 +193,17 @@ export default function CurveSettings() {
               <div className="text-[11px] text-slate-400 mt-2">试剂批号：{current.batchNo || '—'}</div>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 gap-4 border border-slate-200 rounded-lg p-4 mb-4">
+            <div className="grid md:grid-cols-2 gap-4 bg-white rounded-lg shadow-card p-4 mb-4">
               <div>
                 <ReactECharts option={currentOption} style={{ height: 180 }} notMerge lazyUpdate />
                 <div className="grid grid-cols-4 gap-2 mt-3 text-center">
                   <div className="bg-slate-50 rounded-md p-2">
                     <div className="text-[11px] text-slate-500">k</div>
-                    <div className="text-sm font-medium">{formatNumber(current.k, 4)}</div>
+                    <div className="text-base font-medium">{formatNumber(current.k, 4)}</div>
                   </div>
                   <div className="bg-slate-50 rounded-md p-2">
                     <div className="text-[11px] text-slate-500">b</div>
-                    <div className="text-sm font-medium">{formatNumber(current.b, 4)}</div>
+                    <div className="text-base font-medium">{formatNumber(current.b, 4)}</div>
                   </div>
                   <div className="bg-slate-50 rounded-md p-2">
                     <div className="text-[11px] text-slate-500">R²</div>
@@ -213,7 +213,7 @@ export default function CurveSettings() {
                   </div>
                   <div className="bg-slate-50 rounded-md p-2">
                     <div className="text-[11px] text-slate-500">批号</div>
-                    <div className="text-sm font-medium">{current.batchNo || '—'}</div>
+                    <div className="text-base font-medium">{current.batchNo || '—'}</div>
                   </div>
                 </div>
               </div>

@@ -75,9 +75,9 @@ export default function SVIPage() {
 
   return (
     <div className="space-y-4">
-      <div className="border border-slate-200 rounded-lg p-4">
-        <div className="text-sm font-medium mb-1">新增沉降性测量</div>
-        <p className="text-xs text-slate-500 mb-3">
+      <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="text-base font-medium mb-1">新增沉降性测量</div>
+        <p className="text-sm text-slate-500 mb-3">
           取混合液于量筒，静置 5min 和 30min 后各读一次污泥层体积刻度。
           SV(%) = 污泥层体积 / 量筒体积 × 100；SVI(mL/g) = SV(%) × 10 / MLSS(g/L)。
           MLSS 可在「污泥浓度」里测得。
@@ -124,8 +124,8 @@ export default function SVIPage() {
         </div>
       </div>
 
-      <div className="border border-slate-200 rounded-lg p-4">
-        <div className="text-sm font-medium mb-2">历史记录（{rows?.length ?? 0} 条）</div>
+      <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="text-base font-medium mb-2">历史记录（{rows?.length ?? 0} 条）</div>
         {!rows || rows.length === 0 ? (
           <EmptyState title="还没有数据" desc="在上面的表单填入数据并点添加" />
         ) : (

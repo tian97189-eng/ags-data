@@ -141,7 +141,7 @@ export default function SampleReminder({
   const isExternal = !!(externalTimes || buildExternalTimes);
 
   return (
-    <div className="border border-slate-200 rounded-lg p-3 text-xs">
+    <div className="bg-white rounded-lg shadow-card p-3 text-xs">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-slate-500">{label}</span>
         {!isExternal && (

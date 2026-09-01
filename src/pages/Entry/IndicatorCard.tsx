@@ -84,7 +84,7 @@ export default function IndicatorCard({
   return (
     <div className="border border-slate-200 rounded-lg mb-3">
       <div className="flex items-center gap-3 flex-wrap px-3 py-2 border-b border-slate-100 bg-slate-50 rounded-t-lg">
-        <span className="text-sm font-medium">{indicator.name}</span>
+        <span className="text-base font-medium">{indicator.name}</span>
         {isComposite && (
           <span className="ml-auto text-[11px] text-slate-400">
             由 {indicator.compositeRefs?.length ?? 0} 个指标自动求和

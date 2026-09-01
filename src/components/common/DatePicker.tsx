@@ -95,7 +95,7 @@ export default function DatePicker({
               >
                 ‹
               </button>
-              <span className="text-sm font-medium">
+              <span className="text-base font-medium">
                 {year}年{month + 1}月
               </span>
               <button

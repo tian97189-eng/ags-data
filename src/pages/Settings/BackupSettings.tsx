@@ -260,9 +260,9 @@ export default function BackupSettings() {
         当前数据：{counts?.measurements ?? 0} 条测量记录 · {counts?.reactors ?? 0} 个反应器 · {counts?.curves ?? 0} 条标曲
       </div>
 
-      <div className="border border-slate-200 rounded-lg p-4">
-        <div className="text-sm font-medium mb-1">备份文件（用于电脑 ↔ 手机搬运数据）</div>
-        <p className="text-xs text-slate-500 mb-3">备份是一个文件，包含反应器、指标、标曲和全部测量数据。手机和电脑各自保留一份，通过这个文件互相同步。</p>
+      <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="text-base font-medium mb-1">备份文件（用于电脑 ↔ 手机搬运数据）</div>
+        <p className="text-sm text-slate-500 mb-3">备份是一个文件，包含反应器、指标、标曲和全部测量数据。手机和电脑各自保留一份，通过这个文件互相同步。</p>
         <div className="flex gap-2 flex-wrap">
           <button type="button" onClick={handleExportBackup} className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white hover:bg-teal-700">
             导出备份文件
@@ -274,17 +274,17 @@ export default function BackupSettings() {
         </div>
       </div>
 
-      <div className="border border-slate-200 rounded-lg p-4">
-        <div className="text-sm font-medium mb-1">导出 Excel</div>
-        <p className="text-xs text-slate-500 mb-3">把数据（含标曲追溯、空白、稀释倍数）导出成 Excel，可选日期范围、罐和指标。</p>
+      <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="text-base font-medium mb-1">导出 Excel</div>
+        <p className="text-sm text-slate-500 mb-3">把数据（含标曲追溯、空白、稀释倍数）导出成 Excel，可选日期范围、罐和指标。</p>
         <button type="button" onClick={openExport} className="px-3 py-1.5 text-xs rounded-md border border-slate-300 text-slate-700">
           导出 Excel
         </button>
       </div>
 
-      <div className="border border-slate-200 rounded-lg p-4">
-        <div className="text-sm font-medium mb-1">生成 Word 报告</div>
-        <p className="text-xs text-slate-500 mb-3">
+      <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="text-base font-medium mb-1">生成 Word 报告</div>
+        <p className="text-sm text-slate-500 mb-3">
           选时间段、罐和指标，生成一份带统计表（平均值 / 标准差 / 去除率 / 亚硝积累率）和趋势图的 Word 报告，可直接放进实验记录或论文。
         </p>
         <button type="button" onClick={() => setReportOpen(true)} className="px-3 py-1.5 text-xs rounded-md border border-slate-300 text-slate-700">
@@ -433,9 +433,9 @@ export default function BackupSettings() {
         </div>
       )}
 
-      <div className="border border-slate-200 rounded-lg p-4">
-        <div className="text-sm font-medium mb-1">导入 Excel</div>
-        <p className="text-xs text-slate-500 mb-3">
+      <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="text-base font-medium mb-1">导入 Excel</div>
+        <p className="text-sm text-slate-500 mb-3">
           按固定列模板（日期 / 罐 / 指标 / 浓度 / 备注）上传 Excel，可一次导入多条测量记录。不识别的罐/指标会跳过并提示。
         </p>
         <div className="flex gap-2 flex-wrap">
@@ -535,8 +535,8 @@ export default function BackupSettings() {
       {modeChoiceOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" onClick={() => setModeChoiceOpen(false)}>
           <div className="bg-white rounded-xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-medium">选择导入方式</h3>
-            <p className="text-xs text-slate-500 mt-2">你正在导入一个备份文件，请选择处理方式：</p>
+            <h3 className="text-base font-medium">选择导入方式</h3>
+            <p className="text-sm text-slate-500 mt-2">你正在导入一个备份文件，请选择处理方式：</p>
             <div className="space-y-2 mt-3">
               <button type="button" onClick={() => doImport('merge')} className="w-full text-left px-3 py-2 text-xs rounded-md border border-slate-200 hover:border-teal-300">
                 <span className="font-medium">合并导入</span>

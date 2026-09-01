@@ -113,7 +113,7 @@ export default function QueryPage() {
         }
       />
 
-      <div className="border border-slate-200 rounded-lg p-3 mb-3 text-xs space-y-3">
+      <div className="bg-white rounded-lg shadow-card p-3 mb-3 text-xs space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
           <label className="flex items-center gap-1">
             <span className="text-slate-500">从</span>
@@ -230,7 +230,7 @@ export default function QueryPage() {
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" onClick={() => setEditing(null)}>
           <div className="bg-white rounded-xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-medium">编辑记录</h3>
+            <h3 className="text-base font-medium">编辑记录</h3>
             <div className="mt-2 text-xs text-slate-500">
               {editing.date} · {rMap.get(editing.reactorId)?.code} · {iMap.get(editing.indicatorId)?.name}
             </div>

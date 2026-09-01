@@ -91,7 +91,7 @@ export default function FormulaForm({
         className="bg-white rounded-xl p-5 w-full max-w-xl max-h-[90vh] overflow-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-sm font-medium">手动公式标曲 · {indicator.name}</h3>
+        <h3 className="text-base font-medium">手动公式标曲 · {indicator.name}</h3>
         <p className="text-[11px] text-slate-400 mt-0.5">
           不用标液点，直接填你的换算公式；结果 = 公式(检测样吸光度 A、空白吸光度 A0、稀释倍数 D)
         </p>

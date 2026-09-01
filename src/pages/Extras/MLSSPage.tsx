@@ -64,9 +64,9 @@ export default function MLSSPage() {
 
   return (
     <div className="space-y-4">
-      <div className="border border-slate-200 rounded-lg p-4">
-        <div className="text-sm font-medium mb-1">新增测量</div>
-        <p className="text-xs text-slate-500 mb-3">
+      <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="text-base font-medium mb-1">新增测量</div>
+        <p className="text-sm text-slate-500 mb-3">
           按你给的流程：取 V mL 泥样，过滤烘干后得滤纸+泥（M2）+ 空坩埚（M3）+ 灼烧后坩埚（M4）+ 干净滤纸（M1）。
           MLSS = (M2 − M1) / V；MLVSS = (M2 + M3 − M4) / V。
         </p>
@@ -114,8 +114,8 @@ export default function MLSSPage() {
         </div>
       </div>
 
-      <div className="border border-slate-200 rounded-lg p-4">
-        <div className="text-sm font-medium mb-2">历史记录（{rows?.length ?? 0} 条）</div>
+      <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="text-base font-medium mb-2">历史记录（{rows?.length ?? 0} 条）</div>
         {!rows || rows.length === 0 ? (
           <EmptyState title="还没有数据" desc="在上面的表单填入数据并点添加" />
         ) : (

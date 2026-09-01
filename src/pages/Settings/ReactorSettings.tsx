@@ -132,7 +132,7 @@ export default function ReactorSettings() {
             className="bg-white rounded-xl p-5 max-w-sm w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-medium">{editing.id ? '编辑反应器' : '新增反应器'}</h3>
+            <h3 className="text-base font-medium">{editing.id ? '编辑反应器' : '新增反应器'}</h3>
             <div className="mt-3 space-y-3 text-xs">
               <label className="block">
                 <span className="text-slate-500">编号</span>

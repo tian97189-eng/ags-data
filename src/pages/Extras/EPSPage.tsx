@@ -196,9 +196,9 @@ export default function EPSPage() {
 
   return (
     <div className="space-y-4">
-      <div className="border border-slate-200 rounded-lg p-4">
-        <div className="text-sm font-medium mb-1">新增 EPS 测量</div>
-        <p className="text-xs text-slate-500 mb-3">
+      <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="text-base font-medium mb-1">新增 EPS 测量</div>
+        <p className="text-sm text-slate-500 mb-3">
           EPS（胞外聚合物）由蛋白质（PN）和多糖（PS）构成。测 PN / PS 吸光度后，按标准曲线自动换算浓度，再结合 VSS 算出每克污泥的含量。标曲在「系统设置 → 标准曲线」里给 PS（多糖）、PN（蛋白质）建。
         </p>
 
@@ -280,9 +280,9 @@ export default function EPSPage() {
         </div>
       </div>
 
-      <div className="border border-slate-200 rounded-lg p-4">
-        <div className="text-sm font-medium mb-1">PN 加药计时规划</div>
-        <p className="text-xs text-slate-500 mb-3">
+      <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="text-base font-medium mb-1">PN 加药计时规划</div>
+        <p className="text-sm text-slate-500 mb-3">
           测 PN 时需依次给每个样品加甲液 → 静置 → 加乙液 → 静置 → 测吸光度。多个样品错开加药，自动排出每个样品的加甲液 / 加乙液 / 测量时刻。
         </p>
 
@@ -352,8 +352,8 @@ export default function EPSPage() {
         )}
       </div>
 
-      <div className="border border-slate-200 rounded-lg p-4">
-        <div className="text-sm font-medium mb-2">历史记录（{rows?.length ?? 0} 条）</div>
+      <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="text-base font-medium mb-2">历史记录（{rows?.length ?? 0} 条）</div>
         {!rows || rows.length === 0 ? (
           <EmptyState title="还没有数据" desc="在上面的表单填入数据并点添加" />
         ) : (

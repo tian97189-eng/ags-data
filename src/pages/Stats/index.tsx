@@ -174,8 +174,8 @@ const extrasStats = useMemo(() => {
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="border border-slate-200 rounded-lg p-4">
-          <div className="text-sm font-medium mb-1">去除率</div>
+        <div className="bg-white rounded-lg shadow-card p-4">
+          <div className="text-base font-medium mb-1">去除率</div>
           <div className="flex items-center gap-2 text-xs mb-3">
             <span className="text-slate-500">指标</span>
             <select className="border border-slate-200 rounded px-2 py-1" value={removalIndicatorId ?? ''} onChange={(e) => setRemovalIndicatorId(Number(e.target.value) || null)}>
@@ -215,7 +215,7 @@ const extrasStats = useMemo(() => {
           )}
         </div>
 
-        <div className="border border-slate-200 rounded-lg p-4">
+        <div className="bg-white rounded-lg shadow-card p-4">
           <div className="text-sm font-medium mb-3">亚硝积累率 NAR</div>
           {narRows.length === 0 ? (
             <div className="text-xs text-slate-400">基于亚硝态氮与硝态氮同日出水计算</div>
@@ -239,7 +239,7 @@ const extrasStats = useMemo(() => {
           )}
         </div>
 
-        <div className="border border-slate-200 rounded-lg p-4 md:col-span-2">
+        <div className="bg-white rounded-lg shadow-card p-4 md:col-span-2">
           <div className="text-sm font-medium mb-3">相关性分析</div>
           <div className="flex items-center gap-2 flex-wrap text-xs mb-3">
             <span className="text-slate-500">指标 X</span>
@@ -270,7 +270,7 @@ const extrasStats = useMemo(() => {
           )}
         </div>
 
-        <div className="border border-slate-200 rounded-lg p-4 md:col-span-2">
+        <div className="bg-white rounded-lg shadow-card p-4 md:col-span-2">
           <div className="text-sm font-medium mb-3">其他指标统计（污泥浓度 / 粒径 d50 / EPS）</div>
           <table className="w-full table-fixed border-collapse text-xs">
             <thead>

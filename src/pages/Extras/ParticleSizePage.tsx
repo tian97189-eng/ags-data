@@ -103,14 +103,14 @@ export default function ParticleSizePage() {
 
   return (
     <div className="space-y-4">
-      <div className="border border-slate-200 rounded-lg p-4">
+      <div className="bg-white rounded-lg shadow-card p-4">
         <div className="flex items-center justify-between mb-1">
-          <div className="text-sm font-medium">粒径范围配置</div>
+          <div className="text-base font-medium">粒径范围配置</div>
           <button type="button" onClick={handleAddRange} className="px-2 py-1 text-xs rounded border border-slate-300 text-slate-700">
             + 新增段
           </button>
         </div>
-        <p className="text-xs text-slate-500 mb-3">默认 6 段（&gt;355 / 200-355 / 150-200 / 100-150 / 50-100 / &lt;50）。每段可改下限/上限/中位径。</p>
+        <p className="text-sm text-slate-500 mb-3">默认 6 段（&gt;355 / 200-355 / 150-200 / 100-150 / 50-100 / &lt;50）。每段可改下限/上限/中位径。</p>
         <table className="w-full text-xs border-collapse">
           <thead>
             <tr className="text-slate-500">
@@ -163,9 +163,9 @@ export default function ParticleSizePage() {
         </table>
       </div>
 
-      <div className="border border-slate-200 rounded-lg p-4">
+      <div className="bg-white rounded-lg shadow-card p-4">
         <div className="flex items-center gap-3 mb-2">
-          <div className="text-sm font-medium">当日测量</div>
+          <div className="text-base font-medium">当日测量</div>
           <input
             type="date"
             value={date}
@@ -176,7 +176,7 @@ export default function ParticleSizePage() {
             平均粒径 d50 = <span className="font-mono text-teal-700 font-medium">{dist.d50?.toFixed(2) ?? '—'}</span> μm
           </span>
         </div>
-        <p className="text-xs text-slate-500 mb-3">填滤纸重 M1 和滤纸+泥重 M2。泥重 = M2 − M1，占比% = 泥重 / 总泥重 × 100。</p>
+        <p className="text-sm text-slate-500 mb-3">填滤纸重 M1 和滤纸+泥重 M2。泥重 = M2 − M1，占比% = 泥重 / 总泥重 × 100。</p>
 
         <div className="overflow-x-auto -mx-4 px-4">
           <table className="w-full table-fixed border-collapse text-xs min-w-[640px]">

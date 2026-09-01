@@ -512,7 +512,7 @@ function NewCycleForm({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" onClick={onClose}>
       <div className="bg-white rounded-xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-sm font-medium">新建周期</h3>
+        <h3 className="text-base font-medium">新建周期</h3>
         <div className="mt-3 space-y-3 text-xs">
           <label className="block">
             <span className="text-slate-500">日期</span>

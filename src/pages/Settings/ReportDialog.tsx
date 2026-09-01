@@ -125,7 +125,7 @@ export default function ReportDialog({ open, onClose }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" onClick={onClose}>
       <div className="bg-white rounded-xl p-5 max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-sm font-medium mb-3">生成 Word 实验报告</h3>
-        <p className="text-xs text-slate-500 mb-3">
+        <p className="text-sm text-slate-500 mb-3">
           按选定的时间段、罐和指标，生成一份带统计表（平均值 / 标准差 / 去除率 / 亚硝积累率）和趋势图的 Word 报告。
           只统计日常数据，全周期数据不混入。
         </p>

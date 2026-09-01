@@ -89,9 +89,9 @@ export default function CloudSyncSettings() {
 
   return (
     <div className="max-w-lg space-y-4">
-      <div className="border border-slate-200 rounded-lg p-4">
-        <div className="text-sm font-medium mb-1">云同步（实时互通）</div>
-        <p className="text-xs text-slate-500 mb-3">
+      <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="text-base font-medium mb-1">云同步（实时互通）</div>
+        <p className="text-sm text-slate-500 mb-3">
           开启后，手机 App 和电脑上的数据会实时保持一致——任何一端保存，另一端自动更新。
           数据存放在腾讯云免费空间（每月 3000 资源点，实验数据量完全够用）。
         </p>
@@ -183,8 +183,8 @@ export default function CloudSyncSettings() {
         </div>
       </div>
 
-      <div className="border border-slate-200 rounded-lg p-4">
-        <div className="text-sm font-medium mb-1">怎么开通（5 分钟）</div>
+      <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="text-base font-medium mb-1">怎么开通（5 分钟）</div>
         <ol className="text-xs text-slate-500 space-y-1.5 list-decimal pl-4">
           <li>电脑浏览器打开 <span className="font-mono text-teal-700">cloud.tencent.com</span>，用微信/QQ 登录</li>
           <li>搜索进入「<span className="font-medium text-slate-700">云开发 CloudBase</span>」→ 创建环境（免费体验版，地域选离你近的）</li>

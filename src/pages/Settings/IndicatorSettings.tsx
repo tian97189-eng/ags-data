@@ -160,7 +160,7 @@ export default function IndicatorSettings() {
             className="bg-white rounded-xl p-5 max-w-sm w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-medium">
+            <h3 className="text-base font-medium">
               {editing.id ? '编辑指标' : '新增自定义指标'}
             </h3>
             <div className="mt-3 space-y-3 text-xs">
