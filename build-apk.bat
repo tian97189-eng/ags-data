@@ -79,10 +79,14 @@ rem ======== [6/7] Build APK (gradle) ========
 echo [6/7] Building APK. It takes 1-10 minutes. Please WAIT - this window will stay open.
 cd /d "%BUILD%\android"
 rem 用 PowerShell Tee 让 gradle 输出同时显示在窗口 AND 写入日志（窗口有动静，用户不会以为卡死）
-rem 关键：PowerShell 的 & 会把以 "-" 开头的参数（如 -Dorg.gradle.appname=gradlew）当成自己的 cmdlet 参数，
-rem 把 "-D" 前缀吃掉，导致 java 收到 ".gradle.appname=gradlew" 当成主类 → ClassNotFoundException。
-rem 用 "--%" stop-parsing token 让 PowerShell 原样把后续参数传给 java。
-powershell -NoProfile -Command "& 'C:\jdk21\jdk\bin\java.exe' --% -Dorg.gradle.appname=gradlew -classpath \"C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar\" org.gradle.launcher.GradleMain assembleRelease --no-daemon --console=plain | Tee-Object -Append -FilePath \"C:\Users\sky\ags-build2\build-log.txt\""
+rem 关键坑1：PowerShell 的 & 会把以 "-" 开头的参数（如 -Dorg.gradle.appname=gradlew）当成自己的
+rem   cmdlet 参数，把 "-D" 前缀吃掉 → java 收到 ".gradle.appname=gradlew" 当成主类。
+rem   对策：在 java 路径后加 "--%"（stop-parsing token），后续 token 原样传给 java。
+rem 关键坑2：cmd 传 \" 给 PowerShell 不会转义成 "，PowerShell 收到的是带多余反斜杠的 \C:\...\
+rem   → classpath 失效。对策：路径全部不含空格，--% 模式下直接裸写路径不加引号。
+rem 关键坑3：--% 模式下 PowerShell 重定向语法（2>&1）失效会被当成 java 参数，不能再用；
+rem   gradle 已加 --console=plain，主要输出走 stdout 进 Tee。
+powershell -NoProfile -Command "& 'C:\jdk21\jdk\bin\java.exe' --% -Dorg.gradle.appname=gradlew -classpath C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar org.gradle.launcher.GradleMain assembleRelease --no-daemon --console=plain | Tee-Object -Append -FilePath C:\Users\sky\ags-build2\build-log.txt"
 if errorlevel 1 goto fail
 echo      apk build ok.
 

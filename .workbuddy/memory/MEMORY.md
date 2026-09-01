@@ -116,6 +116,11 @@ P0 地基 → P9 收尾全部完成，**104 个测试通过**，git 存档点 P0
    告诉 PowerShell「从这开始所有 token 原样传递给外部程序」。`--%` 后 PowerShell 重定向语法
    （如 `2>&1`）不再生效，会被当成外部程序参数；如需 stderr 进管道，可放 Tee-Object 的参数里
    或直接依赖程序的 `--console=plain` 让错误走 stdout。
+9. **cmd → powershell -Command 传参的引号坑**：cmd.exe **没有 `\"` 转义**——`"..."` 里的 `\"`
+   会被原样（`\`+`"`）传给 PowerShell，PowerShell 把 `\"` 解析成字面 `\`+`"`，路径/参数会多出
+   反斜杠（如 `\C:\...\jar\`）导致外部程序失败。**对策**：路径不含空格时 `--%` 后裸写路径
+   不加引号；若路径必须含空格，改用 `-EncodedCommand`（base64）或写 .ps1 文件
+   （`powershell -File x.ps1`）最干净。
 
 ### 用户当前环境（2026-08-30 验证后）
 - Windows 10.0.26200
