@@ -101,6 +101,7 @@ if exist "%APK%" (
     echo  IMPORTANT for updating:
     echo    * Install the new APK directly over the old one (do NOT uninstall first).
     echo    * Signature is fixed (release), so app data is kept.
+    echo    * If you DON'T see the APK icon on desktop, press F5 to refresh.
     echo ==========================================
     echo.
     goto end
