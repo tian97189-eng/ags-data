@@ -44,6 +44,8 @@ export default function SampleReminder({
   const [next, setNext] = useState<string | null>(null);
   /** 正计时起点（点「开始提醒」那一刻）— 驱动大字号秒表 */
   const [startedAt, setStartedAt] = useState<Date | null>(null);
+  /** 下次提醒的绝对时刻 — 驱动"距离下次"小倒计时 */
+  const [nextAt, setNextAt] = useState<Date | null>(null);
   const [done, setDone] = useState(0);
   const [total, setTotal] = useState(0);
   const timerRef = useRef<number | null>(null);
@@ -61,6 +63,7 @@ export default function SampleReminder({
     setRunning(false);
     setNext(null);
     setStartedAt(null);
+    setNextAt(null);
     setDone(0);
     setTotal(0);
   }
@@ -104,6 +107,7 @@ export default function SampleReminder({
       const msg = t?.text ?? `第 ${idx} 次${label}时间到`;
       setDone(idx);
       setNext(null);
+      setNextAt(null);
       playBeep();
       if (nativeScheduled) {
         toast(msg, 'success');
@@ -125,7 +129,9 @@ export default function SampleReminder({
         toast(`${label}全部完成`, 'info');
         return;
       }
-      setNext(new Date(Date.now() + ms).toLocaleTimeString('zh-CN', { hour12: false }));
+      const at = new Date(Date.now() + ms);
+      setNextAt(at);
+      setNext(at.toLocaleTimeString('zh-CN', { hour12: false }));
       timerRef.current = window.setTimeout(() => void fire(nextIdx), ms);
     };
     // 立即提醒第一次，然后按间隔排程
@@ -192,7 +198,7 @@ export default function SampleReminder({
         )}
       </div>
       {running && startedAt && (
-        <ElapsedDisplay startedAt={startedAt} done={done} total={total} />
+        <ElapsedDisplay startedAt={startedAt} nextAt={nextAt} done={done} total={total} />
       )}
       <p className="text-[11px] text-slate-400 mt-1.5">
         {isNativePlatform()
@@ -204,16 +210,19 @@ export default function SampleReminder({
 }
 
 /**
- * 大字号正计时秒表：MM:SS.百分秒，从 00:00 往上走。
- * 参照图片风格——已走秒数浅灰 + 红色脉冲心跳点 + 正在走的百分秒深色。
- * 自身驱动 100ms tick（百分秒以 10 为步进），独立 re-render，不影响外层表单输入。
+ * 大字号正计时秒表 + 距离下次响铃小倒计时。
+ * - 大秒表：MM:SS.百分秒（已走秒数浅灰 + 红色脉冲点 + 百分秒深色）
+ * - 小倒计时：距离下次响铃 MM:SS（< 10 秒时数字变红脉冲提醒"快到了"）
+ * 自身驱动 100ms tick，独立 re-render，不影响外层表单输入。
  */
 function ElapsedDisplay({
   startedAt,
+  nextAt,
   done,
   total,
 }: {
   startedAt: Date;
+  nextAt: Date | null;
   done: number;
   total: number;
 }) {
@@ -226,10 +235,26 @@ function ElapsedDisplay({
   const totalSec = Math.floor(elapsedMs / 1000);
   const minutes = Math.floor(totalSec / 60);
   const seconds = totalSec % 60;
-  const centis = Math.floor((elapsedMs % 1000) / 10); // 百分秒 00~99
+  const centis = Math.floor((elapsedMs % 1000) / 10);
   const mm = String(minutes).padStart(2, '0');
   const ss = String(seconds).padStart(2, '0');
   const cc = String(centis).padStart(2, '0');
+
+  // 距离下次响铃（nextAt 可能为 null：当前正在响 / 已完成）
+  const msUntilNext = nextAt ? nextAt.getTime() - Date.now() : null;
+  const isImminent = msUntilNext != null && msUntilNext >= 0 && msUntilNext <= 10_000;
+  const isFiring = nextAt == null && done < total;
+  const mm2 = msUntilNext != null && msUntilNext >= 0 ? String(Math.floor(msUntilNext / 60_000)).padStart(2, '0') : '00';
+  const ss2 = msUntilNext != null && msUntilNext >= 0 ? String(Math.floor((msUntilNext % 60_000) / 1000)).padStart(2, '0') : '00';
+  const nextHint = isFiring
+    ? '正在响铃…'
+    : msUntilNext == null
+      ? `${done}/${total} 全部完成`
+      : msUntilNext <= 0
+        ? `即将响铃（${done + 1}/${total}）`
+        : `距离下次响铃 ${mm2}:${ss2}`;
+  const nextColor = isImminent ? 'text-red-600 animate-pulse font-semibold' : 'text-slate-500';
+
   return (
     <div className="mt-3 flex flex-col items-center select-none" data-testid="elapsed-display">
       <div className="font-mono font-light tracking-tight flex items-baseline">
@@ -239,7 +264,10 @@ function ElapsedDisplay({
         <span className="text-red-500 text-3xl leading-none mx-0.5 animate-pulse">.</span>
         <span className="text-4xl text-slate-900">{cc}</span>
       </div>
-      <div className="text-[11px] text-slate-500 mt-1">
+      <div className={`text-xs mt-1 font-mono tabular-nums ${nextColor}`} data-testid="next-hint">
+        {nextHint}
+      </div>
+      <div className="text-[11px] text-slate-400 mt-0.5">
         已提醒 {done}/{total} 次
       </div>
     </div>

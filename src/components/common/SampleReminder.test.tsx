@@ -152,12 +152,12 @@ describe('SampleReminder', () => {
     expect(mocks.notifySample).not.toHaveBeenCalled();
   });
 
-  it('运行时显示大字号正计时秒表（MM:SS.百分秒格式 + 红色心跳点）', async () => {
+  it('运行时显示大字号正计时秒表 + 距离下次响铃小倒计时（< 10 秒时变红）', async () => {
     const now = Date.now();
     const times = [
       { at: new Date(now + 300).toISOString(), index: 1, text: '#1 加甲液' },
       // 第二个时刻留够余量，避免 scheduleNext 找不到下一个导致 running=false
-      { at: new Date(now + 600_000).toISOString(), index: 2, text: '#2 加甲液' },
+      { at: new Date(now + 5_500).toISOString(), index: 2, text: '#2 加甲液' },
     ];
     const build = vi.fn(() => times);
     render(<SampleReminder label="PN 加药提醒" buildExternalTimes={build} />);
@@ -173,7 +173,11 @@ describe('SampleReminder', () => {
     expect(display.querySelector('.animate-pulse')).toBeTruthy(); // 脉冲动画
     // 正计时：MM:SS.百分秒，两个冒号分隔段 + 红点
     expect(display.textContent).toMatch(/已提醒 1\/2 次/);
-    // 百分秒位（00~99）存在
     expect(display.textContent).toMatch(/\d{2}:\d{2}/);
+    // 距离下次响铃小提示
+    const hint = screen.getByTestId('next-hint');
+    expect(hint.textContent).toMatch(/距离下次响铃 \d{2}:\d{2}/);
+    // 第二次提醒在 5500ms 后，距 < 10s 时应变红脉冲（这里 5.5s 离第二个时刻 5.5s-已用时间=~5s，应触发 imminent）
+    expect(hint.className).toMatch(/animate-pulse/);
   });
 });
