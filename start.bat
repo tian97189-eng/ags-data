@@ -75,7 +75,7 @@ echo   once, then you can Add to Home Screen and open it offline.
 echo.
 
 start "" http://localhost:5173
-call npm run dev -- --port 5173 --host --strictPort
+call npm run dev -- --port 5173 --host --strictPort > "%~dp0dev.log" 2>&1
 
 echo.
 echo Server stopped. Close this window to exit.
