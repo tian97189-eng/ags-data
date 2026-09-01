@@ -3,13 +3,9 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
-      // —— 字号体系（见 DESIGN.md）——
+      // —— 字号：只新增 11px 脚注档，不覆盖 Tailwind 默认（xs=12/sm=14/base=16）——
       fontSize: {
-        '2xs': ['11px', { lineHeight: '16px' }], // 脚注 / 辅助
-        xs: ['12px', { lineHeight: '16px' }], // 次要信息（现为主，需降级收敛）
-        sm: ['13px', { lineHeight: '20px' }], // 正文默认（数据/表单/表格）
-        base: ['14px', { lineHeight: '20px' }], // 卡片标题
-        lg: ['15px', { lineHeight: '22px' }], // 页面标题
+        '2xs': ['11px', { lineHeight: '16px' }], // 脚注 / 图例
       },
       // —— 柔和卡片阴影（层次靠它，不靠粗边框）——
       boxShadow: {

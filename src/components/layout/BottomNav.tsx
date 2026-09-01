@@ -9,12 +9,19 @@ export default function BottomNav() {
           key={item.path}
           to={item.path}
           className={({ isActive }) =>
-            `flex-1 py-2 text-center text-[11px] ${
-              isActive ? 'text-teal-700 font-medium' : 'text-slate-500'
+            `relative flex-1 py-2.5 text-center text-xs transition-colors ${
+              isActive ? 'text-brand-700 font-medium' : 'text-slate-500'
             }`
           }
         >
-          {item.label}
+          {({ isActive }) => (
+            <>
+              {isActive && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-b bg-brand-600"></span>
+              )}
+              {item.label}
+            </>
+          )}
         </NavLink>
       ))}
     </nav>

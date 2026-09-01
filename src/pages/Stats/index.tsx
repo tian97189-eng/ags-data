@@ -114,7 +114,7 @@ export default function StatsPage() {
       grid: { left: 50, right: 20, top: 30, bottom: 40 },
       xAxis: { type: 'value' as const, name: xName },
       yAxis: { type: 'value' as const, name: yName },
-      series: [{ type: 'scatter' as const, data: corr?.points ?? [], symbolSize: 7, itemStyle: { color: '#534AB7' } }],
+      series: [{ type: 'scatter' as const, data: corr?.points ?? [], symbolSize: 7, itemStyle: { color: '#0d9488' } }],
     };
   }, [corr, corrXId, corrYId, indicators]);
 

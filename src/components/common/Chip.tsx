@@ -18,7 +18,7 @@ export default function Chip({
       onClick={onClick}
       className={`px-3 py-1 text-xs rounded-md border transition-colors ${
         active
-          ? 'bg-teal-50 border-teal-300 text-teal-800 font-medium'
+          ? 'bg-brand-50 border-brand-200 text-brand-800 font-medium'
           : 'border-slate-200 text-slate-600 hover:border-slate-300'
       }`}
     >

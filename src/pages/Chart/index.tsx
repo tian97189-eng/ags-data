@@ -143,16 +143,26 @@ export default function ChartPage() {
   const series = mode === 'extras' ? extrasSeries : measurementSeries;
 
   const option = useMemo(() => {
+    // 统一青绿系系列色（多罐分线按序取色，替代 ECharts 默认杂色）
+    const palette = ['#0d9488', '#0f766e', '#14b8a6', '#115e59', '#2dd4bf', '#134e4a'];
     return {
+      color: palette,
       tooltip: { trigger: 'axis' as const },
       legend: { data: series.map((s) => s.name), top: 0 },
       grid: { left: 50, right: 20, top: 36, bottom: 50 },
       xAxis: {
         type: 'category' as const,
         name: mode === 'daily' ? '日期' : '时间',
-        nameTextStyle: { fontSize: 10 },
+        nameTextStyle: { fontSize: 11 },
+        axisLabel: { color: '#64748b' },
       },
-      yAxis: { type: 'value' as const, name: indicator?.unit ?? 'mg/L', nameTextStyle: { fontSize: 10 } },
+      yAxis: {
+        type: 'value' as const,
+        name: indicator?.unit ?? 'mg/L',
+        nameTextStyle: { fontSize: 11 },
+        axisLabel: { color: '#64748b' },
+        splitLine: { lineStyle: { color: '#f1f5f9' } },
+      },
       dataZoom: [{ type: 'inside' as const }, { type: 'slider' as const, height: 16, bottom: 4 }],
       series: series.map((s) => ({
         name: s.name,
@@ -160,6 +170,7 @@ export default function ChartPage() {
         data: s.data,
         connectNulls: true,
         symbolSize: 5,
+        lineStyle: { width: 2 },
       })),
     };
   }, [series, mode, indicator]);
