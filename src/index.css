@@ -19,8 +19,3 @@ body {
   background-color: #f8fafc;
   color: #1e293b;
 }
-
-/* 数字列等宽（表格/统计数字对齐，实验数据的关键） */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
-}
