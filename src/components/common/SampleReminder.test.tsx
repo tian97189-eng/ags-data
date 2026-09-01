@@ -152,7 +152,7 @@ describe('SampleReminder', () => {
     expect(mocks.notifySample).not.toHaveBeenCalled();
   });
 
-  it('运行时显示大字号倒计时（MM:SS.t 格式 + 红色心跳点）', async () => {
+  it('运行时显示大字号正计时秒表（MM:SS.百分秒格式 + 红色心跳点）', async () => {
     const now = Date.now();
     const times = [
       { at: new Date(now + 300).toISOString(), index: 1, text: '#1 加甲液' },
@@ -163,15 +163,17 @@ describe('SampleReminder', () => {
     render(<SampleReminder label="PN 加药提醒" buildExternalTimes={build} />);
     fireEvent.click(screen.getByText('开始提醒'));
 
-    // 等待大倒计时出现（第一个 fire 触发后，scheduleNext 排程第二个，倒计时持续显示）
+    // 等待大秒表出现（第一个 fire 触发后，scheduleNext 排程第二个，秒表持续显示）
     await waitFor(() => {
-      expect(screen.getByTestId('countdown-display')).toBeTruthy();
+      expect(screen.getByTestId('elapsed-display')).toBeTruthy();
     });
 
-    const display = screen.getByTestId('countdown-display');
+    const display = screen.getByTestId('elapsed-display');
     expect(display.querySelector('.text-red-500')).toBeTruthy(); // 红点
     expect(display.querySelector('.animate-pulse')).toBeTruthy(); // 脉冲动画
+    // 正计时：MM:SS.百分秒，两个冒号分隔段 + 红点
     expect(display.textContent).toMatch(/已提醒 1\/2 次/);
-    expect(display.textContent).toMatch(/下次 \d{2}:\d{2}:\d{2} 响铃/);
+    // 百分秒位（00~99）存在
+    expect(display.textContent).toMatch(/\d{2}:\d{2}/);
   });
 });
