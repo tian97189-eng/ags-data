@@ -126,3 +126,69 @@ export function computeEPS(input: {
     pnPsRatio,
   };
 }
+
+// —— EPS 之 PN 加药计时规划 ——
+// PN 测定流程：加甲液 → 静置 settleAMin → 加乙液 → 静置 settleBMin → 测吸光度。
+// 多样品需按顺序错开加药（每个样品间隔 intervalSec 秒，如 20 秒），
+// 从第一个样品加甲液起计时，留 prepareMin 准备时间。
+
+export interface PNScheduleStep {
+  /** 第几个样品（1 起） */
+  sampleNo: number;
+  /** 加甲液：相对第一个样品加甲液开始时刻的秒数 */
+  addAOffsetSec: number;
+  /** 加乙液：= 加甲液 + 甲液静置 */
+  addBOffsetSec: number;
+  /** 测量：= 加乙液 + 乙液静置 */
+  measureOffsetSec: number;
+}
+
+export interface PNSchedule {
+  /** 准备时间（秒），即从开始准备到给第一个样品加甲液 */
+  prepareSec: number;
+  steps: PNScheduleStep[];
+}
+
+/**
+ * 生成 PN 加药计时规划（纯函数）。
+ * - sampleCount：样品总数
+ * - intervalSec：相邻样品加甲液的时间间隔（秒）；样品少可调大
+ * - settleAMin / settleBMin：甲液 / 乙液静置分钟
+ * - prepareMin：准备时间（分钟）
+ */
+export function planPNSchedule(opts: {
+  sampleCount: number;
+  intervalSec: number;
+  settleAMin: number;
+  settleBMin: number;
+  prepareMin: number;
+}): PNSchedule {
+  const { sampleCount, intervalSec, settleAMin, settleBMin, prepareMin } = opts;
+  const prepareSec = Number.isFinite(prepareMin) && prepareMin > 0 ? Math.round(prepareMin * 60) : 0;
+  if (!(sampleCount >= 1) || !(intervalSec > 0) || settleAMin < 0 || settleBMin < 0) {
+    return { prepareSec, steps: [] };
+  }
+  const steps: PNScheduleStep[] = [];
+  for (let i = 0; i < sampleCount; i++) {
+    const addA = i * intervalSec;
+    const addB = addA + settleAMin * 60;
+    const measure = addB + settleBMin * 60;
+    steps.push({
+      sampleNo: i + 1,
+      addAOffsetSec: addA,
+      addBOffsetSec: addB,
+      measureOffsetSec: measure,
+    });
+  }
+  return { prepareSec, steps };
+}
+
+/** 把秒数偏移格式化成 MM:SS（超过 1 小时则 H:MM:SS） */
+export function formatScheduleOffset(sec: number): string {
+  const s = Math.max(0, Math.round(sec));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  const mmss = `${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+  return h > 0 ? `${h}:${mmss}` : mmss;
+}

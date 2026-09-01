@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { computeMLSS, computeParticleDryWeight, computeParticleDistribution, computeEPS } from './extras';
+import {
+  computeMLSS,
+  computeParticleDryWeight,
+  computeParticleDistribution,
+  computeEPS,
+  planPNSchedule,
+  formatScheduleOffset,
+} from './extras';
 
 describe('computeMLSS', () => {
   it('正常输入：MLSS=(M2-M1)/V×1000；MLVSS=(M2+M3-M4)/V×1000', () => {
@@ -95,5 +102,42 @@ describe('computeEPS', () => {
     const r = computeEPS({ psConc: 0, pnConc: 5, extractVolume: 10, vssMg: 100 });
     expect(r.pnPsRatio).toBeNull();
     expect(r.pnContent).toBeCloseTo(0.5, 4);
+  });
+});
+
+describe('planPNSchedule', () => {
+  it('20 个样、每样 20 秒、甲液/乙液各静置 10 分钟', () => {
+    const r = planPNSchedule({ sampleCount: 20, intervalSec: 20, settleAMin: 10, settleBMin: 10, prepareMin: 5 });
+    expect(r.prepareSec).toBe(300);
+    expect(r.steps).toHaveLength(20);
+    // 样1
+    expect(r.steps[0]).toEqual({ sampleNo: 1, addAOffsetSec: 0, addBOffsetSec: 600, measureOffsetSec: 1200 });
+    // 样2：加甲液 20s，加乙液 10:20，测量 20:20
+    expect(r.steps[1]).toEqual({ sampleNo: 2, addAOffsetSec: 20, addBOffsetSec: 620, measureOffsetSec: 1220 });
+    // 样20
+    expect(r.steps[19].addAOffsetSec).toBe(19 * 20);
+    expect(r.steps[19].addBOffsetSec).toBe(19 * 20 + 600);
+    expect(r.steps[19].measureOffsetSec).toBe(19 * 20 + 1200);
+  });
+
+  it('样品少时间隔可调大（如 4 样、每样 30 秒）', () => {
+    const r = planPNSchedule({ sampleCount: 4, intervalSec: 30, settleAMin: 10, settleBMin: 10, prepareMin: 0 });
+    expect(r.steps).toHaveLength(4);
+    expect(r.steps[3].addAOffsetSec).toBe(90);
+  });
+
+  it('样品数或间隔非法返回空步骤', () => {
+    expect(planPNSchedule({ sampleCount: 0, intervalSec: 20, settleAMin: 10, settleBMin: 10, prepareMin: 0 }).steps).toEqual([]);
+    expect(planPNSchedule({ sampleCount: 5, intervalSec: 0, settleAMin: 10, settleBMin: 10, prepareMin: 0 }).steps).toEqual([]);
+  });
+});
+
+describe('formatScheduleOffset', () => {
+  it('秒 → MM:SS，超过 1 小时 → H:MM:SS', () => {
+    expect(formatScheduleOffset(0)).toBe('00:00');
+    expect(formatScheduleOffset(20)).toBe('00:20');
+    expect(formatScheduleOffset(600)).toBe('10:00');
+    expect(formatScheduleOffset(1200)).toBe('20:00');
+    expect(formatScheduleOffset(3661)).toBe('1:01:01');
   });
 });

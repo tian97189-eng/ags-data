@@ -95,7 +95,7 @@ export default function CyclePage() {
   // 好氧段 DO 测值提醒时刻：只在标记为「好氧(oxic)」的连续时间段内，每 15 分钟一次
   const doTimes = useMemo(
     () => (cycle ? buildDOReminderTimes(times, phases, cycle.date, 15) : []),
-    [cycle, timeKey, phases],
+    [cycle, times, phases],
   );
 
   useEffect(() => {

@@ -30,9 +30,9 @@ const mLocal = vi.mocked(LocalNotifications);
 beforeEach(() => {
   mCapacitor.isNativePlatform.mockReturnValue(false);
   mLocal.requestPermissions.mockReset().mockResolvedValue({ display: 'granted' });
-  mLocal.createChannel.mockReset().mockResolvedValue({});
-  mLocal.schedule.mockReset().mockResolvedValue({});
-  mLocal.cancelAll.mockReset().mockResolvedValue({});
+  mLocal.createChannel.mockReset().mockResolvedValue(undefined as never);
+  mLocal.schedule.mockReset().mockResolvedValue(undefined as never);
+  mLocal.cancelAll.mockReset().mockResolvedValue(undefined as never);
 });
 
 describe('buildReminderTimes', () => {
