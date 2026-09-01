@@ -47,16 +47,10 @@ if not exist node_modules (
     )
 )
 
-echo [2/3] Building app...
-if exist dist rmdir /s /q dist
-call npm run build
-if errorlevel 1 (
-    echo.
-    echo Build failed. See error above. If it is a Node version error,
-    echo try Node 22 LTS: https://nodejs.org/dist/v22.11.0/
-    pause
-    exit /b 1
-)
+rem Use DEV server (not build + preview) so the browser always shows the LATEST code.
+rem Build + preview loaded a PWA service worker that cached an old version, and users
+rem kept seeing stale pages. Dev mode has no service worker, so no stale cache.
+echo [2/3] Starting dev server - always shows the latest code...
 
 rem Free port 4173 in case a previous preview is still running
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr :4173 ^| findstr LISTENING') do (
@@ -81,7 +75,7 @@ echo   once, then you can Add to Home Screen and open it offline.
 echo.
 
 start "" http://localhost:4173
-call npm run preview -- --port 4173 --strictPort
+call npm run dev -- --port 4173 --host --strictPort
 
 echo.
 echo Server stopped. Close this window to exit.
