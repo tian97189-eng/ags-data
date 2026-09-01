@@ -44,6 +44,20 @@ const InfluentPanel = forwardRef<
   const [mode, setMode] = useState<InfluentMode>('shared');
   const [state, setState] = useState<InfluentState>({ dilution: {}, samples: {} });
 
+  // mode 初始化独立于数据加载：只在挂载时读一次 settings，避免数据加载的慢异步
+  // 覆盖用户刚点击的「每罐各自」（竞态 bug：mode 曾绑在 [date, indicators] effect 里，
+  // 该 effect 还会 await getInfluents，导致 indicators 加载后 mode 被重置回 shared）。
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const m = await db.settings.get('influentMode');
+      if (!cancelled) setMode((m?.value as InfluentMode) ?? 'shared');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const curvesByIndicator = useMemo(() => {
     const map: Record<number, CalibrationCurve | null> = {};
     for (const ind of indicators ?? []) {
@@ -75,7 +89,6 @@ const InfluentPanel = forwardRef<
       const m = await db.settings.get('influentMode');
       if (cancelled) return;
       setState({ dilution, samples });
-      setMode((m?.value as InfluentMode) ?? 'shared');
     })();
     return () => {
       cancelled = true;

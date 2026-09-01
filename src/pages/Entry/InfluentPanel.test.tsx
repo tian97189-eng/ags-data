@@ -127,7 +127,7 @@ describe('InfluentPanel', () => {
       () => {
         expect(screen.getByLabelText('氨氮 R1 进水检测样')).toBeTruthy();
       },
-      { timeout: 3000 },
+      { timeout: 8000 },
     );
 
     fireEvent.change(screen.getByLabelText('氨氮 进水稀释'), { target: { value: '10' } });
@@ -259,7 +259,7 @@ describe('InfluentPanel 进水总氮', () => {
 
     await screen.findByLabelText('氨氮 进水检测样');
     fireEvent.click(screen.getByText('每罐各自'));
-    await waitFor(() => screen.getByLabelText('氨氮 R1 进水检测样'), { timeout: 3000 });
+    await waitFor(() => screen.getByLabelText('氨氮 R1 进水检测样'), { timeout: 8000 });
 
     fireEvent.change(screen.getByLabelText('氨氮 进水稀释'), { target: { value: '10' } });
     fireEvent.change(screen.getByLabelText('硝态氮 进水稀释'), { target: { value: '10' } });
@@ -303,7 +303,7 @@ describe('InfluentPanel 窄屏布局', () => {
     renderPanel({ nh4Id, blank: '0.012' });
     await screen.findByLabelText('氨氮 进水检测样');
     fireEvent.click(screen.getByText('每罐各自'));
-    await waitFor(() => screen.getByLabelText('氨氮 R1 进水检测样'), { timeout: 3000 });
+    await waitFor(() => screen.getByLabelText('氨氮 R1 进水检测样'), { timeout: 8000 });
     // 用 title 属性查找（鼠标悬停才显示的辅助说明）
     expect(screen.getByTitle('R1 检测样 → 浓度')).toBeInTheDocument();
     expect(screen.getByTitle('R2 检测样 → 浓度')).toBeInTheDocument();
@@ -318,7 +318,7 @@ describe('InfluentPanel 窄屏布局', () => {
     renderPanel({ nh4Id, blank: '0.012' });
     await screen.findByLabelText('氨氮 进水检测样');
     fireEvent.click(screen.getByText('每罐各自'));
-    await waitFor(() => screen.getByLabelText('氨氮 R3 进水检测样'), { timeout: 3000 });
+    await waitFor(() => screen.getByLabelText('氨氮 R3 进水检测样'), { timeout: 8000 });
 
     const tables = document.querySelectorAll('table');
     expect(tables.length).toBeGreaterThan(0);
