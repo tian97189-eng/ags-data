@@ -60,9 +60,10 @@ export default defineConfig(async () => {
     preview: {
       host: true,
       port: 5173,
-      // Use plain HTTP for the dev preview (no self-signed HTTPS certificate warning).
-      // APK is the production target; HTTPS was only needed for PWA on phone LAN,
-      // and we no longer use the PWA (phone uses the APK).
+      // Explicitly false - vite preview INHERITS server.https by default (which is our
+      // self-signed cert for LAN HTTPS). Override to plain HTTP so the user does
+      // not see the "NET::ERR_CERT_AUTHORITY_INVALID" warning.
+      https: false,
     },
     build: {
       emptyOutDir: false,
