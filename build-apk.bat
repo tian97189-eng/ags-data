@@ -76,15 +76,16 @@ if errorlevel 1 goto fail
 echo      android sync ok.
 
 rem ======== [6/7] Build APK (gradle) ========
-echo [6/7] Building APK. It takes 1-10 minutes. Please WAIT - this window will stay open.
+echo [6/7] Building APK. It takes 1-10 minutes.
+echo      构建期间窗口会暂时没动静（输出都写到日志），这是正常的，不要关闭窗口。
+echo      实时日志: %LOG%
+echo.
 cd /d "%BUILD%\android"
-rem 用独立 .ps1 文件调 java 直启 GradleMain（绕开 gradle.bat 的 exit 行为），
-rem 并通过 Tee-Object 让 gradle 输出同时显示在窗口 AND 追加到日志（窗口有进度，用户不会以为卡死）。
-rem 关键坑（多次踩）：在 cmd 的 -Command "..." 字符串里塞 PowerShell 命令 + --% stop-parsing 不可靠，
-rem PowerShell 5.1 在该模式下会把 token 错误重组（java 收到 "--\..." 而非 "-classpath C:\..."）。
-rem 对策：把 PowerShell 命令全部搬到 scripts\build-gradle.ps1，bat 用 -File 执行，
-rem PowerShell 正常解析脚本文件、--% 在脚本里按 PS 解析器规则稳定工作，cmd 不参与 PowerShell 命令字符串。
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SRC%scripts\build-gradle.ps1"
+rem 纯 cmd 直接调 java GradleMain（绕开 gradle.bat 的 exit 行为），输出全部写日志。
+rem 之前多次尝试用 PowerShell Tee 让窗口和日志同时有输出（v4~v7），但 PS 5.1 在 cmd
+rem 组合下 --% 行为不稳：v4 -D 被吞、v5/v6 引号转义错乱、v7 .ps1 文件模式下仍出现
+cmd 句柄问题。直接放弃，cmd 原生调用 + 日志重定向是最稳的方案。
+"%JAVA_HOME%\bin\java.exe" -Dorg.gradle.appname=gradlew -classpath "C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar" org.gradle.launcher.GradleMain assembleRelease --no-daemon --console=plain >> "%LOG%" 2>&1
 if errorlevel 1 goto fail
 echo      apk build ok.
 
