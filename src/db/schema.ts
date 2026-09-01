@@ -1,7 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 
 // —— 枚举（与 PRD 附录 A 对齐）——
-export type IndicatorCategory = 'basic' | 'custom';
+export type IndicatorCategory = 'basic' | 'custom' | 'extras';
 export type IndicatorMethod = 'absorbance' | 'direct';
 export type Scene = 'daily' | 'cycle';
 export type InputType = 'absorbance' | 'direct';
@@ -189,8 +189,8 @@ export interface ParticleSizeRecord {
 }
 
 /** EPS 胞外聚合物（PS 多糖 / PN 蛋白质）记录
- * 用户填：VSS 质量、PS 浓度、PN 浓度、提取液体积
- * 自动算：PS 含量 = PS浓度 × 体积 / VSS；PN 含量 = PN浓度 × 体积 / VSS；PN/PS 比
+ * PS / PN 浓度走标准曲线：用户填吸光度（样/空/稀释），自动用该指标的生效标曲算浓度，
+ * 再结合 VSS 算出每克污泥的含量。psConc/pnConc 为换算后的浓度（冗余存，供追溯）。
  */
 export interface EPSRecord {
   id?: number;
@@ -198,8 +198,18 @@ export interface EPSRecord {
   reactorId: number | null;
   sampleCode: string; // 样品编号
   vssMg: number | null; // VSS 质量 mg
-  psConc: number | null; // PS 浓度 mg/L
-  pnConc: number | null; // PN 浓度 mg/L
+  // PS 吸光度三要素
+  psSampleAbs: number | null;
+  psBlankAbs: number | null;
+  psDilution: number | null;
+  psCurveId: number | null;
+  // PN 吸光度三要素
+  pnSampleAbs: number | null;
+  pnBlankAbs: number | null;
+  pnDilution: number | null;
+  pnCurveId: number | null;
+  psConc: number | null; // PS 浓度 mg/L（自动算）
+  pnConc: number | null; // PN 浓度 mg/L（自动算）
   extractVolume: number | null; // 提取液体积 mL
   psContent: number | null; // mg/g VSS（自动算）
   pnContent: number | null; // mg/g VSS（自动算）

@@ -9,9 +9,9 @@ async function clearAll() {
 describe('seedIfEmpty', () => {
   beforeEach(clearAll);
 
-  it('首次初始化 7 个指标（含总氮、DO）和 3 个反应器', async () => {
+  it('首次初始化 9 个指标（含总氮、DO、PS、PN）和 3 个反应器', async () => {
     await seedIfEmpty();
-    expect(await db.indicators.count()).toBe(7);
+    expect(await db.indicators.count()).toBe(9);
     expect(await db.reactors.count()).toBe(3);
   });
 
@@ -19,7 +19,7 @@ describe('seedIfEmpty', () => {
     await seedIfEmpty();
     await seedIfEmpty();
     await seedIfEmpty();
-    expect(await db.indicators.count()).toBe(7);
+    expect(await db.indicators.count()).toBe(9);
     expect(await db.reactors.count()).toBe(3);
   });
 
@@ -31,7 +31,18 @@ describe('seedIfEmpty', () => {
     expect(all.find((i) => i.name === 'DO')?.method).toBe('direct');
     expect(
       all.filter((i) => i.method === 'absorbance').map((i) => i.name).sort(),
-    ).toEqual(['亚硝态氮', '总P', '总氮', '氨氮', '硝态氮'].sort());
+    ).toEqual(['亚硝态氮', '总P', '总氮', '氨氮', '硝态氮', 'PS（多糖）', 'PN（蛋白质）'].sort());
+  });
+
+  it('PS/PN 是 extras 类吸光度指标（不进日常录入，供 EPS 标曲换算）', async () => {
+    await seedIfEmpty();
+    const ps = await db.indicators.where('name').equals('PS（多糖）').first();
+    const pn = await db.indicators.where('name').equals('PN（蛋白质）').first();
+    expect(ps?.category).toBe('extras');
+    expect(ps?.method).toBe('absorbance');
+    expect(ps?.active).toBe(true);
+    expect(pn?.category).toBe('extras');
+    expect(pn?.method).toBe('absorbance');
   });
 
   it('总氮是复合公式型指标，依赖氨氮/亚硝态氮/硝态氮', async () => {
@@ -74,8 +85,8 @@ describe('seedIfEmpty', () => {
     // 升级：调一次 seed
     await seedIfEmpty();
 
-    // 现在应该有 7 个（补上总氮和 DO）
-    expect(await db.indicators.count()).toBe(7);
+    // 现在应该有 9 个（补上总氮、DO、PS、PN）
+    expect(await db.indicators.count()).toBe(9);
     const total = await db.indicators.where('name').equals('总氮').first();
     expect(total).toBeDefined();
     expect(total?.compositeType).toBe('sumOf');

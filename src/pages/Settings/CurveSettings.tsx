@@ -17,7 +17,7 @@ export default function CurveSettings() {
     async () => {
       const all = await db.indicators.toArray();
       return all
-        .filter((i) => i.category === 'basic' && i.active)
+        .filter((i) => (i.category === 'basic' || i.category === 'extras') && i.active)
         .sort((a, b) => a.sortOrder - b.sortOrder);
     },
     [],

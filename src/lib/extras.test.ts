@@ -4,10 +4,12 @@ import {
   computeParticleDryWeight,
   computeParticleDistribution,
   computeEPS,
+  computeEPSFromAbsorbance,
   planPNSchedule,
   buildPNScheduleTimes,
   formatScheduleOffset,
 } from './extras';
+import type { CalibrationCurve } from '../db/schema';
 
 describe('computeMLSS', () => {
   it('正常输入：MLSS=(M2-M1)/V×1000；MLVSS=(M2+M3-M4)/V×1000', () => {
@@ -103,6 +105,86 @@ describe('computeEPS', () => {
     const r = computeEPS({ psConc: 0, pnConc: 5, extractVolume: 10, vssMg: 100 });
     expect(r.pnPsRatio).toBeNull();
     expect(r.pnContent).toBeCloseTo(0.5, 4);
+  });
+});
+
+describe('computeEPSFromAbsorbance', () => {
+  // 拟合曲线：A = k·C + b，即 C = (A − A0 − b) / k × 稀释
+  const psCurve: CalibrationCurve = {
+    indicatorId: 1,
+    effectiveFrom: '2026-09-01',
+    effectiveTo: null,
+    k: 0.01,
+    b: 0.02,
+    r2: 0.999,
+    points: [],
+    batchNo: 'B1',
+    note: '',
+    createdAt: '',
+  };
+  const pnCurve: CalibrationCurve = {
+    indicatorId: 2,
+    effectiveFrom: '2026-09-01',
+    effectiveTo: null,
+    k: 0.02,
+    b: 0.01,
+    r2: 0.998,
+    points: [],
+    batchNo: 'B2',
+    note: '',
+    createdAt: '',
+  };
+
+  it('由吸光度换算浓度再算含量（含空白与稀释）', () => {
+    // PS：A样=0.55, A空=0.05, k=0.01, b=0.02, 稀释10 → (0.55-0.05-0.02)/0.01*10 = 480 mg/L
+    // PN：A样=0.33, A空=0.01, k=0.02, b=0.01, 稀释5 → (0.33-0.01-0.01)/0.02*5 = 77.5 mg/L
+    const r = computeEPSFromAbsorbance({
+      psSampleAbs: 0.55, psBlankAbs: 0.05, psDilution: 10, psCurve,
+      pnSampleAbs: 0.33, pnBlankAbs: 0.01, pnDilution: 5, pnCurve,
+      extractVolume: 10, vssMg: 100,
+    });
+    expect(r.psConc).toBeCloseTo(480, 4);
+    expect(r.pnConc).toBeCloseTo(77.5, 4);
+    // 含量 = 浓度 × 体积 / VSS
+    expect(r.psContent).toBeCloseTo(48, 4);
+    expect(r.pnContent).toBeCloseTo(7.75, 4);
+    expect(r.pnPsRatio).toBeCloseTo(7.75 / 48, 4);
+    expect(r.psStatus).toBe('ok');
+    expect(r.pnStatus).toBe('ok');
+  });
+
+  it('空白留空等价于 0', () => {
+    const r = computeEPSFromAbsorbance({
+      psSampleAbs: 0.55, psBlankAbs: null, psDilution: 10, psCurve,
+      pnSampleAbs: 0.33, pnBlankAbs: null, pnDilution: 5, pnCurve,
+      extractVolume: 10, vssMg: 100,
+    });
+    expect(r.psConc).toBeCloseTo((0.55 - 0 - 0.02) / 0.01 * 10, 4);
+    expect(r.pnConc).toBeCloseTo((0.33 - 0 - 0.01) / 0.02 * 5, 4);
+  });
+
+  it('缺标曲：对应浓度/含量为 null，status=noCurve', () => {
+    const r = computeEPSFromAbsorbance({
+      psSampleAbs: 0.55, psBlankAbs: 0.05, psDilution: 10, psCurve: null,
+      pnSampleAbs: 0.33, pnBlankAbs: 0.01, pnDilution: 5, pnCurve,
+      extractVolume: 10, vssMg: 100,
+    });
+    expect(r.psConc).toBeNull();
+    expect(r.psStatus).toBe('noCurve');
+    expect(r.psContent).toBeNull();
+    // PN 正常
+    expect(r.pnConc).toBeCloseTo(77.5, 4);
+  });
+
+  it('稀释留空：由调用方传默认值 1 或不传由外层处理；这里直接传 null 视为默认 1', () => {
+    // computeConcentration 内部对 dilution null 取 1
+    const r = computeEPSFromAbsorbance({
+      psSampleAbs: 0.55, psBlankAbs: 0.05, psDilution: null, psCurve,
+      pnSampleAbs: 0.33, pnBlankAbs: 0.01, pnDilution: null, pnCurve,
+      extractVolume: 10, vssMg: 100,
+    });
+    expect(r.psConc).toBeCloseTo((0.55 - 0.05 - 0.02) / 0.01, 4);
+    expect(r.pnConc).toBeCloseTo((0.33 - 0.01 - 0.01) / 0.02, 4);
   });
 });
 

@@ -33,7 +33,7 @@ export default function CyclePage() {
     async () => {
       const all = await db.indicators.toArray();
       return all
-        .filter((i) => i.active)
+        .filter((i) => i.active && i.category !== 'extras')
         .sort((a, b) => a.sortOrder - b.sortOrder);
     },
     [],

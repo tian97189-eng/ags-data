@@ -184,7 +184,13 @@ describe('buildEPSExport', () => {
   });
   it('把 EPS 记录转成导出行（含 PN/PS 比）', async () => {
     await db.epsRecords.bulkAdd([
-      { date: '2026-08-30', reactorId: null, sampleCode: 'R1-D1', vssMg: 100, psConc: 50, pnConc: 30, extractVolume: 10, psContent: 5, pnContent: 3, pnPsRatio: 0.6, note: '', createdAt: '' },
+      {
+        date: '2026-08-30', reactorId: null, sampleCode: 'R1-D1', vssMg: 100,
+        psSampleAbs: 0.55, psBlankAbs: 0.05, psDilution: 10, psCurveId: null,
+        pnSampleAbs: 0.33, pnBlankAbs: 0.01, pnDilution: 5, pnCurveId: null,
+        psConc: 50, pnConc: 30, extractVolume: 10,
+        psContent: 5, pnContent: 3, pnPsRatio: 0.6, note: '', createdAt: '',
+      },
     ]);
     const rows = await buildEPSExport();
     expect(rows).toHaveLength(1);

@@ -3,6 +3,8 @@
  * 全部纯函数，不依赖 React/Dexie，方便单测。
  */
 import type { ReminderTime } from './reminder';
+import { computeConcentration, type ComputeStatus } from './calibration';
+import type { CalibrationCurve } from '../db/schema';
 
 /** 算 MLSS / MLVSS（g/L）。输入重量单位 g，V 单位 mL → 需 ×1000 转 L。 */
 export function computeMLSS(input: {
@@ -128,10 +130,65 @@ export function computeEPS(input: {
   };
 }
 
+// —— EPS 浓度换算（吸光度 → 标曲 → 浓度 → 含量）——
+// PS/PN 与氨氮一致：浓度 = (A样 − A空 − b) / k × 稀释倍数。
+// 这里把「吸光度换算浓度」和「浓度换算含量」两步串成一个纯函数，方便 EPS 页与单测复用。
+
+export interface EPSAbsorbanceInput {
+  psSampleAbs: number | null;
+  psBlankAbs: number | null;
+  psDilution: number | null;
+  psCurve: CalibrationCurve | null;
+  pnSampleAbs: number | null;
+  pnBlankAbs: number | null;
+  pnDilution: number | null;
+  pnCurve: CalibrationCurve | null;
+  extractVolume: number | null;
+  vssMg: number | null;
+}
+
+export interface EPSAbsorbanceResult {
+  psConc: number | null;
+  pnConc: number | null;
+  psStatus: ComputeStatus;
+  pnStatus: ComputeStatus;
+  psContent: number | null;
+  pnContent: number | null;
+  pnPsRatio: number | null;
+}
+
+/** 由 PS/PN 吸光度 + 各自生效标曲，算浓度与含量。任一缺标曲时对应浓度/含量为 null。 */
+export function computeEPSFromAbsorbance(input: EPSAbsorbanceInput): EPSAbsorbanceResult {
+  const ps = computeConcentration({
+    sampleAbs: input.psSampleAbs,
+    blankAbs: input.psBlankAbs,
+    dilution: input.psDilution,
+    curve: input.psCurve,
+  });
+  const pn = computeConcentration({
+    sampleAbs: input.pnSampleAbs,
+    blankAbs: input.pnBlankAbs,
+    dilution: input.pnDilution,
+    curve: input.pnCurve,
+  });
+  const eps = computeEPS({
+    psConc: ps.value,
+    pnConc: pn.value,
+    extractVolume: input.extractVolume,
+    vssMg: input.vssMg,
+  });
+  return {
+    psConc: ps.value,
+    pnConc: pn.value,
+    psStatus: ps.status,
+    pnStatus: pn.status,
+    psContent: eps.psContent,
+    pnContent: eps.pnContent,
+    pnPsRatio: eps.pnPsRatio,
+  };
+}
+
 // —— EPS 之 PN 加药计时规划 ——
-// PN 测定流程：加甲液 → 静置 settleAMin → 加乙液 → 静置 settleBMin → 测吸光度。
-// 多样品需按顺序错开加药（每个样品间隔 intervalSec 秒，如 20 秒），
-// 从第一个样品加甲液起计时，留 prepareMin 准备时间。
 
 export interface PNScheduleStep {
   /** 第几个样品（1 起） */

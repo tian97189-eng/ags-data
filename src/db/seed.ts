@@ -92,6 +92,36 @@ const BUILTIN_COMPOSITE_INDICATORS: Omit<Indicator, 'id' | 'compositeRefs'>[] = 
   },
 ];
 
+/** 「其他指标」里 EPS 的 PS/PN 浓度指标：走标准曲线吸光度换算。
+ * category='extras'：不出现在日常录入/全周期，只在「标准曲线」里建标曲，
+ * EPS 页据此把吸光度换算成浓度。 */
+const EXTRAS_INDICATORS: Omit<Indicator, 'id'>[] = [
+  {
+    name: 'PS（多糖）',
+    category: 'extras',
+    method: 'absorbance',
+    unit: 'mg/L',
+    defaultDilution: 1,
+    refLow: null,
+    refHigh: null,
+    lod: null,
+    active: true,
+    sortOrder: 100,
+  },
+  {
+    name: 'PN（蛋白质）',
+    category: 'extras',
+    method: 'absorbance',
+    unit: 'mg/L',
+    defaultDilution: 1,
+    refLow: null,
+    refHigh: null,
+    lod: null,
+    active: true,
+    sortOrder: 101,
+  },
+];
+
 const DEFAULT_REACTORS: Omit<Reactor, 'id'>[] = [
   { code: 'R1', name: 'R1', note: '', active: true, sortOrder: 1, createdAt: '' },
   { code: 'R2', name: 'R2', note: '', active: true, sortOrder: 2, createdAt: '' },
@@ -142,6 +172,12 @@ export async function seedIfEmpty(): Promise<void> {
     } else {
       await db.indicators.add(composite);
     }
+  }
+
+  // 3.5) 「其他指标」的吸光度指标（PS/PN）：缺失的补齐
+  for (const ind of EXTRAS_INDICATORS) {
+    const exists = await db.indicators.where('name').equals(ind.name).first();
+    if (!exists) await db.indicators.add(ind);
   }
 
   // 4) 默认 settings

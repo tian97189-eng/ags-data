@@ -17,7 +17,7 @@ export default function IndicatorSettings() {
   const [deleting, setDeleting] = useState<Indicator | null>(null);
 
   function isBasic(i?: Partial<Indicator>) {
-    return i?.category === 'basic';
+    return i?.category === 'basic' || i?.category === 'extras';
   }
 
   async function save() {
@@ -67,7 +67,7 @@ export default function IndicatorSettings() {
 
   async function doDelete() {
     if (!deleting) return;
-    if (deleting.category === 'basic') {
+    if (deleting.category === 'basic' || deleting.category === 'extras') {
       toast('内置指标不能删除，可改为停用', 'warning');
     } else {
       await db.indicators.delete(deleting.id!);

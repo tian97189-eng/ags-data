@@ -44,7 +44,13 @@ export interface EPSExportRow {
   日期: string;
   样品编号: string;
   VSS质量: number | null;
+  PS样品吸光度: number | null;
+  PS空白吸光度: number | null;
+  PS稀释: number | null;
   PS浓度: number | null;
+  PN样品吸光度: number | null;
+  PN空白吸光度: number | null;
+  PN稀释: number | null;
   PN浓度: number | null;
   提取液体积: number | null;
   PS含量: number | null;
@@ -178,7 +184,13 @@ export async function buildEPSExport(filter: ExportFilter = {}): Promise<EPSExpo
     日期: r.date,
     样品编号: r.sampleCode,
     VSS质量: r.vssMg,
+    PS样品吸光度: r.psSampleAbs,
+    PS空白吸光度: r.psBlankAbs,
+    PS稀释: r.psDilution,
     PS浓度: r.psConc,
+    PN样品吸光度: r.pnSampleAbs,
+    PN空白吸光度: r.pnBlankAbs,
+    PN稀释: r.pnDilution,
     PN浓度: r.pnConc,
     提取液体积: r.extractVolume,
     PS含量: r.psContent,
