@@ -76,16 +76,13 @@ if errorlevel 1 goto fail
 echo      android sync ok.
 
 rem ======== [6/7] Build APK (gradle) ========
-echo [6/7] Building APK. It takes 1-10 minutes.
-echo      构建期间窗口会暂时没动静（输出都写到日志），这是正常的，不要关闭窗口。
-echo      实时日志: %LOG%
-echo.
+echo [6/7] Building APK. Progress is shown below, takes 1-10 minutes.
+echo      看到窗口在滚动 gradle 日志就说明正在构建，请等到出现 SUCCESS 或 BUILD FAILED。
 cd /d "%BUILD%\android"
-rem 纯 cmd 直接调 java GradleMain（绕开 gradle.bat 的 exit 行为），输出全部写日志。
-rem 之前多次尝试用 PowerShell Tee 让窗口和日志同时有输出（v4~v7），但 PS 5.1 在 cmd
-rem 组合下 --% 行为不稳：v4 -D 被吞、v5/v6 引号转义错乱、v7 .ps1 文件模式下仍出现
-rem cmd 句柄问题。直接放弃，cmd 原生调用 + 日志重定向是最稳的方案。
-"%JAVA_HOME%\bin\java.exe" -Dorg.gradle.appname=gradlew -classpath "C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar" org.gradle.launcher.GradleMain assembleRelease --no-daemon --console=plain >> "%LOG%" 2>&1
+rem gradle 输出直接显示在窗口（不再重定向进日志）。之前把输出全写日志导致窗口
+rem 空白 1-10 分钟，用户误以为卡死而关窗/Ctrl+C，[7/7] 拷贝步骤永远没机会执行，
+rem 桌面就一直没 APK。现在窗口能实时看到 gradle 进度，用户知道在跑，不会误关。
+"%JAVA_HOME%\bin\java.exe" -Dorg.gradle.appname=gradlew -classpath "C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar" org.gradle.launcher.GradleMain assembleRelease --no-daemon --console=plain
 if errorlevel 1 goto fail
 echo      apk build ok.
 
