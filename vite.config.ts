@@ -68,6 +68,12 @@ export default defineConfig(async () => {
       // （绝对路径 /assets/... 在 Capacitor 加载 file:// 时会指向 file:///assets/...，找不到）
       base: './',
     },
+    // 跳过 docx 预构建：docx 包有几兆，esbuild optimizeDeps 在 Windows 上容易崩溃
+    // (dev 服务器进程被 esbuild 干掉，浏览器 ERR_EMPTY_RESPONSE)。
+    // 排除后 docx 走运行时 transform，首次加载略慢但不崩。
+    optimizeDeps: {
+      exclude: ['docx'],
+    },
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
     },
