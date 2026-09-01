@@ -121,6 +121,13 @@ P0 地基 → P9 收尾全部完成，**104 个测试通过**，git 存档点 P0
    反斜杠（如 `\C:\...\jar\`）导致外部程序失败。**对策**：路径不含空格时 `--%` 后裸写路径
    不加引号；若路径必须含空格，改用 `-EncodedCommand`（base64）或写 .ps1 文件
    （`powershell -File x.ps1`）最干净。
+10. **Windows PowerShell 5.1 在 cmd `-Command "..."` 字符串里用 `--%` 行为不可靠**：会出现
+    token 错乱（`-D` 被吞、`-classpath C:\...` 被错误重组为 `--\Users\...`，java 报
+    "Unrecognized option"），且命令串里出现 "换行符?token" / "hell" 等被 cmd 当独立程序名
+    尝试执行的乱码 token。**根本对策**：不要在 cmd 里塞 PS 命令串——把 PS 命令写到独立
+    `.ps1` 文件，`powershell -NoProfile -ExecutionPolicy Bypass -File "x.ps1"` 执行；
+    PS 在脚本文件模式下按文件解析器正常处理 `--%`，cmd 完全不参与 PS 命令字符串的引号传递。
+    `.ps1` 里 `--%` 之后的 token 必须字面量（stop-parsing 模式下 PS 不展开变量/不解析引号）。
 
 ### 用户当前环境（2026-08-30 验证后）
 - Windows 10.0.26200
