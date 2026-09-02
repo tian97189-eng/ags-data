@@ -40,4 +40,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Android 13+ 通知运行时权限（取样/DO 提醒需要） -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 概览"自动定位"天气需要（WebView geolocation 需要粗+精定位权限） -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 </manifest>

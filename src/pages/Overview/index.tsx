@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 
 /**
@@ -8,6 +8,8 @@ import { useAppStore } from '../../store/useAppStore';
 
 const NOTES_KEY = 'overview.notes.v1';
 const COUNTDOWN_KEY = 'overview.countdown.v1';
+/** 用户手动设置的城市（localStorage），空 = 未设置（不要默认写死北京） */
+const CITY_KEY = 'overview.city.v1';
 
 // —— 一言库 ——（每天按日期种子稳定选一句，避免每次刷新跳字）
 export const QUOTES = [
@@ -109,6 +111,11 @@ function daysUntil(target: string): number {
   return Math.round(ms / 86_400_000);
 }
 
+/** HH:MM（天气"更新于"时间戳用） */
+function fmtHm(d: Date): string {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 interface WeatherInfo {
   temp: number;
   code: number;
@@ -172,69 +179,155 @@ export default function OverviewPage() {
 
   const festival = FESTIVALS[todayStr.slice(5)] ?? '';
 
-  // —— 天气 ——（默认北京，可选位置）
+  // —— 天气 ——（默认不设城市：可📍自动定位，或手动输入城市名；数据每 30 分钟自动刷新）
   const [weather, setWeather] = useState<WeatherInfo | null>(null);
   const [weatherErr, setWeatherErr] = useState(false);
-  const [city, setCity] = useState<string>(() => localStorage.getItem('overview.city.v1') ?? '北京');
+  const [city, setCity] = useState<string>(() => localStorage.getItem(CITY_KEY) ?? '');
+  // 自动定位坐标（优先于手动城市）；geoLabel 是反查出的省市区名（可延迟补上，不影响请求）
+  const [geoCoords, setGeoCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [geoLabel, setGeoLabel] = useState('');
+  const [locating, setLocating] = useState(false);
+  const [locateMsg, setLocateMsg] = useState('');
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
-  useEffect(() => {
-    let dead = false;
+  // 当前生效的查询方式（供 30 分钟定时器复用），null = 未设置城市也不定位
+  const lastReq = useRef<{ kind: 'geo'; lat: number; lon: number } | { kind: 'city'; city: string } | null>(null);
+  const reqSeq = useRef(0);
+
+  async function loadWeather(
+    desc: { kind: 'geo'; lat: number; lon: number } | { kind: 'city'; city: string },
+  ): Promise<void> {
+    const seq = ++reqSeq.current;
     setWeather(null);
     setWeatherErr(false);
-    // 用 Open-Meteo geocoding 查城市坐标
-    fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=zh`,
-    )
-      .then((r) => r.json())
-      .then((geo: { results?: { latitude: number; longitude: number; name: string }[] }) => {
-        if (dead) return;
-        const hit = geo.results?.[0];
-        if (!hit) {
-          setWeatherErr(true);
-          return;
-        }
-        return fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${hit.latitude}&longitude=${hit.longitude}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=auto`,
+    try {
+      let lat: number, lon: number, label: string;
+      if (desc.kind === 'geo') {
+        lat = desc.lat;
+        lon = desc.lon;
+        label = geoLabel || '当前位置';
+      } else {
+        const geoRes = await fetch(
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(desc.city)}&count=1&language=zh`,
         );
-      })
-      .then((r) => (r ? r.json() : null))
-      .then((data: {
-        current?: {
-          temperature_2m: number;
-          weather_code: number;
-          relative_humidity_2m: number;
-          wind_speed_10m: number;
-        };
-      } | null) => {
-        if (dead) return;
-        if (!data?.current) {
-          setWeatherErr(true);
+        const geoJson = (await geoRes.json()) as { results?: { latitude: number; longitude: number }[] };
+        const hit = geoJson.results?.[0];
+        if (!hit) {
+          if (seq === reqSeq.current) {
+            setWeatherErr(true);
+            setLocateMsg(`没找到「${desc.city}」，试试带市的写法（如：长沙）`);
+          }
           return;
         }
-        setWeather({
-          temp: Math.round(data.current.temperature_2m),
-          code: data.current.weather_code,
-          humidity: data.current.relative_humidity_2m,
-          wind: data.current.wind_speed_10m,
-          city,
-        });
-      })
-      .catch(() => {
-        if (!dead) setWeatherErr(true);
+        lat = hit.latitude;
+        lon = hit.longitude;
+        label = desc.city;
+      }
+      const wRes = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=auto`,
+      );
+      const wJson = (await wRes.json()) as {
+        current?: { temperature_2m: number; weather_code: number; relative_humidity_2m: number; wind_speed_10m: number };
+      };
+      if (!wJson?.current || seq !== reqSeq.current) return;
+      setWeather({
+        temp: Math.round(wJson.current.temperature_2m),
+        code: wJson.current.weather_code,
+        humidity: wJson.current.relative_humidity_2m,
+        wind: wJson.current.wind_speed_10m,
+        city: label,
       });
-    return () => {
-      dead = true;
-    };
-  }, [city]);
+      setUpdatedAt(new Date());
+      setLocateMsg('');
+    } catch {
+      if (seq === reqSeq.current) setWeatherErr(true);
+    }
+  }
+
+  // 城市或定位变化 → 首次/切换时拉取
+  useEffect(() => {
+    if (geoCoords) {
+      lastReq.current = { kind: 'geo', lat: geoCoords.lat, lon: geoCoords.lon };
+      void loadWeather(lastReq.current);
+    } else if (city) {
+      lastReq.current = { kind: 'city', city };
+      void loadWeather(lastReq.current);
+    } else {
+      lastReq.current = null;
+      reqSeq.current += 1; // 让在途请求作废
+      setWeather(null);
+      setWeatherErr(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [city, geoCoords]);
+
+  // 数据会过期 → 每 30 分钟自动刷新一次
+  useEffect(() => {
+    if (!lastReq.current) return;
+    const t = setInterval(() => {
+      const cur = lastReq.current;
+      if (cur) void loadWeather(cur);
+    }, 30 * 60 * 1000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [city, geoCoords]);
+
+  // 反查城市名晚到 → 补进已显示的城市（不重新发天气请求）
+  useEffect(() => {
+    if (geoCoords && geoLabel) {
+      setWeather((w) => (w ? { ...w, city: geoLabel } : w));
+    }
+  }, [geoLabel, geoCoords]);
 
   function handleCitySubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const input = (e.currentTarget.elements.namedItem('city') as HTMLInputElement | null);
     const v = input?.value.trim() ?? '';
-    if (v) {
-      setCity(v);
-      localStorage.setItem('overview.city.v1', v);
+    if (!v) return;
+    setGeoCoords(null); // 手动输入城市优先于定位
+    setGeoLabel('');
+    setCity(v);
+    localStorage.setItem(CITY_KEY, v);
+    setLocateMsg('');
+  }
+
+  /** 一键定位：浏览器/手机定位拿到坐标 → 直接按坐标查天气（不经城市名） */
+  function handleLocate() {
+    setLocateMsg('');
+    if (!('geolocation' in navigator)) {
+      setLocateMsg('此设备不支持定位，请在上方输入城市名查询');
+      return;
     }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setGeoCoords({ lat: latitude, lon: longitude });
+        // 反查城市名用于显示（最多等 4s，失败/离线则显示"当前位置"，不阻塞天气）
+        (async () => {
+          try {
+            const ctrl = new AbortController();
+            const tm = setTimeout(() => ctrl.abort(), 4000);
+            const res = await fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=zh`,
+              { signal: ctrl.signal },
+            );
+            clearTimeout(tm);
+            const j = (await res.json()) as { principalSubdivision?: string; city?: string; locality?: string };
+            const parts = [j.principalSubdivision, j.city || j.locality].filter(Boolean);
+            setGeoLabel(parts.join(' · ') || '当前位置');
+          } catch {
+            setGeoLabel('当前位置');
+          }
+        })();
+        setLocating(false);
+      },
+      () => {
+        setLocating(false);
+        setLocateMsg('定位失败（未授权位置权限？），请在上方输入城市名查询');
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 },
+    );
   }
 
   const wd = weather ? WMO[weather.code] ?? { text: '未知', emoji: '🌡️' } : null;
@@ -296,7 +389,9 @@ export default function OverviewPage() {
       <div className="grid md:grid-cols-2 gap-3">
         {/* 天气 */}
         <Card title="今日天气" icon="☀️">
-          {weather ? (
+          {locating ? (
+            <div className="text-[13px] text-slate-400 dark:text-slate-500">正在定位…</div>
+          ) : weather ? (
             <div>
               <div className="flex items-baseline gap-3">
                 <span className="text-[44px] leading-none">{wd?.emoji}</span>
@@ -305,45 +400,49 @@ export default function OverviewPage() {
                 </span>
                 <span className="text-[14px] text-slate-500 dark:text-slate-400">{wd?.text}</span>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-[13px] text-slate-600 dark:text-slate-400">
+              <div className="mt-1 text-[12px] text-slate-400 dark:text-slate-500">
+                {weather.city}
+                {updatedAt && ` · 更新于 ${fmtHm(updatedAt)}`}
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-[13px] text-slate-600 dark:text-slate-400">
                 <div>湿度 <span className="font-medium text-slate-800 dark:text-slate-100 tabular-nums">{weather.humidity}%</span></div>
                 <div>风速 <span className="font-medium text-slate-800 dark:text-slate-100 tabular-nums">{weather.wind} km/h</span></div>
               </div>
-              <form onSubmit={handleCitySubmit} className="mt-3 flex gap-1.5 text-[12px]">
-                <input
-                  name="city"
-                  defaultValue={weather.city}
-                  className="flex-1 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded px-2 py-1"
-                  placeholder="城市"
-                />
-                <button
-                  type="submit"
-                  className="px-2 py-1 bg-brand-600 text-white rounded hover:bg-brand-700"
-                >
-                  切换
-                </button>
-              </form>
             </div>
           ) : weatherErr ? (
             <div className="text-[13px] text-slate-500 dark:text-slate-400">
-              <div>⚠️ 天气拉取失败（离线？检查网络）</div>
-              <form onSubmit={handleCitySubmit} className="mt-3 flex gap-1.5">
-                <input
-                  name="city"
-                  defaultValue={city}
-                  className="flex-1 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded px-2 py-1 text-[12px]"
-                  placeholder="城市"
-                />
-                <button
-                  type="submit"
-                  className="px-2 py-1 bg-brand-600 text-white rounded hover:bg-brand-700 text-[12px]"
-                >
-                  重试
-                </button>
-              </form>
+              <div>⚠️ 天气拉取失败（离线？检查网络后点下方重试）</div>
             </div>
           ) : (
-            <div className="text-[13px] text-slate-400 dark:text-slate-500">天气加载中…</div>
+            <div className="text-[13px] text-slate-500 dark:text-slate-400">
+              {geoCoords
+                ? '已定位，天气加载中…'
+                : '未设置城市：点「自动定位」用当前位置，或输入城市名查询（如：长沙）'}
+            </div>
+          )}
+          <form onSubmit={handleCitySubmit} className="mt-3 flex gap-1.5 text-[12px]">
+            <input
+              name="city"
+              className="flex-1 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded px-2 py-1"
+              placeholder={city || '城市名（如：长沙）'}
+            />
+            <button
+              type="submit"
+              className="px-2 py-1 bg-brand-600 text-white rounded hover:bg-brand-700 shrink-0"
+            >
+              查询
+            </button>
+            <button
+              type="button"
+              onClick={handleLocate}
+              disabled={locating}
+              className="px-2 py-1 border border-brand-400 text-brand-700 dark:text-brand-300 rounded hover:bg-brand-50 dark:hover:bg-slate-700 shrink-0 disabled:opacity-50"
+            >
+              {locating ? '定位中…' : '📍 自动定位'}
+            </button>
+          </form>
+          {locateMsg && (
+            <div className="mt-1.5 text-[12px] text-amber-600 dark:text-amber-400">{locateMsg}</div>
           )}
         </Card>
 

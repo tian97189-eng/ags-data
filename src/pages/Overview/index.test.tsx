@@ -14,6 +14,12 @@ beforeEach(() => {
     status: 200,
     json: async () => ({}),
   }));
+  // 清掉上个用例遗留的 geolocation stub
+  try {
+    delete (navigator as { geolocation?: unknown }).geolocation;
+  } catch {
+    /* ignore */
+  }
 });
 
 describe('OverviewPage', () => {
@@ -35,6 +41,7 @@ describe('OverviewPage', () => {
   });
 
   it('天气渲染：fetch mock 返回温度/天气码后会填入数字', async () => {
+    localStorage.setItem(CITY_KEY, '长沙');
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation((url: string) => {
@@ -98,5 +105,88 @@ describe('OverviewPage', () => {
     render(<OverviewPage />);
     const ta = screen.getByPlaceholderText(/随手写点什么/i) as HTMLTextAreaElement;
     expect(ta.value).toBe('上周的草稿');
+  });
+});
+
+describe('天气与实际地点一致（默认不再写死北京）', () => {
+  /** geocoding→长沙坐标；forecast→25.3°；reverse-geocode→湖南省·长沙市 */
+  function mockFetch() {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        const u = String(url);
+        if (u.includes('geocoding')) {
+          return Promise.resolve({
+            json: async () => ({ results: [{ latitude: 28.23, longitude: 112.94, name: '长沙' }] }),
+          });
+        }
+        if (u.includes('reverse-geocode')) {
+          return Promise.resolve({
+            json: async () => ({ principalSubdivision: '湖南省', city: '长沙市' }),
+          });
+        }
+        if (u.includes('forecast')) {
+          return Promise.resolve({
+            json: async () => ({
+              current: { temperature_2m: 25.3, weather_code: 2, relative_humidity_2m: 60, wind_speed_10m: 5.1 },
+            }),
+          });
+        }
+        return Promise.resolve({ json: async () => ({}) });
+      }),
+    );
+  }
+  function stubGeolocation(lat: number, lon: number) {
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: (ok: (p: { coords: { latitude: number; longitude: number } }) => void) =>
+          ok({ coords: { latitude: lat, longitude: lon } }),
+      },
+    });
+  }
+
+  it('未设置城市且未定位 → 不发天气请求，只显示引导', () => {
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<OverviewPage />);
+    expect(screen.getByText(/未设置城市/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /自动定位/ })).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('手动输入城市（长沙）→ 按坐标查当地天气并持久化', async () => {
+    mockFetch();
+    render(<OverviewPage />);
+    fireEvent.change(screen.getByPlaceholderText(/城市名/), { target: { value: '长沙' } });
+    fireEvent.click(screen.getByText('查询'));
+    const temp = await screen.findByText('25°', undefined, { timeout: 3000 });
+    expect(temp).toBeTruthy();
+    await screen.findByText((c: string) => c.includes('长沙'), undefined, { timeout: 3000 });
+    expect(localStorage.getItem(CITY_KEY)).toBe('长沙');
+  });
+
+  it('点「自动定位」→ 直接用坐标查天气（不经城市 geocoding），反查省市区显示', async () => {
+    mockFetch();
+    stubGeolocation(28.23, 112.94);
+    render(<OverviewPage />);
+    fireEvent.click(screen.getByRole('button', { name: /自动定位/ }));
+    await screen.findByText('25°', undefined, { timeout: 3000 });
+    const urls = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.includes('geocoding'))).toBe(false);
+    expect(urls.some((u) => u.includes('forecast'))).toBe(true);
+    // 反查城市名补进卡片
+    await screen.findByText((c: string) => c.includes('湖南省'), undefined, { timeout: 3000 });
+  });
+
+  it('输入城市后重新点「自动定位」→ 显示当前位置（不再显示上次城市）', async () => {
+    mockFetch();
+    stubGeolocation(28.23, 112.94);
+    localStorage.setItem(CITY_KEY, '北京'); // 模拟用户之前手动设过北京
+    render(<OverviewPage />);
+    // 有城市则直接加载北京天气，之后再定位应切到当前位置数据
+    fireEvent.click(screen.getByRole('button', { name: /自动定位/ }));
+    await screen.findByText('25°', undefined, { timeout: 3000 });
+    await screen.findByText((c: string) => c.includes('湖南省'), undefined, { timeout: 3000 });
   });
 });
