@@ -4,7 +4,7 @@ import { db, type CalibrationCurve } from '../../db/schema';
 import { dailyScope, deleteDailyDataToTrash, getDefault, getMeasurement, saveMeasurement, upsertDefault } from '../../lib/entry';
 import { recomputeAndSaveComposites } from '../../lib/calibration';
 import { today, prevDay } from '../../lib/format';
-import { saveDraft, loadDraft, clearDraft, isDraftEmpty, shouldOfferRestore, type Draft } from '../../lib/draft';
+import { saveDraft, loadDraft, clearDraft, isDraftEmpty, type Draft } from '../../lib/draft';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -67,6 +67,8 @@ export default function EntryPage() {
   const [offerRestore, setOfferRestore] = useState<Draft | null>(null);
   const influentSnapRef = useRef<InfluentSnapshot>({ dilution: {}, samples: {} });
   const draftTimer = useRef<number | null>(null);
+  // 跨日期恢复：用户从草稿日期恢复时先把值暂存，等数据加载 effect 跑完（该日期）后填入，避免被加载结果覆盖
+  const pendingRestoreRef = useRef<Draft | null>(null);
 
   /** 防抖 600ms 把当前输入存草稿（内容为空则跳过） */
   function scheduleDraftSave() {
@@ -77,14 +79,29 @@ export default function EntryPage() {
     }, 600);
   }
 
-  // 出水输入变化 → 存草稿
+  // 出水输入变化 → 存草稿（不 return cleanup：否则其它状态刷新会把用户输入的 timer 清掉，丢草稿）
   useEffect(() => {
     if (loading) return;
     scheduleDraftSave();
-    return () => {
-      if (draftTimer.current != null) window.clearTimeout(draftTimer.current);
-    };
   }, [defaults, cells, loading]);
+
+  // 页面切后台/关闭前立即落盘（手机杀进程/切走时 600ms 防抖可能没到，草稿就没了）
+  useEffect(() => {
+    if (loading) return;
+    const flush = () => {
+      const payload = { date, defaults, cells, influent: influentSnapRef.current };
+      if (!isDraftEmpty(payload)) saveDraft(payload);
+    };
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, [date, defaults, cells, loading]);
 
   // 进水面板快照变化回调（由 InfluentPanel onStateChange 调用）
   function handleInfluentChange(s: InfluentSnapshot) {
@@ -92,16 +109,20 @@ export default function EntryPage() {
     scheduleDraftSave();
   }
 
-  // 数据加载完成后检查：该日期无已存数据且有草稿 → 提示恢复
+  // 数据加载完成后检查：草稿存在且非空、且当前日期没有已存数据 → 提示恢复。
+  // 注意：不要求草稿日期 == 当前日期（用户录一半隔天再开也提示，否则草稿永远找不到）
   useEffect(() => {
     if (loading) return;
     let cancelled = false;
     (async () => {
-      const hasData = await hasAnySavedData(date);
-      if (cancelled) return;
       const draft = loadDraft();
-      if (shouldOfferRestore(draft, date, hasData)) setOfferRestore(draft);
-      else setOfferRestore(null);
+      if (draft && !isDraftEmpty(draft)) {
+        const hasData = await hasAnySavedData(date);
+        if (cancelled) return;
+        setOfferRestore(hasData ? null : draft);
+      } else {
+        setOfferRestore(null);
+      }
     })();
     return () => {
       cancelled = true;
@@ -110,10 +131,23 @@ export default function EntryPage() {
 
   function handleRestoreDraft() {
     if (!offerRestore) return;
-    setDefaults(offerRestore.defaults ?? {});
-    setCells(offerRestore.cells ?? {});
-    if (offerRestore.influent) influentRef.current?.restoreDraft(offerRestore.influent);
     setOfferRestore(null);
+    const d = offerRestore;
+    if (d.date !== date) {
+      // 草稿是别的日期的 → 切到那天（等加载完成后由 pendingRestoreRef 填入）
+      pendingRestoreRef.current = d;
+      setDate(d.date);
+      toast(`已切换日期并恢复 ${d.date} 的草稿，请核对后再保存`, 'success');
+      return;
+    }
+    applyRestore(d);
+  }
+
+  /** 把草稿内容填入当前表单 */
+  function applyRestore(d: Draft) {
+    setDefaults(d.defaults ?? {});
+    setCells(d.cells ?? {});
+    if (d.influent) influentRef.current?.restoreDraft(d.influent);
     toast('已恢复上次草稿，请核对后再保存', 'success');
   }
 
@@ -169,8 +203,15 @@ export default function EntryPage() {
         }
       }
       if (cancelled) return;
-      setDefaults(d);
-      setCells(c);
+      if (pendingRestoreRef.current && pendingRestoreRef.current.date === date) {
+        // 跨日期恢复：该日期 db 大概率无数据 → 直接填草稿值（不让空加载覆盖）
+        setDefaults(pendingRestoreRef.current.defaults ?? {});
+        setCells(pendingRestoreRef.current.cells ?? {});
+        pendingRestoreRef.current = null;
+      } else {
+        setDefaults(d);
+        setCells(c);
+      }
       setLoading(false);
     })();
     return () => {
@@ -297,7 +338,8 @@ export default function EntryPage() {
       {offerRestore && (
         <div className="mb-3 flex items-center gap-2 flex-wrap border border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10 rounded-lg px-3 py-2 text-xs">
           <span className="text-amber-800 dark:text-amber-300">
-            发现未保存的草稿（保存于{' '}
+            发现{' '}
+            {offerRestore.date === today() ? '今天' : offerRestore.date} 的未保存草稿（保存于{' '}
             {new Date(offerRestore.savedAt).toLocaleTimeString('zh-CN', { hour12: false })}），要恢复吗？
           </span>
           <span className="flex-1" />

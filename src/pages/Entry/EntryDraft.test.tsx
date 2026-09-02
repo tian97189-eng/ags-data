@@ -36,7 +36,7 @@ describe('录入草稿自动保存与恢复', () => {
 
     render(<EntryPage />);
     // 提示条出现
-    expect(await screen.findByText(/发现未保存的草稿/)).toBeTruthy();
+    expect(await screen.findByText(/未保存草稿/)).toBeTruthy();
   });
 
   it('点「恢复草稿」把吸光度与空白带回输入框', async () => {
@@ -48,7 +48,7 @@ describe('录入草稿自动保存与恢复', () => {
     });
 
     render(<EntryPage />);
-    await screen.findByText(/发现未保存的草稿/);
+    await screen.findByText(/未保存草稿/);
     fireEvent.click(screen.getByText('恢复草稿'));
 
     await waitFor(() => {
@@ -56,7 +56,7 @@ describe('录入草稿自动保存与恢复', () => {
       expect((sample as HTMLInputElement).value).toBe('0.284');
     });
     // 提示条消失
-    expect(screen.queryByText(/发现未保存的草稿/)).toBeNull();
+    expect(screen.queryByText(/未保存草稿/)).toBeNull();
   });
 
   it('点「丢弃」清掉草稿并关闭提示', async () => {
@@ -68,11 +68,11 @@ describe('录入草稿自动保存与恢复', () => {
     });
 
     render(<EntryPage />);
-    await screen.findByText(/发现未保存的草稿/);
+    await screen.findByText(/未保存草稿/);
     fireEvent.click(screen.getByText('丢弃'));
 
     await waitFor(() => {
-      expect(screen.queryByText(/发现未保存的草稿/)).toBeNull();
+      expect(screen.queryByText(/未保存草稿/)).toBeNull();
     });
     expect(loadDraft()).toBeNull();
   });
@@ -93,10 +93,10 @@ describe('录入草稿自动保存与恢复', () => {
     });
 
     render(<EntryPage />);
-    await waitFor(() => expect(screen.queryByText(/发现未保存的草稿/)).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/未保存草稿/)).toBeNull());
   });
 
-  it('草稿日期与当前日期不同时不提示', async () => {
+  it('草稿是别的日期（录一半隔天再开）也提示，点恢复自动切到草稿日期并填回', async () => {
     const { indId, rId } = await seedBasic();
     const otherDay = today() === '2026-09-02' ? '2026-09-01' : '2026-09-02';
     saveDraft({
@@ -106,13 +106,19 @@ describe('录入草稿自动保存与恢复', () => {
     });
 
     render(<EntryPage />);
-    // 等待渲染稳定
-    await waitFor(() => {
-      expect(screen.queryByText(/发现未保存的草稿/)).toBeNull();
-    });
-    expect(loadDraft()).not.toBeNull(); // 草稿仍在，留给切回那天用
-  });
+    // 跨日期也提示，且 banner 显示草稿日期
+    await screen.findByText(/未保存草稿/, undefined, { timeout: 3000 });
+    expect(screen.getByText(new RegExp(otherDay))).toBeTruthy();
 
+    // 点恢复 → 自动切到草稿日期并填回吸光度
+    fireEvent.click(screen.getByText('恢复草稿'));
+    await waitFor(
+      () => {
+        expect((screen.getByLabelText('R1 吸光度') as HTMLInputElement).value).toBe('0.1');
+      },
+      { timeout: 4000 },
+    );
+  });
 
   it('手机端 banner 位于 PageHeader 之后、日期行之前（不会被表单挤压看不见）', async () => {
     await saveDraft({
@@ -121,7 +127,7 @@ describe('录入草稿自动保存与恢复', () => {
       cells: { '1:1': { sample: '0.123', dilution: '10', dilutionOverridden: false } },
     });
     render(<EntryPage />);
-    const banner = await screen.findByText(/发现未保存的草稿/, undefined, { timeout: 3000 });
+    const banner = await screen.findByText(/未保存草稿/, undefined, { timeout: 3000 });
     // 父级 div 应在 PageHeader（h1 "数据录入"）之后；banner 元素 nextElementSibling 的兄弟链中应能找到「复制昨天」
     const pageTitle = screen.getByRole('heading', { name: /数据录入/ });
     // 沿 DOM 顺序确认 banner 在 pageTitle 之后、在日期行（DatePicker / 复制昨天 按钮）之前
