@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
+import { getCurrentCoord } from '../../lib/geolocation';
 
 /**
  * 今日概览（非实验数据）：日期 · 天气 · 一言 · 倒计时 · 快捷笔记。
@@ -291,43 +292,36 @@ export default function OverviewPage() {
     setLocateMsg('');
   }
 
-  /** 一键定位：浏览器/手机定位拿到坐标 → 直接按坐标查天气（不经城市名） */
-  function handleLocate() {
+  /** 一键定位：APK 优先用 @capacitor/geolocation 插件（自动申请 Android 运行时权限）；失败/不可用回退 navigator.geolocation */
+  async function handleLocate() {
     setLocateMsg('');
-    if (!('geolocation' in navigator)) {
-      setLocateMsg('此设备不支持定位，请在上方输入城市名查询');
+    setLocating(true);
+    const result = await getCurrentCoord();
+    if (!result) {
+      setLocating(false);
+      setLocateMsg('定位失败（未授权位置权限？），请在上方输入城市名查询');
       return;
     }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setGeoCoords({ lat: latitude, lon: longitude });
-        // 反查城市名用于显示（最多等 4s，失败/离线则显示"当前位置"，不阻塞天气）
-        (async () => {
-          try {
-            const ctrl = new AbortController();
-            const tm = setTimeout(() => ctrl.abort(), 4000);
-            const res = await fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=zh`,
-              { signal: ctrl.signal },
-            );
-            clearTimeout(tm);
-            const j = (await res.json()) as { principalSubdivision?: string; city?: string; locality?: string };
-            const parts = [j.principalSubdivision, j.city || j.locality].filter(Boolean);
-            setGeoLabel(parts.join(' · ') || '当前位置');
-          } catch {
-            setGeoLabel('当前位置');
-          }
-        })();
-        setLocating(false);
-      },
-      () => {
-        setLocating(false);
-        setLocateMsg('定位失败（未授权位置权限？），请在上方输入城市名查询');
-      },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 },
-    );
+    const { lat: latitude, lon: longitude } = result;
+    setGeoCoords({ lat: latitude, lon: longitude });
+    // 反查城市名用于显示（最多等 4s，失败/离线则显示"当前位置"，不阻塞天气）
+    (async () => {
+      try {
+        const ctrl = new AbortController();
+        const tm = setTimeout(() => ctrl.abort(), 4000);
+        const res = await fetch(
+          `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=zh`,
+          { signal: ctrl.signal },
+        );
+        clearTimeout(tm);
+        const j = (await res.json()) as { principalSubdivision?: string; city?: string; locality?: string };
+        const parts = [j.principalSubdivision, j.city || j.locality].filter(Boolean);
+        setGeoLabel(parts.join(' · ') || '当前位置');
+      } catch {
+        setGeoLabel('当前位置');
+      }
+    })();
+    setLocating(false);
   }
 
   const wd = weather ? WMO[weather.code] ?? { text: '未知', emoji: '🌡️' } : null;
