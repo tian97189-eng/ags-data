@@ -3,6 +3,7 @@ import {
   computeMLSS,
   computeParticleDryWeight,
   computeParticleDistribution,
+  midOfRange,
   computeEPS,
   computeEPSFromAbsorbance,
   computeSVI,
@@ -36,6 +37,21 @@ describe('computeParticleDryWeight', () => {
     expect(computeParticleDryWeight(null, 0.7743)).toBeNull();
     expect(computeParticleDryWeight(0.8, 0.7)).toBeNull(); // 滤纸比泥重
     expect(computeParticleDryWeight(NaN, 0.7)).toBeNull();
+  });
+});
+
+describe('midOfRange', () => {
+  it('中位径 = 上下限平均值', () => {
+    expect(midOfRange(200, 355)).toBeCloseTo(277.5, 4);
+    expect(midOfRange(0, 50)).toBeCloseTo(25, 4);
+    expect(midOfRange(150, 200)).toBeCloseTo(175, 4);
+  });
+  it('无上限（to=∞）返回 null（需手动代表值）', () => {
+    expect(midOfRange(355, Number.POSITIVE_INFINITY)).toBeNull();
+  });
+  it('非法输入返回 null', () => {
+    expect(midOfRange(NaN, 355)).toBeNull();
+    expect(midOfRange(200, NaN)).toBeNull();
   });
 });
 

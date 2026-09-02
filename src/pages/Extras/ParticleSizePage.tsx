@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type ParticleSizeRange } from '../../db/schema';
-import { computeParticleDistribution } from '../../lib/extras';
+import { computeParticleDistribution, midOfRange } from '../../lib/extras';
 import { useAppStore } from '../../store/useAppStore';
 import { today } from '../../lib/format';
-import EmptyState from '../../components/common/EmptyState';
+import HistoryCalendar from '../../components/common/HistoryCalendar';
 
 /** 筛分粒径：
  *  - 顶部：粒径范围配置（用户增删改）—— 每段含 from/to/中位径
@@ -21,6 +21,7 @@ const DEFAULT_RANGES: Omit<ParticleSizeRange, 'id'>[] = [
   { from: 0, to: 50, mid: 25, sortOrder: 6 },
 ];
 
+/** 中位径 = 上下限平均值；最后一段（to=∞）需手动给代表值（如 525） */
 function rangeLabel(r: ParticleSizeRange): string {
   if (!isFinite(r.to)) return `>${r.from} μm`;
   if (r.from === 0) return `<${r.to} μm`;
@@ -51,11 +52,19 @@ export default function ParticleSizePage() {
   }
 
   async function handleUpdateRange(r: ParticleSizeRange, patch: Partial<ParticleSizeRange>) {
+    // 中位径自动算：改了上下限 → mid = (from+to)/2（to=∞ 时保留手动代表值）
+    const next = { ...r, ...patch };
+    const auto = midOfRange(next.from, next.to);
+    if (auto != null) patch.mid = auto;
     await db.particleSizeRanges.update(r.id!, patch);
   }
 
   async function handleDeleteRange(r: ParticleSizeRange) {
     await db.particleSizeRanges.delete(r.id!);
+  }
+
+  async function handleDeleteRecord(id: number) {
+    await db.particleSizeRecords.delete(id);
   }
 
   // 按日期分组当前选中日期的所有记录
@@ -74,29 +83,32 @@ export default function ParticleSizePage() {
 
   async function handleSaveRow(rangeId: number, paperWeight: number | null, sampleWeight: number | null) {
     const existing = dayRecords.find((r) => r.rangeId === rangeId);
-    // 单行泥重 = 烘干后（滤纸+泥）− 烘干滤纸
+    // 单行泥重 = 烘干后（滤纸+泥）− 烘干滤纸；两者都填且泥重为正才算
     const dry =
       paperWeight != null && sampleWeight != null && sampleWeight > paperWeight
         ? sampleWeight - paperWeight
         : null;
-    if (dry == null) {
+    // 记录始终保留用户已填的 M1/M2（允许只填一个），不因 dry=null 删除
+    const rng = (ranges ?? []).find((r) => r.id === rangeId);
+    const mid = rng?.mid ?? 0;
+    const total = (dist.dryWeights ?? []).reduce<number>((s, w) => s + (w ?? 0), 0);
+    const percentVal = dry != null && total > 0 ? (dry / total) * 100 : null;
+    const contribVal = percentVal != null ? (percentVal * mid) / 100 : null;
+    const payload = {
+      paperWeight, sampleWeight,
+      dryWeight: dry, percent: percentVal, contribution: contribVal,
+    };
+    if (paperWeight == null && sampleWeight == null) {
+      // 两个都清空 → 删掉该行记录
       if (existing?.id) await db.particleSizeRecords.delete(existing.id);
       return;
     }
-    const total = (dist.dryWeights ?? []).reduce<number>((s, w) => s + (w ?? 0), 0);
-    const percentVal = total > 0 ? (dry / total) * 100 : 0;
-    const rng = (ranges ?? []).find((r) => r.id === rangeId);
-    const mid = rng?.mid ?? 0;
-    const contribVal = (percentVal * mid) / 100;
     if (existing?.id) {
-      await db.particleSizeRecords.update(existing.id, {
-        paperWeight, sampleWeight, dryWeight: dry, percent: percentVal, contribution: contribVal,
-      });
+      await db.particleSizeRecords.update(existing.id, payload);
     } else {
       await db.particleSizeRecords.add({
         date, reactorId: null, rangeId,
-        paperWeight, sampleWeight, dryWeight: dry, percent: percentVal, contribution: contribVal,
-        note: '', createdAt: new Date().toISOString(),
+        ...payload, note: '', createdAt: new Date().toISOString(),
       });
     }
   }
@@ -110,13 +122,13 @@ export default function ParticleSizePage() {
             + 新增段
           </button>
         </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">默认 6 段（&gt;355 / 200-355 / 150-200 / 100-150 / 50-100 / &lt;50）。每段可改下限/上限/中位径。</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">默认 6 段（&gt;355 / 200-355 / 150-200 / 100-150 / 50-100 / &lt;50）。中位径自动 = 上下限平均值；只有最后一段（&gt;N，无上限）需要手填代表值。</p>
         <table className="w-full text-xs border-collapse">
           <thead>
             <tr className="text-slate-500 dark:text-slate-400">
               <th className="text-left py-1.5 px-2 border-b border-slate-200 dark:border-slate-700 w-16">下限</th>
               <th className="text-left py-1.5 px-2 border-b border-slate-200 dark:border-slate-700 w-16">上限</th>
-              <th className="text-left py-1.5 px-2 border-b border-slate-200 dark:border-slate-700 w-20">中位径</th>
+              <th className="text-left py-1.5 px-2 border-b border-slate-200 dark:border-slate-700 w-24">中位径</th>
               <th className="text-left py-1.5 px-2 border-b border-slate-200 dark:border-slate-700">区间</th>
               <th className="text-right py-1.5 px-2 border-b border-slate-200 dark:border-slate-700 w-16">操作</th>
             </tr>
@@ -142,12 +154,20 @@ export default function ParticleSizePage() {
                   />
                 </td>
                 <td className="py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">
-                  <input
-                    type="number" step="any"
-                    className="w-full border border-slate-200 dark:border-slate-700 rounded px-1.5 py-1 text-xs"
-                    value={r.mid}
-                    onChange={(e) => handleUpdateRange(r, { mid: Number(e.target.value) })}
-                  />
+                  {isFinite(r.to) ? (
+                    // 有上限：自动算 (from+to)/2，只读
+                    <div className="px-1.5 py-1 text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 rounded tabular-nums">
+                      {midOfRange(r.from, r.to)?.toFixed(1) ?? '—'}
+                    </div>
+                  ) : (
+                    // 无上限（>N）：手填代表值
+                    <input
+                      type="number" step="any"
+                      className="w-full border border-slate-200 dark:border-slate-700 rounded px-1.5 py-1 text-xs"
+                      value={r.mid}
+                      onChange={(e) => handleUpdateRange(r, { mid: Number(e.target.value) })}
+                    />
+                  )}
                 </td>
                 <td className="py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
                   {rangeLabel(r)}
@@ -176,7 +196,7 @@ export default function ParticleSizePage() {
             平均粒径 d50 = <span className="font-mono text-teal-700 font-medium">{dist.d50?.toFixed(2) ?? '—'}</span> μm
           </span>
         </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">填滤纸重 M1 和滤纸+泥重 M2。泥重 = M2 − M1，占比% = 泥重 / 总泥重 × 100。</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">填滤纸重 M1 和滤纸+泥重 M2（可只填一个，会自动保存）。泥重 = M2 − M1，占比% = 泥重 / 总泥重 × 100。</p>
 
         <div className="overflow-x-auto -mx-4 px-4">
           <table className="w-full table-fixed border-collapse text-xs min-w-[640px]">
@@ -235,6 +255,81 @@ export default function ParticleSizePage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
+        <div className="text-base font-medium mb-3">历史记录（{records?.length ?? 0} 条）</div>
+        <HistoryCalendar
+          dates={new Set((records ?? []).map((r) => r.date))}
+          defaultDate={(records ?? [])[0]?.date}
+          countLabel={`共 ${records?.length ?? 0} 条记录`}
+        >
+          {(d) => {
+            const dayRecs = (records ?? []).filter((r) => r.date === d);
+            if (dayRecs.length === 0) {
+              return (
+                <div className="text-sm text-slate-500 dark:text-slate-400 py-8 text-center">
+                  {d} 没有记录
+                </div>
+              );
+            }
+            const dayInputs = dayRecs.map((rec) => ({
+              rangeId: rec.rangeId,
+              paperWeight: rec.paperWeight,
+              sampleWeight: rec.sampleWeight,
+              mid: (ranges ?? []).find((x) => x.id === rec.rangeId)?.mid ?? 0,
+            }));
+            const dayDist = computeParticleDistribution(dayInputs);
+            return (
+              <div>
+                <div className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  {d} · {dayRecs.length} 条 · d50 ={' '}
+                  <span className="font-mono text-teal-700">{dayDist.d50?.toFixed(2) ?? '—'}</span> μm
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full table-fixed border-collapse text-xs min-w-[480px]">
+                    <thead>
+                      <tr className="text-slate-500 dark:text-slate-400">
+                        <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">区间</th>
+                        <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">M1</th>
+                        <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">M2</th>
+                        <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-16">泥重</th>
+                        <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-16">占比</th>
+                        <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-12">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dayRecs.map((rec, idx) => (
+                        <tr key={rec.id}>
+                          <td className="py-1.5 px-2 border-b border-slate-50">
+                            {rangeLabel((ranges ?? []).find((x) => x.id === rec.rangeId)!)}
+                          </td>
+                          <td className="py-1.5 px-2 border-b border-slate-50 text-right">{rec.paperWeight?.toFixed(4) ?? '—'}</td>
+                          <td className="py-1.5 px-2 border-b border-slate-50 text-right">{rec.sampleWeight?.toFixed(4) ?? '—'}</td>
+                          <td className="py-1.5 px-2 border-b border-slate-50 text-right font-medium text-teal-700">
+                            {dayDist.dryWeights[idx]?.toFixed(4) ?? '—'}
+                          </td>
+                          <td className="py-1.5 px-2 border-b border-slate-50 text-right">
+                            {dayDist.percents[idx] != null ? `${dayDist.percents[idx]!.toFixed(2)}%` : '—'}
+                          </td>
+                          <td className="py-1.5 px-2 border-b border-slate-50 text-right">
+                            <button
+                              type="button"
+                              className="text-red-600"
+                              onClick={() => handleDeleteRecord(rec.id!)}
+                            >
+                              删除
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          }}
+        </HistoryCalendar>
       </div>
     </div>
   );

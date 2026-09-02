@@ -38,6 +38,12 @@ export function computeParticleDryWeight(paperWeight: number | null, sampleWeigh
   return w > 0 ? w : null;
 }
 
+/** 粒径范围的中位径 = 上下限平均值；无上限（to=∞）返回 null（需手动给代表值） */
+export function midOfRange(from: number, to: number): number | null {
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return null;
+  return (from + to) / 2;
+}
+
 // —— 污泥沉降性（SV / SVI）——
 // 标准方法：取混合液于量筒，静置 5min / 30min 后读污泥层体积刻度（mL）。
 // SV(%) = 污泥层体积(mL) / 量筒总体积(mL) × 100
