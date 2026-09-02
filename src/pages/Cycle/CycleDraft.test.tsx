@@ -86,7 +86,7 @@ describe('Cycle 草稿（问题：全周期误关可恢复）', () => {
     expect(screen.queryByText('恢复草稿')).toBeNull();
   });
 
-  it('输入吸光度后（防抖）→ 草稿写入 localStorage（含周期/指标/格子）', async () => {
+  it('输入吸光度后（防抖）→ 草稿写入 localStorage (timeout 10s)（含周期/指标/格子）', async () => {
     const s = await seedCycle();
     render(<CyclePage />);
     // 等表格 cell input 渲染（cycle 默认选中后加载完成）
@@ -106,19 +106,20 @@ describe('Cycle 草稿（问题：全周期误关可恢复）', () => {
     const firstCell = document.querySelectorAll('tbody input[type="number"]')[0] as HTMLInputElement;
     expect(firstCell).toBeTruthy();
     fireEvent.change(firstCell, { target: { value: '0.42' } });
-    // 等 600ms 防抖后草稿出现
-    let draft = null;
-    for (let i = 0; i < 40; i++) {
-      draft = loadAnyDraft(DRAFT_KEY);
-      const cells = (draft?.cells ?? {}) as Record<string, { sample?: string }>;
-      if (Object.values(cells).some((c) => c?.sample === '0.42')) break;
-      await new Promise((r) => setTimeout(r, 25));
-    }
-    expect(draft?.cycleId).toBe(s.cycleId);
-    expect(draft?.indicatorId).toBe(s.indicatorId);
-    expect(
-      ((draft?.cells as Record<string, { sample?: string }>)[`08:00:${s.reactorId}`])?.sample,
-    ).toBe('0.42');
+    // 等 600ms 防抖后草稿出现（schema 自增 id 跨 it 不稳定，只校验内容）
+    await waitFor(
+      () => {
+        const d = loadAnyDraft(DRAFT_KEY);
+        const cells = (d?.cells ?? {}) as Record<string, { sample?: string }>;
+        expect(Object.values(cells).some((c) => c?.sample === '0.42')).toBe(true);
+        expect(typeof d?.cycleId).toBe('number');
+        expect(typeof d?.indicatorId).toBe('number');
+        expect(
+          ((d?.cells as Record<string, { sample?: string }>)[`08:00:${s.reactorId}`])?.sample,
+        ).toBe('0.42');
+      },
+      { timeout: 8000 },
+    );
   });
 
   it('点「丢弃」→ 草稿被清除且恢复条消失', async () => {

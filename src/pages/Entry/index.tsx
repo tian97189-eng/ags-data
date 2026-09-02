@@ -66,32 +66,42 @@ export default function EntryPage() {
   const [influentKey, setInfluentKey] = useState(0);
   const [offerRestore, setOfferRestore] = useState<Draft | null>(null);
   const influentSnapRef = useRef<InfluentSnapshot>({ dilution: {}, samples: {} });
-  const draftTimer = useRef<number | null>(null);
+  // ref 同步保存最新 cells/defaults（避免 setState 异步闭包 + 修复手机端 600ms 防抖丢草稿）
+  const cellsRef = useRef<Record<string, CellState>>({});
+  const defaultsRef = useRef<Record<number, { blank: string; dilution: string }>>({});
   // 跨日期恢复：用户从草稿日期恢复时先把值暂存，等数据加载 effect 跑完（该日期）后填入，避免被加载结果覆盖
   const pendingRestoreRef = useRef<Draft | null>(null);
 
-  /** 防抖 600ms 把当前输入存草稿（内容为空则跳过） */
-  function scheduleDraftSave() {
-    if (draftTimer.current != null) window.clearTimeout(draftTimer.current);
-    draftTimer.current = window.setTimeout(() => {
-      const payload = { date, defaults, cells, influent: influentSnapRef.current };
-      if (!isDraftEmpty(payload)) saveDraft(payload);
-    }, 600);
+  /** 立即同步落盘：用 ref 读最新 cells/defaults（不依赖 React 闭包）。
+   * 手机端必须立即写——600ms 防抖 + cleanup 链 + 杀进程任何环节都可能丢草稿 */
+  function persistDraft() {
+    const payload = {
+      date,
+      defaults: defaultsRef.current,
+      cells: cellsRef.current,
+      influent: influentSnapRef.current,
+    };
+    if (!isDraftEmpty(payload)) saveDraft(payload);
   }
 
-  // 出水输入变化 → 存草稿（不 return cleanup：否则其它状态刷新会把用户输入的 timer 清掉，丢草稿）
+  // 出水 cells/defaults 变化 → 同步保存（无防抖；本地写入纳秒级、用户场景零性能影响）
   useEffect(() => {
+    cellsRef.current = cells;
+    defaultsRef.current = defaults;
     if (loading) return;
-    scheduleDraftSave();
+    persistDraft();
   }, [defaults, cells, loading]);
 
-  // 页面切后台/关闭前立即落盘（手机杀进程/切走时 600ms 防抖可能没到，草稿就没了）
+  // 进水面板快照变化回调（由 InfluentPanel onStateChange 调用）→ 立即保存
+  function handleInfluentChange(s: InfluentSnapshot) {
+    influentSnapRef.current = s;
+    persistDraft();
+  }
+
+  // 页面切后台/关闭前最后保险（ref 仍是最新的）
   useEffect(() => {
     if (loading) return;
-    const flush = () => {
-      const payload = { date, defaults, cells, influent: influentSnapRef.current };
-      if (!isDraftEmpty(payload)) saveDraft(payload);
-    };
+    const flush = () => persistDraft();
     const onVis = () => {
       if (document.visibilityState === 'hidden') flush();
     };
@@ -102,12 +112,6 @@ export default function EntryPage() {
       window.removeEventListener('pagehide', flush);
     };
   }, [date, defaults, cells, loading]);
-
-  // 进水面板快照变化回调（由 InfluentPanel onStateChange 调用）
-  function handleInfluentChange(s: InfluentSnapshot) {
-    influentSnapRef.current = s;
-    scheduleDraftSave();
-  }
 
   // 数据加载完成后检查：草稿存在且非空、且当前日期没有已存数据 → 提示恢复。
   // 注意：不要求草稿日期 == 当前日期（用户录一半隔天再开也提示，否则草稿永远找不到）

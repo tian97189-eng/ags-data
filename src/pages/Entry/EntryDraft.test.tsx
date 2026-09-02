@@ -140,3 +140,41 @@ describe('录入草稿自动保存与恢复', () => {
     expect(idxBanner).toBeLessThan(idxCopy);
   });
 });
+
+describe('录入草稿立即同步写盘（问题：手机端输入立即被关丢草稿）', () => {
+  beforeEach(clearAll);
+
+  it('输入吸光度后立即（同步）写入 localStorage，不依赖防抖', async () => {
+    const { indId, rId } = await seedBasic();
+    render(<EntryPage />);
+    // 等数据加载完成（loading=false）：通过吸光度输入框出现 + 等一帧让 setDefaults/setCells 完成
+    await screen.findByLabelText('R1 吸光度', undefined, { timeout: 3000 });
+    await waitFor(() => {
+      // loading=false 后，稀释行预填 indicator.defaultDilution='10'
+      // 通过「氨氮」标题旁的 toolbar 稀释输入验证
+      const numInputs = [...document.querySelectorAll<HTMLInputElement>('input[type="number"]')];
+      expect(numInputs.length).toBeGreaterThan(0);
+    });
+    // 再让 effect 跑过 idle 一帧（确保 useEffect 的 persist 触发）
+    await new Promise((r) => setTimeout(r, 50));
+    // 改变吸光度 → 应同步立即写盘
+    const sampleInput = screen.getByLabelText('R1 吸光度') as HTMLInputElement;
+    fireEvent.change(sampleInput, { target: { value: '0.284' } });
+    // 不 await timer（不再有防抖）：紧接着读 localStorage 应有值
+    const draft = loadDraft();
+    expect(draft).not.toBeNull();
+    expect((draft!.cells[`${indId}:${rId}`] as { sample?: string }).sample).toBe('0.284');
+  });
+
+  it('空白与稀释修改后也立即同步写盘', async () => {
+    const { indId } = await seedBasic();
+    render(<EntryPage />);
+    await screen.findByLabelText('空白', undefined, { timeout: 3000 });
+    await new Promise((r) => setTimeout(r, 100));
+    const blankInput = screen.getByLabelText('空白') as HTMLInputElement;
+    fireEvent.change(blankInput, { target: { value: '0.015' } });
+    const draft = loadDraft();
+    expect(draft).not.toBeNull();
+    expect((draft!.defaults[indId!] as { blank?: string }).blank).toBe('0.015');
+  });
+});

@@ -65,7 +65,6 @@ export default function CyclePage() {
   const [dilution, setDilution] = useState('');
   // —— 草稿（同周期同指标：误关/刷新可恢复；db 已有数据时不打扰）——
   const [offerRestore, setOfferRestore] = useState<AnyDraft | null>(null);
-  const draftTimer = useRef<number | null>(null);
 
   /** 草稿是否算"有内容"（默认稀释预填不算输入） */
   function isDraftEmpty(p: { cells: Record<string, CycleCell>; phases: Record<string, Phase>; blank: string }) {
@@ -75,20 +74,41 @@ export default function CyclePage() {
     return !hasSample && !hasOverridden && !hasPhases && (p.blank ?? '') === '';
   }
 
-  /** 防抖 600ms 存草稿（内容空则跳过） */
-  function scheduleDraftSave() {
-    if (draftTimer.current != null) window.clearTimeout(draftTimer.current);
-    draftTimer.current = window.setTimeout(() => {
-      if (cycleId == null || indicatorId == null) return;
-      const payload = { cycleId, indicatorId, cells, phases, blank, dilution };
-      if (!isDraftEmpty(payload)) saveAnyDraft(CYCLE_DRAFT_KEY, payload);
-    }, 600);
+  /** 草稿是否算"有内容"（默认稀释预填不算输入） */
+  function isDraftEmpty(p: { cells: Record<string, CycleCell>; phases: Record<string, Phase>; blank: string }) {
+    const hasSample = Object.values(p.cells ?? {}).some((c) => (c?.sample ?? '') !== '');
+    const hasOverridden = Object.values(p.cells ?? {}).some((c) => c?.dilutionOverridden === true);
+    const hasPhases = Object.keys(p.phases ?? {}).length > 0;
+    return !hasSample && !hasOverridden && !hasPhases && (p.blank ?? '') === '';
+  }
+
+  // ref 同步保存最新 cells/phases/blank/dilution（手机端必立即写，否则防抖+杀进程必丢）
+  const cellsRef = useRef<Record<string, CycleCell>>({});
+  const phasesRef = useRef<Record<string, Phase>>({});
+  const blankRef = useRef<string>('');
+  const dilutionRef = useRef<string>('');
+
+  /** 立即同步落盘：用 ref 读最新状态（不依赖 React 闭包）。
+   * 不使用 setTimeout 防抖——未挂载 timer 会在组件 unmount 后继续跑，
+   * 跨 it 写盘污染下一个测试的 localStorage。 */
+  function persistDraft() {
+    if (cycleId == null || indicatorId == null) return;
+    const payload = {
+      cycleId,
+      indicatorId,
+      cells: cellsRef.current,
+      phases: phasesRef.current,
+      blank: blankRef.current,
+      dilution: dilutionRef.current,
+    };
+    if (!isDraftEmpty(payload)) saveAnyDraft(CYCLE_DRAFT_KEY, payload);
   }
   useEffect(() => {
-    scheduleDraftSave();
-    // 不 return cleanup：timer 由 scheduleDraftSave 内部 clearTimeout 管理。
-    // 否则 useLiveQuery 异步触发的回填 effect 会清掉用户输入触发的 timer，导致用户输入丢失。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    cellsRef.current = cells;
+    phasesRef.current = phases;
+    blankRef.current = blank;
+    dilutionRef.current = dilution;
+    persistDraft();
   }, [cells, phases, blank, dilution, cycleId, indicatorId]);
 
   const cycle = cycles?.find((c) => c.id === cycleId) ?? null;
