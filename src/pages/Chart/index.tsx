@@ -5,6 +5,9 @@ import { db } from '../../db/schema';
 import { buildDailyTrend, buildCycleSeries, buildCycleOverlay, type TrendSeries } from '../../lib/chart';
 import { computeParticleDistribution } from '../../lib/extras';
 import { formatNumber } from '../../lib/format';
+import { saveAndShare } from '../../lib/share';
+import { extractSvgText } from '../../lib/svgDataUrl';
+import { useAppStore } from '../../store/useAppStore';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
 import Chip from '../../components/common/Chip';
@@ -14,6 +17,7 @@ type ExtrasKind = 'mlss' | 'particle' | 'eps';
 type ExtrasField = 'mlss' | 'mlvss' | 'd50' | 'psContent' | 'pnContent' | 'pnPsRatio';
 
 export default function ChartPage() {
+  const toast = useAppStore((s) => s.toast);
   const chartRef = useRef<ReactECharts>(null);
   const [mode, setMode] = useState<Mode>('daily');
   const [indicatorId, setIndicatorId] = useState<number | null>(null);
@@ -195,37 +199,64 @@ export default function ChartPage() {
   }
 
   /** 高清 PNG（3x）：SVG → Image → canvas → PNG，论文/PPT 用不糊 */
-  function exportPng() {
+  async function exportPng() {
     const svgUrl = svgDataUrl();
-    if (!svgUrl) return;
+    if (!svgUrl) {
+      toast('图表未就绪', 'warning');
+      return;
+    }
     const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const scale = 3;
-      canvas.width = Math.max(1, Math.round(img.width * scale));
-      canvas.height = Math.max(1, Math.round(img.height * scale));
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.scale(scale, scale);
-      ctx.drawImage(img, 0, 0);
-      const a = document.createElement('a');
-      a.href = canvas.toDataURL('image/png');
-      a.download = '图表.png';
-      a.click();
-    };
-    img.src = svgUrl;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('图片加载失败'));
+      img.src = svgUrl;
+    });
+    const canvas = document.createElement('canvas');
+    const scale = 3;
+    canvas.width = Math.max(1, Math.round(img.width * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      toast('画布不可用', 'warning');
+      return;
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0);
+    // 走 saveAndShare：APK 端 Capacitor 写入 Documents + 系统分享；Web 端浏览器下载
+    const res = await saveAndShare({
+      filename: '图表.png',
+      content: canvas.toDataURL('image/png'),
+      mime: 'image/png',
+      encoding: 'base64',
+    });
+    toast(
+      res.method === 'native' ? '已导出到手机（请在分享面板选择"保存到图片"）' : '已导出 PNG',
+      'success',
+    );
   }
 
   /** SVG 矢量图（期刊投稿要求矢量，可再编辑字号/线宽） */
-  function exportSvg() {
-    const svgUrl = svgDataUrl();
-    if (!svgUrl) return;
-    const a = document.createElement('a');
-    a.href = svgUrl;
-    a.download = '图表.svg';
-    a.click();
+  async function exportSvg() {
+    if (!url) {
+      toast('图表未就绪', 'warning');
+      return;
+    }
+    const svgText = extractSvgText(url);
+    if (svgText == null) {
+      toast('图表 SVG 数据解析失败', 'warning');
+      return;
+    }
+    const res = await saveAndShare({
+      filename: '图表.svg',
+      content: svgText,
+      mime: 'image/svg+xml',
+    });
+    toast(
+      res.method === 'native' ? '已导出到手机（请在分享面板选择"保存到文件"）' : '已导出 SVG',
+      'success',
+    );
   }
 
   return (
