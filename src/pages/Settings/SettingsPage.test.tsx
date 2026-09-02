@@ -42,4 +42,13 @@ describe('SettingsPage 公告位置', () => {
     await screen.findByText(/导出备份文件/);
     expect(screen.queryByText('关于本软件')).toBeNull();
   });
+
+  it('「外观」tab 存在且能切出三选一（手机端入口）', async () => {
+    render(<SettingsPage />);
+    await screen.findByText('反应器');
+    screen.getAllByText('外观')[0].click();
+    expect(await screen.findByText('跟随系统')).toBeTruthy();
+    expect(screen.getByText('浅色')).toBeTruthy();
+    expect(screen.getByText('深色')).toBeTruthy();
+  });
 });

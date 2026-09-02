@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import PageHeader from '../../components/layout/PageHeader';
 import Chip from '../../components/common/Chip';
+import AppearanceSettings from './AppearanceSettings';
 import ReactorSettings from './ReactorSettings';
 import CurveSettings from './CurveSettings';
 import IndicatorSettings from './IndicatorSettings';
@@ -9,6 +10,7 @@ import CloudSyncSettings from './CloudSyncSettings';
 import UpdateSettings from './UpdateSettings';
 
 const TABS = [
+  { key: 'appearance', label: '外观' },
   { key: 'reactor', label: '反应器' },
   { key: 'curve', label: '标准曲线' },
   { key: 'indicator', label: '自定义指标' },
@@ -24,7 +26,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <PageHeader title="系统设置" desc="反应器、标准曲线、指标、备份与云同步" />
+      <PageHeader title="系统设置" desc="外观、反应器、标准曲线、指标、备份与云同步" />
       <div className="flex gap-1 flex-wrap mb-4">
         {TABS.map((t) => (
           <Chip key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>
@@ -33,6 +35,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
+      {tab === 'appearance' && <AppearanceSettings />}
       {tab === 'reactor' && <ReactorSettings />}
       {tab === 'curve' && <CurveSettings />}
       {tab === 'indicator' && <IndicatorSettings />}
