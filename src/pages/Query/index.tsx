@@ -125,6 +125,20 @@ export default function QueryPage() {
     toast(`已保存「${name}」`, 'success');
   }
 
+  /** input 回车：若同名预设已存在则应用，否则提示去点 + 存为新预设 */
+  function handlePresetNameEnter() {
+    const name = presetName.trim();
+    if (!name) return;
+    const existing = presets.find((p) => p.name === name);
+    if (existing) {
+      applyPreset(existing);
+      setPresetName('');
+      setShowSavePreset(false);
+    } else {
+      toast(`没有叫「${name}」的预设。点右边的 + 存为快捷筛选可保存当前条件`, 'info');
+    }
+  }
+
   async function saveEdit() {
     if (!editing) return;
     await db.measurements.update(editing.id!, {
@@ -331,11 +345,18 @@ export default function QueryPage() {
                 value={presetName}
                 onChange={(e) => setPresetName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSavePreset();
+                  // Enter：若已存在同名预设则应用，否则提示去保存
+                  if (e.key === 'Enter') {
+                    if (presetName.trim() && presets.some((p) => p.name === presetName.trim())) {
+                      handlePresetNameEnter();
+                    } else {
+                      handleSavePreset();
+                    }
+                  }
                   if (e.key === 'Escape') setShowSavePreset(false);
                 }}
-                placeholder="预设名字，如：近7天R1氨氮"
-                className="border border-slate-200 dark:border-slate-700 rounded px-2 py-0.5 w-40"
+                placeholder="预设名字：回车应用同名/保存为新"
+                className="border border-slate-200 dark:border-slate-700 rounded px-2 py-0.5 w-44"
               />
               <button
                 type="button"
@@ -353,13 +374,27 @@ export default function QueryPage() {
               </button>
             </span>
           ) : (
-            <button
-              type="button"
-              onClick={() => setShowSavePreset(true)}
-              className="px-2 py-0.5 rounded border border-dashed border-teal-400 text-teal-700 dark:text-teal-300"
-            >
-              + 存为快捷筛选
-            </button>
+            <>
+              {/* 快速查找：输入名字回车即应用同名预设（没匹配则提示去保存） */}
+              <input
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handlePresetNameEnter();
+                }}
+                placeholder="输入名字回车应用预设"
+                className="border border-slate-200 dark:border-slate-700 rounded px-2 py-0.5 w-40"
+                aria-label="快速查找预设"
+              />
+              <button
+                type="button"
+                onClick={() => setShowSavePreset(true)}
+                className="px-2 py-0.5 rounded border border-dashed border-teal-400 text-teal-700 dark:text-teal-300"
+                title="把当前筛选条件存为新的预设"
+              >
+                + 存为快捷筛选
+              </button>
+            </>
           )}
         </div>
       </div>
