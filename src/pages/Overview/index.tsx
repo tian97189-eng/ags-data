@@ -10,7 +10,7 @@ const NOTES_KEY = 'overview.notes.v1';
 const COUNTDOWN_KEY = 'overview.countdown.v1';
 
 // —— 一言库 ——（每天按日期种子稳定选一句，避免每次刷新跳字）
-const QUOTES = [
+export const QUOTES = [
   '把今天做好，就是对未来最好的交代。',
   '慢慢来，比较快。',
   '所谓坚持，是把一件普通的事做得很不普通。',
@@ -42,7 +42,7 @@ const QUOTES = [
   '生活不在别处，就在此刻。',
   '种一棵树最好的时间是十年前，其次是现在。',
 ];
-function pickQuote(dateStr: string): string {
+export function pickQuote(dateStr: string): string {
   let h = 0;
   for (let i = 0; i < dateStr.length; i++) h = (h * 31 + dateStr.charCodeAt(i)) >>> 0;
   return QUOTES[h % QUOTES.length];
@@ -278,7 +278,12 @@ export default function OverviewPage() {
               {todayObj.getMonth() + 1}月{todayObj.getDate()}日
             </span>
             <span className="text-[15px] md:text-[16px] text-white/80">{weekdayCN}</span>
-            {lunarText && <span className="text-[13px] md:text-[14px] text-white/70">· {lunarText}</span>}
+            {/* 农历月与阳历月不同，明确标注避免误读 */}
+            {lunarText && (
+              <span className="text-[13px] md:text-[14px] text-white/60">
+                （{lunarText}）
+              </span>
+            )}
             {festival && (
               <span className="ml-2 px-2 py-0.5 rounded-full text-[12px] bg-white/25 backdrop-blur">
                 🎉 {festival}
