@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Measurement, type Scene } from '../../db/schema';
 import { matchFilter, sortMeasurements, type SortKey, type SortDir } from '../../lib/query';
 import { loadPresets, savePreset, deletePreset, type QueryPreset, type QueryFilter } from '../../lib/presets';
-import { buildExportRows, buildWorkbook, downloadWorkbook } from '../../lib/excel';
+import { buildExportRows, buildWorkbook } from '../../lib/excel';
 import { formatNumber } from '../../lib/format';
 import { outOfRange } from '../../lib/stats';
 import PageHeader from '../../components/layout/PageHeader';
@@ -11,7 +11,8 @@ import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import DaySummary from './DaySummary';
 import { useAppStore } from '../../store/useAppStore';
-import { buildWideCsv, downloadCsv } from '../../lib/csv';
+import { buildWideCsv } from '../../lib/csv';
+import { saveAndShare } from '../../lib/share';
 import {
   trashMeasurements,
   listTrash,
@@ -19,6 +20,7 @@ import {
   purgeTrash,
   emptyTrash,
 } from '../../lib/trash';
+import * as XLSX from 'xlsx';
 
 const PHASE_LABEL: Record<string, string> = { anaerobic: '厌氧', oxic: '好氧', anoxic: '缺氧' };
 
@@ -148,16 +150,37 @@ export default function QueryPage() {
   async function handleExport() {
     const exportRows = await buildExportRows(rows);
     const wb = buildWorkbook(exportRows);
-    downloadWorkbook(wb, 'AGS数据导出.xlsx');
-    toast('已导出', 'success');
+    // base64 → saveAndShare：APK 走 Capacitor 写入 Documents 目录 + 系统分享面板；Web 走浏览器下载
+    const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+    const res = await saveAndShare({
+      filename: 'AGS数据导出.xlsx',
+      content: base64,
+      mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      encoding: 'base64',
+    });
+    toast(
+      res.method === 'native' ? '已导出到手机（请在分享面板选择"保存到文件"）' : '已导出',
+      'success',
+    );
   }
 
   function handleExportCsv() {
     const reactorCodes = new Map((reactors ?? []).map((r) => [r.id!, r.code]));
     const indicatorNames = new Map((indicators ?? []).map((i) => [i.id!, i.name]));
     const content = buildWideCsv(rows, reactorCodes, indicatorNames);
-    downloadCsv(content, 'AGS宽表.csv');
-    toast('已导出宽表 CSV（Origin/SPSS 可直接打开）', 'success');
+    // 文本直接走 saveAndShare，APK 端会用系统分享面板让用户保存
+    void saveAndShare({
+      filename: 'AGS宽表.csv',
+      content,
+      mime: 'text/csv;charset=utf-8',
+    }).then((res) =>
+      toast(
+        res.method === 'native'
+          ? '已导出到手机（请在分享面板选择"保存到文件"）'
+          : '已导出宽表 CSV（Origin/SPSS 可直接打开）',
+        'success',
+      ),
+    );
   }
 
   async function openTrash() {
