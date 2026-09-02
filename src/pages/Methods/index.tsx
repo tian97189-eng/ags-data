@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/schema';
 import type { MethodDoc } from '../../db/schema';
 import { seedMethodsIfEmpty, countMedia } from '../../lib/methods';
+import { gotoEntry } from '../../lib/navBus';
 import { useAppStore } from '../../store/useAppStore';
 import EmptyState from '../../components/common/EmptyState';
 import Lightbox from '../../components/common/Lightbox';
@@ -237,6 +238,14 @@ function MethodDetail({
             </div>
           </div>
           <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => gotoEntry()}
+              className="px-2.5 py-1 text-xs rounded bg-teal-600 text-white hover:bg-teal-700"
+              title="回到数据录入页记录数据"
+            >
+              去录入
+            </button>
             <button
               type="button"
               onClick={onEdit}

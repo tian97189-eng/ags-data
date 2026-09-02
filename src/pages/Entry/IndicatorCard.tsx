@@ -4,6 +4,7 @@ import { computeConcentration, computeCompositeValue, type ComputeStatus } from 
 import { db } from '../../db/schema';
 import { formatNumber } from '../../lib/format';
 import { outOfRange } from '../../lib/stats';
+import { gotoMethod } from '../../lib/navBus';
 
 export interface CellState {
   sample: string;
@@ -123,6 +124,14 @@ export default function IndicatorCard({
     <div className="border border-slate-200 dark:border-slate-700 rounded-lg mb-3" data-indicator-card="true">
       <div className="flex items-center gap-3 flex-wrap px-3 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 rounded-t-lg">
         <span className="text-base font-medium">{indicator.name}</span>
+        <button
+          type="button"
+          onClick={() => gotoMethod(indicator.name)}
+          className="text-[11px] text-teal-600 dark:text-teal-400 hover:underline"
+          title="查看该指标的实验方法（步骤/试剂）"
+        >
+          方法
+        </button>
         {isComposite && (
           <span className="ml-auto text-[11px] text-slate-400 dark:text-slate-500">
             由 {indicator.compositeRefs?.length ?? 0} 个指标自动求和

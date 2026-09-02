@@ -6,6 +6,7 @@ import ParticleSizePage from './ParticleSizePage';
 import EPSPage from './EPSPage';
 import SVIPage from './SVIPage';
 import MethodsTab from '../Methods';
+import { consumePendingMethod } from '../../lib/navBus';
 
 const TABS = [
   { key: 'methods', label: '实验方法' },
@@ -18,8 +19,11 @@ const TABS = [
 type TabKey = (typeof TABS)[number]['key'];
 
 export default function ExtrasPage({ openMethod }: { openMethod?: string }) {
-  const [tab, setTab] = useState<TabKey>(openMethod ? 'methods' : 'mlss');
-  const [methodFocus, setMethodFocus] = useState<string | undefined>(openMethod);
+  // 支持两种传参：路由处 prop（旧）；录入页「方法」跳转的待消费值（新）
+  const fromBus = typeof window !== 'undefined' ? consumePendingMethod() : undefined;
+  const init = openMethod ?? fromBus ?? undefined;
+  const [tab, setTab] = useState<TabKey>(init ? 'methods' : 'mlss');
+  const [methodFocus, setMethodFocus] = useState<string | undefined>(init);
   return (
     <div>
       <PageHeader
