@@ -4,13 +4,25 @@ import { db, type CalibrationCurve } from '../../db/schema';
 import { dailyScope, deleteDailyData, getDefault, getMeasurement, saveMeasurement, upsertDefault } from '../../lib/entry';
 import { recomputeAndSaveComposites } from '../../lib/calibration';
 import { today, prevDay } from '../../lib/format';
+import { saveDraft, loadDraft, clearDraft, isDraftEmpty, shouldOfferRestore, type Draft } from '../../lib/draft';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import DatePicker from '../../components/common/DatePicker';
 import IndicatorCard, { type CellState } from './IndicatorCard';
-import InfluentPanel, { type InfluentPanelHandle } from './InfluentPanel';
+import InfluentPanel, { type InfluentPanelHandle, type InfluentSnapshot } from './InfluentPanel';
 import { useAppStore } from '../../store/useAppStore';
+
+/** 当日 DB 里是否已有任何测量/进水记录 */
+async function hasAnySavedData(date: string): Promise<boolean> {
+  const m = await db.measurements
+    .where('scene')
+    .equals('daily')
+    .filter((x) => x.date === date)
+    .count();
+  const i = await db.influents.where('date').equals(date).count();
+  return m > 0 || i > 0;
+}
 
 export default function EntryPage() {
   const toast = useAppStore((s) => s.toast);
@@ -52,6 +64,64 @@ export default function EntryPage() {
   const [loading, setLoading] = useState(true);
   const [confirmClear, setConfirmClear] = useState(false);
   const [influentKey, setInfluentKey] = useState(0);
+  const [offerRestore, setOfferRestore] = useState<Draft | null>(null);
+  const influentSnapRef = useRef<InfluentSnapshot>({ dilution: {}, samples: {} });
+  const draftTimer = useRef<number | null>(null);
+
+  /** 防抖 600ms 把当前输入存草稿（内容为空则跳过） */
+  function scheduleDraftSave() {
+    if (draftTimer.current != null) window.clearTimeout(draftTimer.current);
+    draftTimer.current = window.setTimeout(() => {
+      const payload = { date, defaults, cells, influent: influentSnapRef.current };
+      if (!isDraftEmpty(payload)) saveDraft(payload);
+    }, 600);
+  }
+
+  // 出水输入变化 → 存草稿
+  useEffect(() => {
+    if (loading) return;
+    scheduleDraftSave();
+    return () => {
+      if (draftTimer.current != null) window.clearTimeout(draftTimer.current);
+    };
+  }, [defaults, cells, loading]);
+
+  // 进水面板快照变化回调（由 InfluentPanel onStateChange 调用）
+  function handleInfluentChange(s: InfluentSnapshot) {
+    influentSnapRef.current = s;
+    scheduleDraftSave();
+  }
+
+  // 数据加载完成后检查：该日期无已存数据且有草稿 → 提示恢复
+  useEffect(() => {
+    if (loading) return;
+    let cancelled = false;
+    (async () => {
+      const hasData = await hasAnySavedData(date);
+      if (cancelled) return;
+      const draft = loadDraft();
+      if (shouldOfferRestore(draft, date, hasData)) setOfferRestore(draft);
+      else setOfferRestore(null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [date, loading]);
+
+  function handleRestoreDraft() {
+    if (!offerRestore) return;
+    setDefaults(offerRestore.defaults ?? {});
+    setCells(offerRestore.cells ?? {});
+    if (offerRestore.influent) influentRef.current?.restoreDraft(offerRestore.influent);
+    setOfferRestore(null);
+    toast('已恢复上次草稿，请核对后再保存', 'success');
+  }
+
+  function handleDiscardDraft() {
+    clearDraft();
+    setOfferRestore(null);
+    toast('草稿已丢弃', 'info');
+  }
 
   // 出水空白（供进水面板实时共用）
   const outBlank = useMemo(() => {
@@ -200,11 +270,13 @@ export default function EntryPage() {
     await recomputeAndSaveComposites(date);
 
     await influentRef.current?.save();
+    clearDraft();
     toast('已保存', 'success');
   }
 
   async function handleClear() {
     await deleteDailyData(date);
+    clearDraft();
     // 重置出水界面
     setCells({});
     if (indicators) {
@@ -263,7 +335,31 @@ export default function EntryPage() {
         </div>
       </div>
 
-      <InfluentPanel key={influentKey} ref={influentRef} date={date} blankByIndicator={outBlank} />
+      {/* 恢复草稿提示 */}
+      {offerRestore && (
+        <div className="mb-3 flex items-center gap-2 flex-wrap border border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10 rounded-lg px-3 py-2 text-xs">
+          <span className="text-amber-800 dark:text-amber-300">
+            发现未保存的草稿（保存于{' '}
+            {new Date(offerRestore.savedAt).toLocaleTimeString('zh-CN', { hour12: false })}），要恢复吗？
+          </span>
+          <button
+            type="button"
+            onClick={handleRestoreDraft}
+            className="px-3 py-1 rounded-md bg-amber-500 text-white hover:bg-amber-600"
+          >
+            恢复草稿
+          </button>
+          <button
+            type="button"
+            onClick={handleDiscardDraft}
+            className="px-3 py-1 rounded-md border border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-500/40 dark:text-amber-400"
+          >
+            丢弃
+          </button>
+        </div>
+      )}
+
+      <InfluentPanel key={influentKey} ref={influentRef} date={date} blankByIndicator={outBlank} onStateChange={handleInfluentChange} />
 
       {!loading && indicators && indicators.length === 0 ? (
         <EmptyState title="没有可录入的指标" desc="请在「系统设置」里启用指标或新建标曲" />

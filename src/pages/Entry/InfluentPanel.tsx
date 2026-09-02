@@ -8,9 +8,16 @@ import { useAppStore } from '../../store/useAppStore';
 
 export interface InfluentPanelHandle {
   save: () => Promise<void>;
+  /** 从草稿快照恢复输入（不清 DB） */
+  restoreDraft: (s: InfluentSnapshot) => void;
 }
 
 interface InfluentState {
+  dilution: Record<number, string>;
+  samples: Record<string, string>;
+}
+
+export interface InfluentSnapshot {
   dilution: Record<number, string>;
   samples: Record<string, string>;
 }
@@ -22,8 +29,13 @@ interface InfluentState {
  */
 const InfluentPanel = forwardRef<
   InfluentPanelHandle,
-  { date: string; blankByIndicator: Record<number, string> }
->(function InfluentPanel({ date, blankByIndicator }, ref) {
+  {
+    date: string;
+    blankByIndicator: Record<number, string>;
+    /** 每次内部输入变化时回调快照（供父组件存草稿） */
+    onStateChange?: (s: InfluentSnapshot) => void;
+  }
+>(function InfluentPanel({ date, blankByIndicator, onStateChange }, ref) {
   const toast = useAppStore((s) => s.toast);
   const indicators = useLiveQuery(
     async () => {
@@ -43,6 +55,13 @@ const InfluentPanel = forwardRef<
 
   const [mode, setMode] = useState<InfluentMode>('shared');
   const [state, setState] = useState<InfluentState>({ dilution: {}, samples: {} });
+  const [hydrated, setHydrated] = useState(false);
+
+  // 数据加载完成后标记 hydrated，再对外回调快照
+  useEffect(() => {
+    if (!hydrated) return;
+    onStateChange?.({ dilution: state.dilution, samples: state.samples });
+  }, [state, hydrated, onStateChange]);
 
   // mode 初始化独立于数据加载：只在挂载时读一次 settings，避免数据加载的慢异步
   // 覆盖用户刚点击的「每罐各自」（竞态 bug：mode 曾绑在 [date, indicators] effect 里，
@@ -89,6 +108,8 @@ const InfluentPanel = forwardRef<
       const m = await db.settings.get('influentMode');
       if (cancelled) return;
       setState({ dilution, samples });
+      setMode((m?.value as InfluentMode) ?? 'shared');
+      setHydrated(true);
     })();
     return () => {
       cancelled = true;
@@ -203,7 +224,17 @@ const InfluentPanel = forwardRef<
     toast('进水已保存', 'success');
   }
 
-  useImperativeHandle(ref, () => ({ save }), [save]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      save,
+      restoreDraft: (s: InfluentSnapshot) => {
+        setState({ dilution: s.dilution ?? {}, samples: s.samples ?? {} });
+        setHydrated(true);
+      },
+    }),
+    [save],
+  );
 
   return (
     <div className="border border-slate-200 dark:border-slate-700 rounded-lg mb-4 p-3 text-xs">
