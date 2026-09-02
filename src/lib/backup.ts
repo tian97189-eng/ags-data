@@ -17,6 +17,7 @@ import type {
   OtherReactor,
   OtherMeasurement,
   ExperimentRecord,
+  MethodDoc,
 } from '../db/schema';
 
 export interface BackupFile {
@@ -41,6 +42,7 @@ export interface BackupFile {
     otherReactors: OtherReactor[];
     otherMeasurements: OtherMeasurement[];
     experimentRecords: ExperimentRecord[];
+    methodDocs: MethodDoc[];
   };
 }
 
@@ -73,6 +75,7 @@ export async function exportBackupData(): Promise<BackupFile> {
       otherReactors: await db.otherReactors.toArray(),
       otherMeasurements: await db.otherMeasurements.toArray(),
       experimentRecords: await db.experimentRecords.toArray(),
+      methodDocs: await db.methodDocs.toArray(),
     },
   };
 }
@@ -117,6 +120,7 @@ export async function importOverwrite(backup: BackupFile): Promise<ImportReport>
   await db.otherReactors.bulkPut(d.otherReactors ?? []);
   await db.otherMeasurements.bulkPut(d.otherMeasurements ?? []);
   await db.experimentRecords.bulkPut(d.experimentRecords ?? []);
+  await db.methodDocs.bulkPut(d.methodDocs ?? []);
   const total =
     (d.reactors?.length ?? 0) +
     (d.indicators?.length ?? 0) +
@@ -134,7 +138,8 @@ export async function importOverwrite(backup: BackupFile): Promise<ImportReport>
     (d.sviRecords?.length ?? 0) +
     (d.otherReactors?.length ?? 0) +
     (d.otherMeasurements?.length ?? 0) +
-    (d.experimentRecords?.length ?? 0);
+    (d.experimentRecords?.length ?? 0) +
+    (d.methodDocs?.length ?? 0);
   return { imported: total, overwritten: true };
 }
 
@@ -258,6 +263,15 @@ export async function importMerge(backup: BackupFile): Promise<ImportReport> {
   for (const x of d.experimentRecords ?? []) {
     await db.experimentRecords.add({ ...x, id: undefined });
     imported++;
+  }
+
+  // 实验方法库：merge 用 name 判重（避免预置后重复导入）
+  const methodNames = new Set((await db.methodDocs.toArray()).map((m) => m.name));
+  for (const x of d.methodDocs ?? []) {
+    if (!methodNames.has(x.name)) {
+      await db.methodDocs.add({ ...x, id: undefined });
+      imported++;
+    }
   }
 
   return { imported, overwritten: false };

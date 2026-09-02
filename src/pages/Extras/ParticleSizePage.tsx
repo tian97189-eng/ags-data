@@ -28,7 +28,7 @@ function rangeLabel(r: ParticleSizeRange): string {
   return `${r.from}-${r.to} μm`;
 }
 
-export default function ParticleSizePage() {
+export default function ParticleSizePage({ onOpenSOP }: { onOpenSOP?: () => void }) {
   const toast = useAppStore((s) => s.toast);
   const ranges = useLiveQuery(
     () => db.particleSizeRanges.orderBy('sortOrder').toArray(),
@@ -115,6 +115,17 @@ export default function ParticleSizePage() {
 
   return (
     <div className="space-y-4">
+      {onOpenSOP && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onOpenSOP}
+            className="px-3 py-1.5 text-xs rounded-lg border border-teal-300 text-teal-700 dark:border-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors"
+          >
+            📖 查看操作步骤（筛粒径 SOP）
+          </button>
+        </div>
+      )}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="flex items-center justify-between mb-1">
           <div className="text-base font-medium">粒径范围配置</div>

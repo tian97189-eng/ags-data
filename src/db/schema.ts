@@ -282,6 +282,47 @@ export interface ExperimentRecord {
   createdAt: string;
 }
 
+// —— 实验方法库（SOP 手册）——
+// 每个实验一个文档：试剂、仪器、步骤（每步可配图）、注意事项、附件（图/PDF）。
+
+/** 试剂/药品行 */
+export interface MethodReagent {
+  name: string; // 试剂名
+  conc: string; // 浓度/规格
+  dose: string; // 用量
+  note: string; // 备注（用途/保存）
+}
+
+/** 操作步骤：文字 + 可选配图 + 本步用到的试剂（引用 reagents 下标） */
+export interface MethodStep {
+  text: string;
+  image?: string; // base64 DataURL（每步配图，图文不分离）
+  reagentRefs?: number[];
+}
+
+/** 附件（图片 / PDF），base64 DataURL 存储 */
+export interface MethodAttachment {
+  name: string;
+  kind: 'image' | 'pdf';
+  data: string;
+}
+
+/** 实验方法文档 */
+export interface MethodDoc {
+  id?: number;
+  name: string; // 方法名（如"氨氮测定"）
+  method: string; // 副标题（如"纳氏试剂法 420nm"）
+  category: string; // 类别（水质指标/污泥性状/表征/仪器使用/粒径）
+  scope: string; // 适用范围
+  reagents: MethodReagent[];
+  instruments: string[];
+  steps: MethodStep[];
+  warnings: string[];
+  attachments: MethodAttachment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export class AgsDB extends Dexie {
   reactors!: Table<Reactor, number>;
   indicators!: Table<Indicator, number>;
@@ -300,6 +341,7 @@ export class AgsDB extends Dexie {
   otherReactors!: Table<OtherReactor, number>;
   otherMeasurements!: Table<OtherMeasurement, number>;
   experimentRecords!: Table<ExperimentRecord, number>;
+  methodDocs!: Table<MethodDoc, number>;
 
   constructor() {
     super('ags-data');
@@ -331,6 +373,10 @@ export class AgsDB extends Dexie {
     // v4：实验记录（时间线 + 照片 base64）
     this.version(4).stores({
       experimentRecords: '++id, date',
+    });
+    // v5：实验方法库（SOP 手册：试剂/仪器/步骤配图/附件）
+    this.version(5).stores({
+      methodDocs: '++id, category, name, updatedAt',
     });
   }
 }
