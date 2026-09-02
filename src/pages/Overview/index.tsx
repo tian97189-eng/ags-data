@@ -1,294 +1,467 @@
-import { useMemo } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import type { Measurement, Influent, Indicator, Reactor, SVIRecord, EPSRecord } from '../../db/schema';
-import { db } from '../../db/schema';
-import PageHeader from '../../components/layout/PageHeader';
-import { today } from '../../lib/format';
+import { useEffect, useState, useMemo } from 'react';
+import { useAppStore } from '../../store/useAppStore';
 
 /**
- * 今日概览：4 张大数字统计卡 + 7 天氨氮去除率趋势缩略图。
- * 数据来源：measurements（出水）、influents（进水）、sviRecords、epsRecords。
+ * 今日概览（非实验数据）：日期 · 天气 · 一言 · 倒计时 · 快捷笔记。
+ * 数据存 localStorage，天气从 Open-Meteo 公开 API 拉（无需 key）。
  */
+
+const NOTES_KEY = 'overview.notes.v1';
+const COUNTDOWN_KEY = 'overview.countdown.v1';
+
+// —— 一言库 ——（每天按日期种子稳定选一句，避免每次刷新跳字）
+const QUOTES = [
+  '把今天做好，就是对未来最好的交代。',
+  '慢慢来，比较快。',
+  '所谓坚持，是把一件普通的事做得很不普通。',
+  '你不必很厉害才能开始，你要开始才能很厉害。',
+  '不是因为有希望才坚持，而是因为坚持才有希望。',
+  '所有看似平凡的日子，都在悄悄塑造着你。',
+  '把每一件小事认真做，就已经很了不起了。',
+  '不要等所有条件都准备好，先把手弄脏。',
+  '今天能解决的问题，不要留给明天。',
+  '休息也是向前走的一种方式。',
+  '走最慢的人，只要不丢失目标，也比漫无目的徘徊的人走得快。',
+  '做一颗种子，先扎根，再等春天。',
+  '难走的路，往往才是该走的路。',
+  '比起瞬间的爆发，持之以恒才更有力量。',
+  '时间看得见 —— 你浇在哪里，它就长在哪里。',
+  '慢慢积累，悄悄厉害。',
+  '做让未来的自己会感谢的事。',
+  '别急，答案会慢慢浮现。',
+  '看不清未来时，就把它交给时间。',
+  '善待每一段安静努力的时光。',
+  '稳，比快更重要。',
+  '向着光亮那方，哪怕一点点也好。',
+  '不一定要赢，但要值得。',
+  '把焦虑写成计划，把计划走成日子。',
+  '今天读了多少书、做了多少事，自己知道就好。',
+  '认真生活的人，生活也会认真回应。',
+  '你现在的积累，都会在某一天开花。',
+  '最重要的不是位置，而是方向。',
+  '生活不在别处，就在此刻。',
+  '种一棵树最好的时间是十年前，其次是现在。',
+];
+function pickQuote(dateStr: string): string {
+  let h = 0;
+  for (let i = 0; i < dateStr.length; i++) h = (h * 31 + dateStr.charCodeAt(i)) >>> 0;
+  return QUOTES[h % QUOTES.length];
+}
+
+// —— WMO weather code → 中文 + emoji ——（Open-Meteo 标准）
+type Weather = { text: string; emoji: string };
+const WMO: Record<number, Weather> = {
+  0: { text: '晴', emoji: '☀️' },
+  1: { text: '大致晴', emoji: '🌤️' },
+  2: { text: '局部多云', emoji: '⛅' },
+  3: { text: '阴', emoji: '☁️' },
+  45: { text: '雾', emoji: '🌫️' },
+  48: { text: '冻雾', emoji: '🌫️' },
+  51: { text: '小毛毛雨', emoji: '🌦️' },
+  53: { text: '毛毛雨', emoji: '🌦️' },
+  55: { text: '大毛毛雨', emoji: '🌧️' },
+  61: { text: '小雨', emoji: '🌦️' },
+  63: { text: '中雨', emoji: '🌧️' },
+  65: { text: '大雨', emoji: '🌧️' },
+  71: { text: '小雪', emoji: '🌨️' },
+  73: { text: '中雪', emoji: '❄️' },
+  75: { text: '大雪', emoji: '❄️' },
+  77: { text: '雪粒', emoji: '🌨️' },
+  80: { text: '小阵雨', emoji: '🌦️' },
+  81: { text: '阵雨', emoji: '🌧️' },
+  82: { text: '强阵雨', emoji: '⛈️' },
+  85: { text: '小阵雪', emoji: '🌨️' },
+  86: { text: '阵雪', emoji: '❄️' },
+  95: { text: '雷雨', emoji: '⛈️' },
+  96: { text: '雷雨夹冰雹', emoji: '⛈️' },
+  99: { text: '强雷雨夹冰雹', emoji: '⛈️' },
+};
+
+const FESTIVALS: Record<string, string> = {
+  '01-01': '元旦',
+  '02-14': '情人节',
+  '03-08': '妇女节',
+  '03-12': '植树节',
+  '04-01': '愚人节',
+  '05-01': '劳动节',
+  '05-04': '青年节',
+  '06-01': '儿童节',
+  '09-10': '教师节',
+  '10-01': '国庆节',
+  '10-31': '万圣节前夜',
+  '12-24': '平安夜',
+  '12-25': '圣诞节',
+};
+
+/** 把 Date 安全格式化：yyyy-MM-dd */
+function fmt(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** 今天距指定日还有多少天（负数=已过） */
+function daysUntil(target: string): number {
+  const t = new Date(target + 'T00:00:00');
+  const now = new Date(fmt(new Date()) + 'T00:00:00');
+  const ms = t.getTime() - now.getTime();
+  return Math.round(ms / 86_400_000);
+}
+
+interface WeatherInfo {
+  temp: number;
+  code: number;
+  humidity: number;
+  wind: number;
+  city: string;
+}
+
 export default function OverviewPage() {
-  const todayStr = today();
+  const todayStr = fmt(new Date());
+  const todayObj = new Date();
+  const quote = useMemo(() => pickQuote(todayStr), [todayStr]);
 
-  const data = useLiveQuery(
-    async (): Promise<{
-      indicators: Indicator[];
-      measurements: Measurement[];
-      influents: Influent[];
-      reactors: Reactor[];
-      svi: SVIRecord[];
-      eps: EPSRecord[];
-    }> => {
-      const [indicators, measurements, influents, reactors, svi, eps] = await Promise.all([
-        db.indicators.toArray(),
-        db.measurements.toArray(),
-        db.influents.toArray(),
-        db.reactors.toArray(),
-        db.sviRecords.toArray(),
-        db.epsRecords.toArray(),
-      ]);
-      return { indicators, measurements, influents, reactors, svi, eps };
-    },
-    [],
-  );
-
-  // 氨氮指示剂的 id
-  const nh4 = useMemo(
-    () => data?.indicators.find((i: Indicator) => i.name === '氨氮'),
-    [data],
-  );
-
-  // 今日样本次数（出水 daily）
-  const todayDailyCount = useMemo<number | null>(
-    () =>
-      data
-        ? data.measurements.filter(
-            (m: Measurement) => m.date === todayStr && m.scene === 'daily',
-          ).length
-        : null,
-    [data, todayStr],
-  );
-
-  // 今日氨氮去除率：平均进水浓度 vs 平均出水浓度
-  const todayRemoval = useMemo<number | null>(() => {
-    const { measurements, influents } = data ?? {};
-    if (!measurements || !influents || !nh4) return null;
-    const todayOut = measurements.filter(
-      (m: Measurement) =>
-        m.date === todayStr && m.scene === 'daily' && m.indicatorId === nh4.id && m.value != null,
-    );
-    const todayIn = influents.filter(
-      (i: Influent) => i.date === todayStr && i.indicatorId === nh4.id && i.value != null,
-    );
-    if (todayOut.length === 0 || todayIn.length === 0) return null;
-    const avgIn =
-      todayIn.reduce((s: number, x: Influent) => s + (x.value ?? 0), 0) / todayIn.length;
-    const avgOut =
-      todayOut.reduce((s: number, x: Measurement) => s + (x.value ?? 0), 0) / todayOut.length;
-    if (avgIn <= 0) return null;
-    return ((avgIn - avgOut) / avgIn) * 100;
-  }, [data, nh4, todayStr]);
-
-  // 最近一次 SVI30
-  const latestSVI = useMemo(() => {
-    const svi = data?.svi;
-    if (!svi || svi.length === 0) return null;
-    const sorted = [...svi].sort((a, b) => (a.date < b.date ? 1 : -1));
-    return { value: sorted[0].svi30, date: sorted[0].date };
-  }, [data]);
-
-  // 最近一次 PN/PS
-  const latestPNPS = useMemo(() => {
-    const eps = data?.eps;
-    if (!eps || eps.length === 0) return null;
-    const sorted = [...eps].sort((a, b) => (a.date < b.date ? 1 : -1));
-    return { value: sorted[0].pnPsRatio, date: sorted[0].date };
-  }, [data]);
-
-  // 近 7 天每日氨氮去除率（每个反应器一条线）
-  const removalTrend = useMemo(() => {
-    const { measurements, influents } = data ?? {};
-    if (!measurements || !influents || !nh4 || !data?.reactors) return null;
-    const reactors = data.reactors;
-    const dates: string[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      dates.push(d.toISOString().slice(0, 10));
+  // —— 笔记 / 倒计时（localStorage）——
+  const [note, setNote] = useState<string>(() => localStorage.getItem(NOTES_KEY) ?? '');
+  const [countdown, setCountdown] = useState<{ label: string; date: string } | null>(() => {
+    const raw = localStorage.getItem(COUNTDOWN_KEY);
+    if (!raw) return null;
+    try {
+      const v = JSON.parse(raw);
+      return v && typeof v.label === 'string' && typeof v.date === 'string' ? v : null;
+    } catch {
+      return null;
     }
-    const tanks = reactors.filter((r: Reactor) => r.active).sort((a, b) => a.sortOrder - b.sortOrder);
-    const dayData: { date: string; values: (number | null)[] }[] = dates.map((d) => {
-      const inV = influents
-        .filter((i: Influent) => i.date === d && i.indicatorId === nh4.id && i.value != null)
-        .reduce((s: number, x: Influent) => s + (x.value ?? 0), 0);
-      const inN = influents.filter(
-        (i: Influent) => i.date === d && i.indicatorId === nh4.id && i.value != null,
-      ).length;
-      const avgIn = inN > 0 ? inV / inN : 0;
-      const values = tanks.map((r: Reactor) => {
-        const out = measurements.find(
-          (m: Measurement) =>
-            m.date === d &&
-            m.scene === 'daily' &&
-            m.reactorId === r.id &&
-            m.indicatorId === nh4.id &&
-            m.value != null,
-        );
-        const outV = out?.value;
-        if (outV == null || avgIn <= 0) return null;
-        return ((avgIn - outV) / avgIn) * 100;
-      });
-      return { date: d, values };
-    });
-    return { dates, tanks: tanks.map((t) => t.code), data: dayData };
-  }, [data, nh4]);
+  });
+  const [editingCd, setEditingCd] = useState(false);
+  const [cdLabel, setCdLabel] = useState(countdown?.label ?? '');
+  const [cdDate, setCdDate] = useState(countdown?.date ?? todayStr);
 
-  return (
-    <div>
-      <PageHeader title="今日概览" desc={`${todayStr} · 一天的数据都聚在这一页`} />
+  useEffect(() => {
+    const t = setTimeout(() => localStorage.setItem(NOTES_KEY, note), 300);
+    return () => clearTimeout(t);
+  }, [note]);
 
-      <div className="grid md:grid-cols-2 gap-3 mb-3">
-        <StatCard label="氨氮去除率" value={todayRemoval} suffix="%" precision={1} accent />
-        <StatCard
-          label="SVI30"
-          value={latestSVI?.value ?? null}
-          suffix=" mL/g"
-          precision={1}
-          subLabel={latestSVI?.date}
-        />
-        <StatCard
-          label="今日样本次数"
-          value={todayDailyCount}
-          suffix=" 次"
-          precision={0}
-        />
-        <StatCard
-          label="PN/PS 比"
-          value={latestPNPS?.value ?? null}
-          precision={2}
-          subLabel={latestPNPS?.date}
-        />
-      </div>
-
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-base font-medium">氨氮去除率 · 近 7 天</span>
-          {removalTrend && (
-            <span className="flex gap-3 text-[13px] text-slate-500 dark:text-slate-400">
-              {removalTrend.tanks.map((c, i) => (
-                <span key={c} className="flex items-center gap-1.5">
-                  <span
-                    className="inline-block w-3 h-1.5 rounded-full"
-                    style={{ background: ['#0d9488', '#14b8a6', '#99f6e4', '#115e59', '#2dd4bf'][i % 5] }}
-                  />
-                  {c}
-                </span>
-              ))}
-            </span>
-          )}
-        </div>
-        <TrendChart trend={removalTrend} />
-      </div>
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  suffix,
-  precision = 1,
-  subLabel,
-  accent = false,
-}: {
-  label: string;
-  value: number | null;
-  suffix?: string;
-  precision?: number;
-  subLabel?: string;
-  accent?: boolean;
-}) {
-  const display =
-    value == null
-      ? '—'
-      : precision === 0
-        ? Math.round(value).toString()
-        : value.toFixed(precision);
-  return (
-    <div
-      className={`rounded-lg p-4 ${accent ? 'bg-brand-600 text-white' : 'bg-white dark:bg-slate-800 shadow-card'}`}
-    >
-      <div
-        className={`text-[13px] ${accent ? 'text-brand-100' : 'text-slate-500 dark:text-slate-400'}`}
-      >
-        {label}
-      </div>
-      <div className="mt-1 flex items-baseline gap-1">
-        <span
-          className={`tabular-nums ${
-            accent ? 'text-white' : 'text-slate-900 dark:text-slate-100'
-          } text-[26px] font-medium leading-none`}
-        >
-          {display}
-        </span>
-        {suffix && (
-          <span
-            className={`text-[13px] ${accent ? 'text-brand-100' : 'text-slate-500 dark:text-slate-400'}`}
-          >
-            {suffix.trim()}
-          </span>
-        )}
-      </div>
-      {subLabel && (
-        <div
-          className={`text-[11px] mt-1 ${accent ? 'text-brand-100' : 'text-slate-400 dark:text-slate-500'}`}
-        >
-          {subLabel}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TrendChart({
-  trend,
-}: {
-  trend: { dates: string[]; tanks: string[]; data: { date: string; values: (number | null)[] }[] } | null;
-}) {
-  if (!trend || trend.data.length === 0) {
-    return (
-      <div className="h-24 flex items-center justify-center text-[13px] text-slate-400 dark:text-slate-500">
-        暂无数据
-      </div>
-    );
+  function saveCountdown() {
+    const next = cdLabel.trim() && cdDate ? { label: cdLabel.trim(), date: cdDate } : null;
+    setCountdown(next);
+    if (next) localStorage.setItem(COUNTDOWN_KEY, JSON.stringify(next));
+    else localStorage.removeItem(COUNTDOWN_KEY);
+    setEditingCd(false);
   }
-  const W = 600;
-  const H = 90;
-  const padX = 4;
-  const padY = 8;
-  const innerW = W - padX * 2;
-  const innerH = H - padY * 2;
-  // Y 轴固定 0~100%，超出范围裁剪到边界
-  const xFor = (i: number) => padX + (i / (trend.data.length - 1 || 1)) * innerW;
-  const yFor = (v: number) => padY + (1 - Math.max(0, Math.min(100, v)) / 100) * innerH;
-  const colors = ['#0d9488', '#14b8a6', '#99f6e4', '#115e59', '#2dd4bf'];
-  return (
-    <svg
-      width="100%"
-      height={H}
-      viewBox={`0 0 ${W} ${H}`}
-      preserveAspectRatio="none"
-      className="text-brand-600"
-    >
-      {[0, 25, 50, 75, 100].map((g) => (
-        <line
-          key={g}
-          x1={padX}
-          y1={yFor(g)}
-          x2={W - padX}
-          y2={yFor(g)}
-          stroke="#f1f5f9"
-          strokeWidth="1"
-        />
-      ))}
-      {trend.tanks.map((_, ti) => {
-        const pts = trend.data
-          .map((d, di) => ({ x: xFor(di), y: yFor(d.values[ti] ?? 0), v: d.values[ti] }))
-          .filter((p) => true);
-        const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-        return (
-          <path
-            key={ti}
-            d={path}
-            fill="none"
-            stroke={colors[ti % colors.length]}
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
+  function clearCountdown() {
+    setCountdown(null);
+    localStorage.removeItem(COUNTDOWN_KEY);
+    setEditingCd(false);
+  }
+
+  // —— 农历 + 节日 ——（localStorage 缓存 + 月内复用）
+  const lunarText = useMemo<string>(() => {
+    try {
+      // 现代浏览器支持 zh-CN-u-ca-chinese
+      return new Intl.DateTimeFormat('zh-CN-u-ca-chinese', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }).format(todayObj).replace(/^[^年]*年/, '').replace(/月/g, '月');
+    } catch {
+      return '';
+    }
+  }, [todayStr]);
+
+  const festival = FESTIVALS[todayStr.slice(5)] ?? '';
+
+  // —— 天气 ——（默认北京，可选位置）
+  const [weather, setWeather] = useState<WeatherInfo | null>(null);
+  const [weatherErr, setWeatherErr] = useState(false);
+  const [city, setCity] = useState<string>(() => localStorage.getItem('overview.city.v1') ?? '北京');
+
+  useEffect(() => {
+    let dead = false;
+    setWeather(null);
+    setWeatherErr(false);
+    // 用 Open-Meteo geocoding 查城市坐标
+    fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=zh`,
+    )
+      .then((r) => r.json())
+      .then((geo: { results?: { latitude: number; longitude: number; name: string }[] }) => {
+        if (dead) return;
+        const hit = geo.results?.[0];
+        if (!hit) {
+          setWeatherErr(true);
+          return;
+        }
+        return fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${hit.latitude}&longitude=${hit.longitude}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=auto`,
         );
-      })}
-    </svg>
+      })
+      .then((r) => (r ? r.json() : null))
+      .then((data: {
+        current?: {
+          temperature_2m: number;
+          weather_code: number;
+          relative_humidity_2m: number;
+          wind_speed_10m: number;
+        };
+      } | null) => {
+        if (dead) return;
+        if (!data?.current) {
+          setWeatherErr(true);
+          return;
+        }
+        setWeather({
+          temp: Math.round(data.current.temperature_2m),
+          code: data.current.weather_code,
+          humidity: data.current.relative_humidity_2m,
+          wind: data.current.wind_speed_10m,
+          city,
+        });
+      })
+      .catch(() => {
+        if (!dead) setWeatherErr(true);
+      });
+    return () => {
+      dead = true;
+    };
+  }, [city]);
+
+  function handleCitySubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const input = (e.currentTarget.elements.namedItem('city') as HTMLInputElement | null);
+    const v = input?.value.trim() ?? '';
+    if (v) {
+      setCity(v);
+      localStorage.setItem('overview.city.v1', v);
+    }
+  }
+
+  const wd = weather ? WMO[weather.code] ?? { text: '未知', emoji: '🌡️' } : null;
+
+  // —— 实时时间（每秒刷新，让顶部时钟走起来）——
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  const weekdayCN = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][now.getDay()];
+
+  const cdDays = countdown ? daysUntil(countdown.date) : null;
+
+  return (
+    <div className="space-y-4 pb-16 md:pb-0">
+      {/* 顶部 hero：大日期 + 实时时钟 + 农历/节日 */}
+      <section
+        className="relative overflow-hidden rounded-2xl p-6 md:p-8 text-white"
+        style={{
+          background:
+            'linear-gradient(135deg, #0d9488 0%, #14b8a6 40%, #5eead4 100%)',
+        }}
+      >
+        <div className="absolute -top-8 -right-8 w-48 h-48 rounded-full opacity-10 bg-white" />
+        <div className="absolute bottom-4 right-12 w-24 h-24 rounded-full opacity-10 bg-white" />
+        <div className="relative">
+          <div className="flex items-baseline gap-3 flex-wrap">
+            <h1 className="text-[44px] md:text-[56px] font-light leading-none tracking-tight tabular-nums">
+              {hh}
+              <span className="animate-pulse">:</span>
+              {mm}
+              <span className="text-[28px] md:text-[36px] text-white/60 ml-1 tabular-nums">:{ss}</span>
+            </h1>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2 flex-wrap">
+            <span className="text-[22px] md:text-[26px] font-light tracking-wide tabular-nums">
+              {todayObj.getMonth() + 1}月{todayObj.getDate()}日
+            </span>
+            <span className="text-[15px] md:text-[16px] text-white/80">{weekdayCN}</span>
+            {lunarText && <span className="text-[13px] md:text-[14px] text-white/70">· {lunarText}</span>}
+            {festival && (
+              <span className="ml-2 px-2 py-0.5 rounded-full text-[12px] bg-white/25 backdrop-blur">
+                🎉 {festival}
+              </span>
+            )}
+          </div>
+          <div className="mt-4 text-[14px] md:text-[15px] text-white/90 italic font-light">{quote}</div>
+        </div>
+      </section>
+
+      {/* 主网格：4 张卡片 2×2 */}
+      <div className="grid md:grid-cols-2 gap-3">
+        {/* 天气 */}
+        <Card title="今日天气" icon="☀️">
+          {weather ? (
+            <div>
+              <div className="flex items-baseline gap-3">
+                <span className="text-[44px] leading-none">{wd?.emoji}</span>
+                <span className="text-[34px] font-light tabular-nums leading-none">
+                  {weather.temp}°
+                </span>
+                <span className="text-[14px] text-slate-500 dark:text-slate-400">{wd?.text}</span>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-[13px] text-slate-600 dark:text-slate-400">
+                <div>湿度 <span className="font-medium text-slate-800 dark:text-slate-100 tabular-nums">{weather.humidity}%</span></div>
+                <div>风速 <span className="font-medium text-slate-800 dark:text-slate-100 tabular-nums">{weather.wind} km/h</span></div>
+              </div>
+              <form onSubmit={handleCitySubmit} className="mt-3 flex gap-1.5 text-[12px]">
+                <input
+                  name="city"
+                  defaultValue={weather.city}
+                  className="flex-1 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded px-2 py-1"
+                  placeholder="城市"
+                />
+                <button
+                  type="submit"
+                  className="px-2 py-1 bg-brand-600 text-white rounded hover:bg-brand-700"
+                >
+                  切换
+                </button>
+              </form>
+            </div>
+          ) : weatherErr ? (
+            <div className="text-[13px] text-slate-500 dark:text-slate-400">
+              <div>⚠️ 天气拉取失败（离线？检查网络）</div>
+              <form onSubmit={handleCitySubmit} className="mt-3 flex gap-1.5">
+                <input
+                  name="city"
+                  defaultValue={city}
+                  className="flex-1 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded px-2 py-1 text-[12px]"
+                  placeholder="城市"
+                />
+                <button
+                  type="submit"
+                  className="px-2 py-1 bg-brand-600 text-white rounded hover:bg-brand-700 text-[12px]"
+                >
+                  重试
+                </button>
+              </form>
+            </div>
+          ) : (
+            <div className="text-[13px] text-slate-400 dark:text-slate-500">天气加载中…</div>
+          )}
+        </Card>
+
+        {/* 倒计时 */}
+        <Card title="倒计时" icon="⏳">
+          {!countdown || editingCd ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                saveCountdown();
+              }}
+              className="space-y-2"
+            >
+              <div className="flex items-center gap-2 text-[13px]">
+                <span className="w-12 text-slate-500 dark:text-slate-400 text-right">事件</span>
+                <input
+                  value={cdLabel}
+                  onChange={(e) => setCdLabel(e.target.value)}
+                  placeholder="比如：答辩 / 入学 / 毕业"
+                  className="flex-1 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded px-2 py-1"
+                />
+              </div>
+              <div className="flex items-center gap-2 text-[13px]">
+                <span className="w-12 text-slate-500 dark:text-slate-400 text-right">日期</span>
+                <input
+                  type="date"
+                  value={cdDate}
+                  onChange={(e) => setCdDate(e.target.value)}
+                  className="flex-1 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded px-2 py-1"
+                />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="submit"
+                  className="px-3 py-1 bg-brand-600 text-white rounded hover:bg-brand-700 text-[13px]"
+                >
+                  {countdown ? '保存' : '开始计时'}
+                </button>
+                {countdown && (
+                  <button
+                    type="button"
+                    onClick={clearCountdown}
+                    className="px-3 py-1 border border-slate-200 dark:border-slate-700 rounded text-[13px] text-slate-600 dark:text-slate-400"
+                  >
+                    清除
+                  </button>
+                )}
+              </div>
+            </form>
+          ) : (
+            <div>
+              <div className="text-[13px] text-slate-500 dark:text-slate-400">{countdown.label}</div>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-[40px] font-light tabular-nums leading-none">
+                  {Math.abs(cdDays ?? 0)}
+                </span>
+                <span className="text-[15px] text-slate-500 dark:text-slate-400">
+                  {(cdDays ?? 0) >= 0 ? '天后' : '天前'}
+                </span>
+              </div>
+              <div className="mt-2 text-[12px] text-slate-400 dark:text-slate-500">{countdown.date}</div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingCd(true);
+                  setCdLabel(countdown.label);
+                  setCdDate(countdown.date);
+                }}
+                className="mt-3 text-[12px] text-brand-700 hover:underline"
+              >
+                编辑
+              </button>
+            </div>
+          )}
+        </Card>
+
+        {/* 一言 */}
+        <Card title="今日一言" icon="💡">
+          <p className="text-[18px] md:text-[22px] leading-relaxed font-light text-slate-700 dark:text-slate-200 tracking-wide">
+            “{quote}”
+          </p>
+          <div className="mt-4 text-[12px] text-slate-400 dark:text-slate-500">
+            —— 每天一句，按今日日期稳定选取
+          </div>
+        </Card>
+
+        {/* 快捷笔记 */}
+        <Card title="随手记" icon="📝">
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="随手写点什么……想做的事、灵感、备忘都可以"
+            className="w-full min-h-[120px] bg-transparent border-0 outline-none resize-none text-[14px] leading-relaxed placeholder:text-slate-400 dark:placeholder:text-slate-600"
+          />
+          <div className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
+            {note.length} 字 · 自动存浏览器本地
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function Card({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-card p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-[16px]">{icon}</span>
+        <h2 className="text-[14px] font-medium text-slate-500 dark:text-slate-400 tracking-wider uppercase">
+          {title}
+        </h2>
+      </div>
+      {children}
+    </section>
   );
 }

@@ -30,3 +30,12 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
 
 afterEach(() => cleanup());
 
+// jsdom 没内置 fetch：默认 mock 成 200 + 空 JSON（各测试可单独覆盖）
+if (typeof globalThis.fetch !== 'function') {
+  globalThis.fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: async () => ({}),
+  }) as typeof fetch;
+}
+
