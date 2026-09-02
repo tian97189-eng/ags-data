@@ -136,7 +136,7 @@ export interface SettingKV {
 // —— 「其他指标」功能区：污泥浓度/筛分粒径/EPS 等自建计算工作表 ——
 
 /** 污泥浓度（MLSS / MLVSS）记录
- * 用户填：M1 滤纸重、M2 滤纸+坩埚+泥、M3 坩埚、M4 坩埚+灼烧残渣、V 取样体积
+ * 用户填：M1 滤纸重、M2 滤纸+泥、M3 坩埚、M4 坩埚+灼烧残渣、V 取样体积
  * 自动算：MLSS = (M2-M1)/V；MLVSS = (M2+M3-M4)/V
  */
 export interface MLSSRecord {

@@ -4,7 +4,7 @@ import { db } from '../../db/schema';
 import { computeMLSS } from '../../lib/extras';
 import { useAppStore } from '../../store/useAppStore';
 import { today } from '../../lib/format';
-import EmptyState from '../../components/common/EmptyState';
+import HistoryCalendar from '../../components/common/HistoryCalendar';
 
 /** 污泥浓度（MLSS / MLVSS）录入表
  * 填入日期、滤纸编号、4 个重量（M1~M4）、取样体积 V → 自动算 MLSS/MLVSS
@@ -62,6 +62,14 @@ export default function MLSSPage() {
     await db.mlssRecords.delete(id);
   }
 
+  // 有数据的日期集合 + 最新日期（日历高亮和默认选中用）
+  const dateSet = new Set((rows ?? []).map((r) => r.date));
+  const latestDate = (rows ?? [])[0]?.date;
+
+  // 某天的记录（按日期过滤，倒序展示）
+  const rowsOf = (date: string) =>
+    (rows ?? []).filter((r) => r.date === date);
+
   return (
     <div className="space-y-4">
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
@@ -85,7 +93,7 @@ export default function MLSSPage() {
             <input type="number" step="any" value={m1} onChange={(e) => setM1(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 text-xs">M2 滤纸+泥+坩埚 (g)</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">M2 滤纸+泥 (g)</span>
             <input type="number" step="any" value={m2} onChange={(e) => setM2(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
@@ -115,53 +123,66 @@ export default function MLSSPage() {
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
-        <div className="text-base font-medium mb-2">历史记录（{rows?.length ?? 0} 条）</div>
-        {!rows || rows.length === 0 ? (
-          <EmptyState title="还没有数据" desc="在上面的表单填入数据并点添加" />
-        ) : (
-          <div className="overflow-x-auto -mx-4 px-4">
-            <table className="w-full table-fixed border-collapse text-xs min-w-[640px]">
-              <thead>
-                <tr className="text-slate-500 dark:text-slate-400">
-                  <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-24">日期</th>
-                  <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">滤纸</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">M1</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">M2</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">M3</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">M4</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-14">V</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">MLSS</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">MLVSS</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-12">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id}>
-                    <td className="py-1.5 px-2 border-b border-slate-50 whitespace-nowrap">{r.date}</td>
-                    <td className="py-1.5 px-2 border-b border-slate-50">{r.paperNo}</td>
-                    <td className="py-1.5 px-2 border-b border-slate-50 text-right">{r.m1?.toFixed(4)}</td>
-                    <td className="py-1.5 px-2 border-b border-slate-50 text-right">{r.m2?.toFixed(4)}</td>
-                    <td className="py-1.5 px-2 border-b border-slate-50 text-right">{r.m3?.toFixed(4)}</td>
-                    <td className="py-1.5 px-2 border-b border-slate-50 text-right">{r.m4?.toFixed(4)}</td>
-                    <td className="py-1.5 px-2 border-b border-slate-50 text-right">{r.v}</td>
-                    <td className="py-1.5 px-2 border-b border-slate-50 text-right font-medium text-teal-700">
-                      {r.mlss?.toFixed(4) ?? '—'}
-                    </td>
-                    <td className="py-1.5 px-2 border-b border-slate-50 text-right font-medium text-teal-700">
-                      {r.mlvss?.toFixed(4) ?? '—'}
-                    </td>
-                    <td className="py-1.5 px-2 border-b border-slate-50 text-right">
-                      <button type="button" onClick={() => handleDelete(r.id!)} className="text-red-600">
-                        删除
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <div className="text-base font-medium mb-3">历史记录（{rows?.length ?? 0} 条）</div>
+        <HistoryCalendar dates={dateSet} defaultDate={latestDate} countLabel={`共 ${rows?.length ?? 0} 条记录`}>
+          {(date) => {
+            const dayRows = rowsOf(date);
+            if (dayRows.length === 0) {
+              return (
+                <div className="text-sm text-slate-500 dark:text-slate-400 py-8 text-center">
+                  {date} 没有记录
+                </div>
+              );
+            }
+            return (
+              <div>
+                <div className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  {date} · {dayRows.length} 条
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full table-fixed border-collapse text-xs min-w-[560px]">
+                    <thead>
+                      <tr className="text-slate-500 dark:text-slate-400">
+                        <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">滤纸</th>
+                        <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">M1</th>
+                        <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">M2</th>
+                        <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">M3</th>
+                        <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">M4</th>
+                        <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-14">V</th>
+                        <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">MLSS</th>
+                        <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">MLVSS</th>
+                        <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-12">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dayRows.map((r) => (
+                        <tr key={r.id}>
+                          <td className="py-1.5 px-2 border-b border-slate-50">{r.paperNo}</td>
+                          <td className="py-1.5 px-2 border-b border-slate-50 text-right">{r.m1?.toFixed(4)}</td>
+                          <td className="py-1.5 px-2 border-b border-slate-50 text-right">{r.m2?.toFixed(4)}</td>
+                          <td className="py-1.5 px-2 border-b border-slate-50 text-right">{r.m3?.toFixed(4)}</td>
+                          <td className="py-1.5 px-2 border-b border-slate-50 text-right">{r.m4?.toFixed(4)}</td>
+                          <td className="py-1.5 px-2 border-b border-slate-50 text-right">{r.v}</td>
+                          <td className="py-1.5 px-2 border-b border-slate-50 text-right font-medium text-teal-700">
+                            {r.mlss?.toFixed(4) ?? '—'}
+                          </td>
+                          <td className="py-1.5 px-2 border-b border-slate-50 text-right font-medium text-teal-700">
+                            {r.mlvss?.toFixed(4) ?? '—'}
+                          </td>
+                          <td className="py-1.5 px-2 border-b border-slate-50 text-right">
+                            <button type="button" onClick={() => handleDelete(r.id!)} className="text-red-600">
+                              删除
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          }}
+        </HistoryCalendar>
       </div>
     </div>
   );
