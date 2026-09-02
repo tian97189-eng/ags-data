@@ -379,21 +379,21 @@ export default function QueryPage() {
       {rows.length === 0 ? (
         <EmptyState title="没有符合条件的数据" />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full table-fixed border-collapse text-xs">
+        <div className="overflow-x-auto -mx-3 px-3">
+          <table className="w-full table-fixed border-collapse text-xs min-w-[720px]">
             <thead>
               <tr className="text-slate-500 dark:text-slate-400">
-                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 w-8">
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 w-8 whitespace-nowrap">
                   <input type="checkbox" checked={selected.size === rows.length} onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((r) => r.id!)) : new Set())} />
                 </th>
-                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700" onClick={() => { setSortKey('date'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); }}>日期</th>
-                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">类型</th>
-                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">时间</th>
-                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">罐</th>
-                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">指标</th>
-                <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700" onClick={() => { setSortKey('value'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); }}>浓度 mg/L</th>
-                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">备注</th>
-                <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700 w-24">操作</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[5.5rem] whitespace-nowrap" onClick={() => { setSortKey('date'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); }}>日期</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[4rem] whitespace-nowrap">类型</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[3.5rem] whitespace-nowrap">时间</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[3rem] whitespace-nowrap">罐</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[5.5rem] whitespace-nowrap">指标</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[5rem] whitespace-nowrap" onClick={() => { setSortKey('value'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); }}>浓度 mg/L</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[6rem] whitespace-nowrap">备注</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700 w-24 whitespace-nowrap">操作</th>
               </tr>
             </thead>
             <tbody>

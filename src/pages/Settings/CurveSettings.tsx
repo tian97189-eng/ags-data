@@ -243,17 +243,18 @@ export default function CurveSettings() {
           {history.length === 0 ? (
             <div className="text-xs text-slate-400 dark:text-slate-500 py-4">暂无历史曲线</div>
           ) : (
-            <table className="w-full table-fixed border-collapse text-xs">
-              <thead>
-                <tr className="text-slate-500 dark:text-slate-400">
-                  <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">生效区间</th>
-                  <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">方式</th>
-                  <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">参数 / 公式</th>
-                  <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">批号</th>
-                  <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">状态</th>
-                  <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">操作</th>
-                </tr>
-              </thead>
+            <div className="overflow-x-auto -mx-3 px-3">
+              <table className="w-full table-fixed border-collapse text-xs min-w-[640px]">
+                <thead>
+                  <tr className="text-slate-500 dark:text-slate-400">
+                    <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[8rem] whitespace-nowrap">生效区间</th>
+                    <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[3.5rem] whitespace-nowrap">方式</th>
+                    <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[7rem] whitespace-nowrap">参数 / 公式</th>
+                    <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[5rem] whitespace-nowrap">批号</th>
+                    <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[3.5rem] whitespace-nowrap">状态</th>
+                    <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[7rem] whitespace-nowrap">操作</th>
+                  </tr>
+                </thead>
               <tbody>
                 {history.map((c) => (
                   <tr key={c.id}>
@@ -290,6 +291,7 @@ export default function CurveSettings() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </>
       )}
