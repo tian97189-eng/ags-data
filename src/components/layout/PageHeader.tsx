@@ -16,7 +16,7 @@ export default function PageHeader({
           <span className="inline-block w-1 h-4 rounded-full bg-brand-600"></span>
           {title}
         </h1>
-        {desc && <p className="text-sm text-slate-500 mt-0.5">{desc}</p>}
+        {desc && <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mt-0.5">{desc}</p>}
       </div>
       {actions && <div className="flex gap-2 flex-wrap">{actions}</div>}
     </div>

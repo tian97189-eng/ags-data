@@ -64,46 +64,46 @@ export default function MLSSPage() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow-card p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="text-base font-medium mb-1">新增测量</div>
-        <p className="text-sm text-slate-500 mb-3">
+        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3">
           按你给的流程：取 V mL 泥样，过滤烘干后得滤纸+泥（M2）+ 空坩埚（M3）+ 灼烧后坩埚（M4）+ 干净滤纸（M1）。
           MLSS = (M2 − M1) / V；MLVSS = (M2 + M3 − M4) / V。
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-3">
           <label className="block">
-            <span className="text-slate-500 text-xs">日期</span>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1 text-xs" />
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">日期</span>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 text-xs">滤纸编号</span>
-            <input value={paperNo} onChange={(e) => setPaperNo(e.target.value)} className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1 text-xs" placeholder="A-1" />
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">滤纸编号</span>
+            <input value={paperNo} onChange={(e) => setPaperNo(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" placeholder="A-1" />
           </label>
           <label className="block">
-            <span className="text-slate-500 text-xs">M1 滤纸重 (g)</span>
-            <input type="number" step="any" value={m1} onChange={(e) => setM1(e.target.value)} className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1 text-xs" />
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">M1 滤纸重 (g)</span>
+            <input type="number" step="any" value={m1} onChange={(e) => setM1(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 text-xs">M2 滤纸+泥+坩埚 (g)</span>
-            <input type="number" step="any" value={m2} onChange={(e) => setM2(e.target.value)} className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1 text-xs" />
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">M2 滤纸+泥+坩埚 (g)</span>
+            <input type="number" step="any" value={m2} onChange={(e) => setM2(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 text-xs">M3 干净坩埚 (g)</span>
-            <input type="number" step="any" value={m3} onChange={(e) => setM3(e.target.value)} className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1 text-xs" />
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">M3 干净坩埚 (g)</span>
+            <input type="number" step="any" value={m3} onChange={(e) => setM3(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 text-xs">M4 灼烧残渣+坩埚 (g)</span>
-            <input type="number" step="any" value={m4} onChange={(e) => setM4(e.target.value)} className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1 text-xs" />
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">M4 灼烧残渣+坩埚 (g)</span>
+            <input type="number" step="any" value={m4} onChange={(e) => setM4(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 text-xs">V 取样体积 (mL)</span>
-            <input type="number" step="any" value={v} onChange={(e) => setV(e.target.value)} className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1 text-xs" />
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">V 取样体积 (mL)</span>
+            <input type="number" step="any" value={v} onChange={(e) => setV(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="text-xs text-slate-600">
+          <div className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
             实时计算：
             MLSS = <span className="font-mono text-teal-700">{previewMLSS.mlss?.toFixed(4) ?? '—'}</span> g/L；
             MLVSS = <span className="font-mono text-teal-700">{previewMLSS.mlvss?.toFixed(4) ?? '—'}</span> g/L
@@ -114,7 +114,7 @@ export default function MLSSPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-card p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="text-base font-medium mb-2">历史记录（{rows?.length ?? 0} 条）</div>
         {!rows || rows.length === 0 ? (
           <EmptyState title="还没有数据" desc="在上面的表单填入数据并点添加" />
@@ -122,17 +122,17 @@ export default function MLSSPage() {
           <div className="overflow-x-auto -mx-4 px-4">
             <table className="w-full table-fixed border-collapse text-xs min-w-[640px]">
               <thead>
-                <tr className="text-slate-500">
-                  <th className="text-left py-1.5 px-2 border-b border-slate-100 w-24">日期</th>
-                  <th className="text-left py-1.5 px-2 border-b border-slate-100 w-20">滤纸</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100">M1</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100">M2</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100">M3</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100">M4</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100 w-14">V</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100 w-20">MLSS</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100 w-20">MLVSS</th>
-                  <th className="text-right py-1.5 px-2 border-b border-slate-100 w-12">操作</th>
+                <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                  <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-24">日期</th>
+                  <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">滤纸</th>
+                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">M1</th>
+                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">M2</th>
+                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">M3</th>
+                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">M4</th>
+                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-14">V</th>
+                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">MLSS</th>
+                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">MLVSS</th>
+                  <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-12">操作</th>
                 </tr>
               </thead>
               <tbody>

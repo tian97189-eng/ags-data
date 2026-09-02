@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       // —— 字号：只新增 11px 脚注档，不覆盖 Tailwind 默认（xs=12/sm=14/base=16）——

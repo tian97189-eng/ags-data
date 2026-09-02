@@ -164,21 +164,21 @@ const extrasStats = useMemo(() => {
 
       <div className="flex items-center gap-2 flex-wrap mb-4 text-xs">
         <label className="flex items-center gap-1">
-          <span className="text-slate-500">从</span>
-          <input type="date" className="border border-slate-200 rounded px-2 py-1" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">从</span>
+          <input type="date" className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
         </label>
         <label className="flex items-center gap-1">
-          <span className="text-slate-500">到</span>
-          <input type="date" className="border border-slate-200 rounded px-2 py-1" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">到</span>
+          <input type="date" className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         </label>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
           <div className="text-base font-medium mb-1">去除率</div>
           <div className="flex items-center gap-2 text-xs mb-3">
-            <span className="text-slate-500">指标</span>
-            <select className="border border-slate-200 rounded px-2 py-1" value={removalIndicatorId ?? ''} onChange={(e) => setRemovalIndicatorId(Number(e.target.value) || null)}>
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">指标</span>
+            <select className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={removalIndicatorId ?? ''} onChange={(e) => setRemovalIndicatorId(Number(e.target.value) || null)}>
               <option value="">选择指标</option>
               {indicators?.map((i) => (
                 <option key={i.id} value={i.id}>{i.name}</option>
@@ -186,28 +186,28 @@ const extrasStats = useMemo(() => {
             </select>
           </div>
           {removalRows.length === 0 ? (
-            <div className="text-xs text-slate-400">选择指标后显示各罐去除率</div>
+            <div className="text-xs text-slate-400 dark:text-slate-500">选择指标后显示各罐去除率</div>
           ) : (
             <table className="w-full table-fixed border-collapse text-xs">
               <thead>
-                <tr className="text-slate-500">
-                  <th className="text-left py-2 px-2 border-b border-slate-200">罐</th>
-                  <th className="text-right py-2 px-2 border-b border-slate-200">进水均值</th>
-                  <th className="text-right py-2 px-2 border-b border-slate-200">出水均值</th>
-                  <th className="text-right py-2 px-2 border-b border-slate-200">标准差</th>
-                  <th className="text-right py-2 px-2 border-b border-slate-200">达标率</th>
-                  <th className="text-right py-2 px-2 border-b border-slate-200">去除率</th>
+                <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                  <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">罐</th>
+                  <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">进水均值</th>
+                  <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">出水均值</th>
+                  <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">标准差</th>
+                  <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">达标率</th>
+                  <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">去除率</th>
                 </tr>
               </thead>
               <tbody>
                 {removalRows.map((r) => (
                   <tr key={r.code}>
-                    <td className="py-2 px-2 border-b border-slate-100">{r.code}</td>
-                    <td className="py-2 px-2 border-b border-slate-100 text-right">{formatNumber(r.inMean)}</td>
-                    <td className="py-2 px-2 border-b border-slate-100 text-right">{formatNumber(r.outMean)}</td>
-                    <td className="py-2 px-2 border-b border-slate-100 text-right">{formatNumber(r.outStdev)}</td>
-                    <td className="py-2 px-2 border-b border-slate-100 text-right">{formatPercent(r.attainment)}</td>
-                    <td className="py-2 px-2 border-b border-slate-100 text-right font-medium">{formatPercent(r.rate)}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">{r.code}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right">{formatNumber(r.inMean)}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right">{formatNumber(r.outMean)}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right">{formatNumber(r.outStdev)}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right">{formatPercent(r.attainment)}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right font-medium">{formatPercent(r.rate)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -215,23 +215,23 @@ const extrasStats = useMemo(() => {
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow-card p-4">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
           <div className="text-sm font-medium mb-3">亚硝积累率 NAR</div>
           {narRows.length === 0 ? (
-            <div className="text-xs text-slate-400">基于亚硝态氮与硝态氮同日出水计算</div>
+            <div className="text-xs text-slate-400 dark:text-slate-500">基于亚硝态氮与硝态氮同日出水计算</div>
           ) : (
             <table className="w-full table-fixed border-collapse text-xs">
               <thead>
-                <tr className="text-slate-500">
-                  <th className="text-left py-2 px-2 border-b border-slate-200">罐</th>
-                  <th className="text-right py-2 px-2 border-b border-slate-200">平均 NAR</th>
+                <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                  <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">罐</th>
+                  <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">平均 NAR</th>
                 </tr>
               </thead>
               <tbody>
                 {narRows.map((r) => (
                   <tr key={r.code}>
-                    <td className="py-2 px-2 border-b border-slate-100">{r.code}</td>
-                    <td className="py-2 px-2 border-b border-slate-100 text-right font-medium">{formatPercent(r.nar)}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">{r.code}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right font-medium">{formatPercent(r.nar)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -239,21 +239,21 @@ const extrasStats = useMemo(() => {
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow-card p-4 md:col-span-2">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4 md:col-span-2">
           <div className="text-sm font-medium mb-3">相关性分析</div>
           <div className="flex items-center gap-2 flex-wrap text-xs mb-3">
-            <span className="text-slate-500">指标 X</span>
-            <select className="border border-slate-200 rounded px-2 py-1" value={corrXId ?? ''} onChange={(e) => setCorrXId(Number(e.target.value) || null)}>
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">指标 X</span>
+            <select className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={corrXId ?? ''} onChange={(e) => setCorrXId(Number(e.target.value) || null)}>
               <option value="">选择</option>
               {indicators?.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
             </select>
-            <span className="text-slate-500">指标 Y</span>
-            <select className="border border-slate-200 rounded px-2 py-1" value={corrYId ?? ''} onChange={(e) => setCorrYId(Number(e.target.value) || null)}>
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">指标 Y</span>
+            <select className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={corrYId ?? ''} onChange={(e) => setCorrYId(Number(e.target.value) || null)}>
               <option value="">选择</option>
               {indicators?.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
             </select>
-            <span className="text-slate-500">罐</span>
-            <select className="border border-slate-200 rounded px-2 py-1" value={corrReactorId ?? ''} onChange={(e) => setCorrReactorId(Number(e.target.value) || null)}>
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">罐</span>
+            <select className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={corrReactorId ?? ''} onChange={(e) => setCorrReactorId(Number(e.target.value) || null)}>
               <option value="">全部</option>
               {reactors?.map((r) => <option key={r.id} value={r.id}>{r.code}</option>)}
             </select>
@@ -270,17 +270,17 @@ const extrasStats = useMemo(() => {
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow-card p-4 md:col-span-2">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4 md:col-span-2">
           <div className="text-sm font-medium mb-3">其他指标统计（污泥浓度 / 粒径 d50 / EPS）</div>
           <table className="w-full table-fixed border-collapse text-xs">
             <thead>
-              <tr className="text-slate-500">
-                <th className="text-left py-2 px-2 border-b border-slate-200">指标</th>
-                <th className="text-right py-2 px-2 border-b border-slate-200 w-12">n</th>
-                <th className="text-right py-2 px-2 border-b border-slate-200">均值</th>
-                <th className="text-right py-2 px-2 border-b border-slate-200">标准差</th>
-                <th className="text-right py-2 px-2 border-b border-slate-200">最小</th>
-                <th className="text-right py-2 px-2 border-b border-slate-200">最大</th>
+              <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">指标</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700 w-12">n</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">均值</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">标准差</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">最小</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">最大</th>
               </tr>
             </thead>
             <tbody>
@@ -295,12 +295,12 @@ const extrasStats = useMemo(() => {
                 const d = statsDescribe(r.values);
                 return (
                   <tr key={r.name}>
-                    <td className="py-2 px-2 border-b border-slate-100">{r.name}</td>
-                    <td className="py-2 px-2 border-b border-slate-100 text-right">{d.count}</td>
-                    <td className="py-2 px-2 border-b border-slate-100 text-right font-medium">{formatNumber(d.mean)}</td>
-                    <td className="py-2 px-2 border-b border-slate-100 text-right">{formatNumber(d.stdev)}</td>
-                    <td className="py-2 px-2 border-b border-slate-100 text-right">{formatNumber(d.min)}</td>
-                    <td className="py-2 px-2 border-b border-slate-100 text-right">{formatNumber(d.max)}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">{r.name}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right">{d.count}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right font-medium">{formatNumber(d.mean)}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right">{formatNumber(d.stdev)}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right">{formatNumber(d.min)}</td>
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right">{formatNumber(d.max)}</td>
                   </tr>
                 );
               })}

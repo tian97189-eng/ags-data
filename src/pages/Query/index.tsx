@@ -113,29 +113,29 @@ export default function QueryPage() {
         }
       />
 
-      <div className="bg-white rounded-lg shadow-card p-3 mb-3 text-xs space-y-3">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-3 mb-3 text-xs space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
           <label className="flex items-center gap-1">
-            <span className="text-slate-500">从</span>
-            <input type="date" className="border border-slate-200 rounded px-2 py-1" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">从</span>
+            <input type="date" className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
           </label>
           <label className="flex items-center gap-1">
-            <span className="text-slate-500">到</span>
-            <input type="date" className="border border-slate-200 rounded px-2 py-1" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">到</span>
+            <input type="date" className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
           </label>
-          <select className="border border-slate-200 rounded px-2 py-1" value={scene} onChange={(e) => setScene(e.target.value as Scene | 'all')}>
+          <select className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={scene} onChange={(e) => setScene(e.target.value as Scene | 'all')}>
             <option value="all">全部类型</option>
             <option value="daily">日常</option>
             <option value="cycle">全周期</option>
           </select>
-          <select className="border border-slate-200 rounded px-2 py-1" value={phase} onChange={(e) => setPhase(e.target.value)}>
+          <select className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={phase} onChange={(e) => setPhase(e.target.value)}>
             <option value="">全部阶段</option>
             <option value="anaerobic">厌氧</option>
             <option value="oxic">好氧</option>
             <option value="anoxic">缺氧</option>
           </select>
           <input
-            className="border border-slate-200 rounded px-2 py-1 w-32"
+            className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1 w-32"
             placeholder="搜索备注"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
@@ -143,24 +143,24 @@ export default function QueryPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-slate-500 shrink-0">罐：</span>
+          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 shrink-0">罐：</span>
           {reactors?.map((r) => (
             <button
               key={r.id}
               type="button"
               onClick={() => toggleReactor(r.id!)}
-              className={`px-2 py-0.5 rounded border ${reactorIds.includes(r.id!) ? 'bg-teal-50 border-teal-300 text-teal-800' : 'border-slate-200 text-slate-600'}`}
+              className={`px-2 py-0.5 rounded border ${reactorIds.includes(r.id!) ? 'bg-teal-50 border-teal-300 text-teal-800' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500'}`}
             >
               {r.code}
             </button>
           ))}
-          <span className="text-slate-500 shrink-0 ml-3">指标：</span>
+          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 shrink-0 ml-3">指标：</span>
           {indicators?.map((i) => (
             <button
               key={i.id}
               type="button"
               onClick={() => toggleIndicator(i.id!)}
-              className={`px-2 py-0.5 rounded border ${indicatorIds.includes(i.id!) ? 'bg-teal-50 border-teal-300 text-teal-800' : 'border-slate-200 text-slate-600'}`}
+              className={`px-2 py-0.5 rounded border ${indicatorIds.includes(i.id!) ? 'bg-teal-50 border-teal-300 text-teal-800' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500'}`}
             >
               {i.name}
             </button>
@@ -170,11 +170,11 @@ export default function QueryPage() {
 
       {selected.size > 0 && (
         <div className="flex items-center gap-3 mb-2 text-xs">
-          <span className="text-slate-500">已选 {selected.size} 条</span>
+          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">已选 {selected.size} 条</span>
           <button type="button" className="text-red-600" onClick={() => setConfirmDelete(true)}>
             批量删除
           </button>
-          <button type="button" className="text-slate-500" onClick={() => setSelected(new Set())}>
+          <button type="button" className="text-slate-500 dark:text-slate-400 dark:text-slate-500" onClick={() => setSelected(new Set())}>
             取消选择
           </button>
         </div>
@@ -186,37 +186,37 @@ export default function QueryPage() {
         <div className="overflow-x-auto">
           <table className="w-full table-fixed border-collapse text-xs">
             <thead>
-              <tr className="text-slate-500">
-                <th className="text-left py-2 px-2 border-b border-slate-200 w-8">
+              <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 w-8">
                   <input type="checkbox" checked={selected.size === rows.length} onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((r) => r.id!)) : new Set())} />
                 </th>
-                <th className="text-left py-2 px-2 border-b border-slate-200" onClick={() => { setSortKey('date'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); }}>日期</th>
-                <th className="text-left py-2 px-2 border-b border-slate-200">类型</th>
-                <th className="text-left py-2 px-2 border-b border-slate-200">时间</th>
-                <th className="text-left py-2 px-2 border-b border-slate-200">罐</th>
-                <th className="text-left py-2 px-2 border-b border-slate-200">指标</th>
-                <th className="text-right py-2 px-2 border-b border-slate-200" onClick={() => { setSortKey('value'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); }}>浓度 mg/L</th>
-                <th className="text-left py-2 px-2 border-b border-slate-200">备注</th>
-                <th className="text-right py-2 px-2 border-b border-slate-200 w-24">操作</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700" onClick={() => { setSortKey('date'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); }}>日期</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">类型</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">时间</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">罐</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">指标</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700" onClick={() => { setSortKey('value'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); }}>浓度 mg/L</th>
+                <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">备注</th>
+                <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700 w-24">操作</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((m) => (
                 <tr key={m.id}>
-                  <td className="py-2 px-2 border-b border-slate-100">
+                  <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">
                     <input type="checkbox" checked={selected.has(m.id!)} onChange={() => toggleSelect(m.id!)} />
                   </td>
-                  <td className="py-2 px-2 border-b border-slate-100">{m.date}</td>
-                  <td className="py-2 px-2 border-b border-slate-100">{m.scene === 'daily' ? '日常' : '周期'}</td>
-                  <td className="py-2 px-2 border-b border-slate-100">{m.time ?? '—'}</td>
-                  <td className="py-2 px-2 border-b border-slate-100">{rMap.get(m.reactorId)?.code ?? `#${m.reactorId}`}</td>
-                  <td className="py-2 px-2 border-b border-slate-100">
+                  <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">{m.date}</td>
+                  <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">{m.scene === 'daily' ? '日常' : '周期'}</td>
+                  <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">{m.time ?? '—'}</td>
+                  <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">{rMap.get(m.reactorId)?.code ?? `#${m.reactorId}`}</td>
+                  <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">
                     {iMap.get(m.indicatorId)?.name ?? `#${m.indicatorId}`}
-                    {m.phase && <span className="ml-1 text-[10px] text-slate-400">{PHASE_LABEL[m.phase]}</span>}
+                    {m.phase && <span className="ml-1 text-[10px] text-slate-400 dark:text-slate-500">{PHASE_LABEL[m.phase]}</span>}
                   </td>
-                  <td className="py-2 px-2 border-b border-slate-100 text-right font-medium">{formatNumber(m.value)}</td>
-                  <td className="py-2 px-2 border-b border-slate-100 text-slate-500">{m.note || '—'}</td>
-                  <td className="py-2 px-2 border-b border-slate-100 text-right space-x-1">
+                  <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right font-medium">{formatNumber(m.value)}</td>
+                  <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 dark:text-slate-500">{m.note || '—'}</td>
+                  <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right space-x-1">
                     <button type="button" className="text-teal-700" onClick={() => openEdit(m)}>编辑</button>
                     <button type="button" className="text-red-600" onClick={() => { setSelected(new Set([m.id!])); setConfirmDelete(true); }}>删除</button>
                   </td>
@@ -229,23 +229,23 @@ export default function QueryPage() {
 
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" onClick={() => setEditing(null)}>
-          <div className="bg-white rounded-xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-medium">编辑记录</h3>
-            <div className="mt-2 text-xs text-slate-500">
+            <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
               {editing.date} · {rMap.get(editing.reactorId)?.code} · {iMap.get(editing.indicatorId)?.name}
             </div>
             <div className="mt-3 space-y-3 text-xs">
               <label className="block">
-                <span className="text-slate-500">浓度 mg/L</span>
-                <input type="number" step="any" className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5" value={editValue} onChange={(e) => setEditValue(e.target.value)} />
+                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">浓度 mg/L</span>
+                <input type="number" step="any" className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5" value={editValue} onChange={(e) => setEditValue(e.target.value)} />
               </label>
               <label className="block">
-                <span className="text-slate-500">备注</span>
-                <input className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5" value={editNote} onChange={(e) => setEditNote(e.target.value)} />
+                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">备注</span>
+                <input className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5" value={editNote} onChange={(e) => setEditNote(e.target.value)} />
               </label>
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <button type="button" onClick={() => setEditing(null)} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600">取消</button>
+              <button type="button" onClick={() => setEditing(null)} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500">取消</button>
               <button type="button" onClick={saveEdit} className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white">保存</button>
             </div>
           </div>

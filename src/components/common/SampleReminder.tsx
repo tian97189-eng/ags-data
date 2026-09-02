@@ -141,31 +141,31 @@ export default function SampleReminder({
   const isExternal = !!(externalTimes || buildExternalTimes);
 
   return (
-    <div className="bg-white rounded-lg shadow-card p-3 text-xs">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-3 text-xs">
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-slate-500">{label}</span>
+        <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">{label}</span>
         {!isExternal && (
           <>
             <label className="flex items-center gap-1">
-              <span className="text-slate-400">间隔</span>
+              <span className="text-slate-400 dark:text-slate-500">间隔</span>
               <input
                 type="number"
                 min={1}
                 aria-label={`${label}间隔`}
-                className="w-14 border border-slate-200 rounded px-1.5 py-1"
+                className="w-14 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-1"
                 value={intervalMin}
                 disabled={running}
                 onChange={(e) => setIntervalMin(e.target.value)}
               />
-              <span className="text-slate-400">分</span>
+              <span className="text-slate-400 dark:text-slate-500">分</span>
             </label>
             <label className="flex items-center gap-1">
-              <span className="text-slate-400">次数</span>
+              <span className="text-slate-400 dark:text-slate-500">次数</span>
               <input
                 type="number"
                 min={1}
                 aria-label={`${label}次数`}
-                className="w-14 border border-slate-200 rounded px-1.5 py-1"
+                className="w-14 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-1"
                 value={count}
                 disabled={running}
                 onChange={(e) => setCount(e.target.value)}
@@ -174,7 +174,7 @@ export default function SampleReminder({
           </>
         )}
         {isExternal && (
-          <span className="text-slate-400">
+          <span className="text-slate-400 dark:text-slate-500">
             {externalHint ??
               (externalTimes ? `好氧段共 ${externalTimes.length} 个测点` : '按计时规划响铃')}
           </span>
@@ -200,7 +200,7 @@ export default function SampleReminder({
       {running && startedAt && (
         <ElapsedDisplay startedAt={startedAt} nextAt={nextAt} done={done} total={total} />
       )}
-      <p className="text-[11px] text-slate-400 mt-1.5">
+      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">
         {isNativePlatform()
           ? '到点会响铃并弹系统通知（含锁屏）；请先在系统弹窗中允许通知权限。'
           : '到点会响铃并弹系统通知；手机首次使用请允许通知权限。'}
@@ -253,21 +253,21 @@ function ElapsedDisplay({
       : msUntilNext <= 0
         ? `即将响铃（${done + 1}/${total}）`
         : `距离下次响铃 ${mm2}:${ss2}`;
-  const nextColor = isImminent ? 'text-red-600 animate-pulse font-semibold' : 'text-slate-500';
+  const nextColor = isImminent ? 'text-red-600 animate-pulse font-semibold' : 'text-slate-500 dark:text-slate-400 dark:text-slate-500';
 
   return (
     <div className="mt-3 flex flex-col items-center select-none" data-testid="elapsed-display">
       <div className="font-mono font-light tracking-tight flex items-baseline">
-        <span className="text-4xl text-slate-400">{mm}</span>
-        <span className="text-4xl text-slate-400">:</span>
-        <span className="text-4xl text-slate-800">{ss}</span>
+        <span className="text-4xl text-slate-400 dark:text-slate-500">{mm}</span>
+        <span className="text-4xl text-slate-400 dark:text-slate-500">:</span>
+        <span className="text-4xl text-slate-800 dark:text-slate-200">{ss}</span>
         <span className="text-red-500 text-3xl leading-none mx-0.5 animate-pulse">.</span>
-        <span className="text-4xl text-slate-900">{cc}</span>
+        <span className="text-4xl text-slate-900 dark:text-slate-100">{cc}</span>
       </div>
       <div className={`text-xs mt-1 font-mono tabular-nums ${nextColor}`} data-testid="next-hint">
         {nextHint}
       </div>
-      <div className="text-[11px] text-slate-400 mt-0.5">
+      <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
         已提醒 {done}/{total} 次
       </div>
     </div>

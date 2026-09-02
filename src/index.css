@@ -18,4 +18,10 @@ body {
     'Microsoft YaHei', sans-serif;
   background-color: #f8fafc;
   color: #1e293b;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark body {
+  background-color: #0f172a;
+  color: #e2e8f0;
 }

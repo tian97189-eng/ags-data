@@ -123,28 +123,28 @@ export default function ReportDialog({ open, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" onClick={onClose}>
-      <div className="bg-white rounded-xl p-5 max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-5 max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-sm font-medium mb-3">生成 Word 实验报告</h3>
-        <p className="text-sm text-slate-500 mb-3">
+        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3">
           按选定的时间段、罐和指标，生成一份带统计表（平均值 / 标准差 / 去除率 / 亚硝积累率）和趋势图的 Word 报告。
           只统计日常数据，全周期数据不混入。
         </p>
 
         <div className="grid grid-cols-2 gap-3 mb-3">
           <label className="block">
-            <span className="text-slate-500 text-xs">起始日期</span>
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">起始日期</span>
             <input
               type="date"
-              className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5 text-xs"
+              className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 text-xs"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
             />
           </label>
           <label className="block">
-            <span className="text-slate-500 text-xs">结束日期</span>
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">结束日期</span>
             <input
               type="date"
-              className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5 text-xs"
+              className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 text-xs"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
             />
@@ -153,10 +153,10 @@ export default function ReportDialog({ open, onClose }: Props) {
 
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-slate-500 text-xs">选择罐</span>
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">选择罐</span>
             <div className="flex gap-2 text-[11px]">
               <button type="button" className="text-teal-700" onClick={() => setPickedReactors((reactors ?? []).map((r) => r.id!))}>全选</button>
-              <button type="button" className="text-slate-500" onClick={() => setPickedReactors([])}>清空</button>
+              <button type="button" className="text-slate-500 dark:text-slate-400 dark:text-slate-500" onClick={() => setPickedReactors([])}>清空</button>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -166,7 +166,7 @@ export default function ReportDialog({ open, onClose }: Props) {
                 <label
                   key={r.id}
                   className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer border ${
-                    checked ? 'bg-teal-50 border-teal-300 text-teal-800' : 'border-slate-200 text-slate-500'
+                    checked ? 'bg-teal-50 border-teal-300 text-teal-800' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 dark:text-slate-500'
                   }`}
                 >
                   <input
@@ -184,10 +184,10 @@ export default function ReportDialog({ open, onClose }: Props) {
 
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-slate-500 text-xs">选择指标</span>
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">选择指标</span>
             <div className="flex gap-2 text-[11px]">
               <button type="button" className="text-teal-700" onClick={() => setPickedIndicators((indicators ?? []).map((i) => i.id!))}>全选</button>
-              <button type="button" className="text-slate-500" onClick={() => setPickedIndicators([])}>清空</button>
+              <button type="button" className="text-slate-500 dark:text-slate-400 dark:text-slate-500" onClick={() => setPickedIndicators([])}>清空</button>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -197,7 +197,7 @@ export default function ReportDialog({ open, onClose }: Props) {
                 <label
                   key={i.id}
                   className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer border ${
-                    checked ? 'bg-teal-50 border-teal-300 text-teal-800' : 'border-slate-200 text-slate-500'
+                    checked ? 'bg-teal-50 border-teal-300 text-teal-800' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 dark:text-slate-500'
                   }`}
                 >
                   <input
@@ -207,15 +207,15 @@ export default function ReportDialog({ open, onClose }: Props) {
                     className="hidden"
                   />
                   {i.name}
-                  {i.method === 'direct' && <span className="text-[10px] text-slate-400">直读</span>}
-                  {i.compositeType === 'sumOf' && <span className="text-[10px] text-slate-400">自动求和</span>}
+                  {i.method === 'direct' && <span className="text-[10px] text-slate-400 dark:text-slate-500">直读</span>}
+                  {i.compositeType === 'sumOf' && <span className="text-[10px] text-slate-400 dark:text-slate-500">自动求和</span>}
                 </label>
               );
             })}
           </div>
         </div>
 
-        <div className="text-xs text-slate-500 mb-4">
+        <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-4">
           预计统计：<span className="font-medium text-teal-700">{previewCount ?? 0}</span> 条日常数据
         </div>
 
@@ -224,7 +224,7 @@ export default function ReportDialog({ open, onClose }: Props) {
             type="button"
             onClick={onClose}
             disabled={generating}
-            className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600"
+            className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500"
           >
             取消
           </button>

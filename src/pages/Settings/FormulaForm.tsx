@@ -88,28 +88,28 @@ export default function FormulaForm({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl p-5 w-full max-w-xl max-h-[90vh] overflow-auto"
+        className="bg-white dark:bg-slate-800 rounded-xl p-5 w-full max-w-xl max-h-[90vh] overflow-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-base font-medium">手动公式标曲 · {indicator.name}</h3>
-        <p className="text-[11px] text-slate-400 mt-0.5">
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
           不用标液点，直接填你的换算公式；结果 = 公式(检测样吸光度 A、空白吸光度 A0、稀释倍数 D)
         </p>
 
         <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
           <label className="block">
-            <span className="text-slate-500">生效日期</span>
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">生效日期</span>
             <input
               type="date"
-              className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5"
+              className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
               value={effectiveFrom}
               onChange={(e) => setEffectiveFrom(e.target.value)}
             />
           </label>
           <label className="block">
-            <span className="text-slate-500">试剂批号</span>
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">试剂批号</span>
             <input
-              className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5"
+              className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
               value={batchNo}
               onChange={(e) => setBatchNo(e.target.value)}
             />
@@ -117,9 +117,9 @@ export default function FormulaForm({
         </div>
 
         <label className="block mt-3 text-xs">
-          <span className="text-slate-500">计算公式</span>
+          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">计算公式</span>
           <input
-            className="mt-1 w-full border border-slate-300 rounded-md px-2 py-2 font-mono text-sm"
+            className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-md px-2 py-2 font-mono text-sm"
             placeholder="例如：(6.9627*(A-A0)-0.004)*D"
             value={formula}
             onChange={(e) => setFormula(e.target.value)}
@@ -127,13 +127,13 @@ export default function FormulaForm({
         </label>
 
         <div className="mt-2 flex items-center gap-2 flex-wrap text-xs">
-          <span className="text-slate-500">插入变量：</span>
+          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">插入变量：</span>
           {VAR_HELP.map((v) => (
             <button
               key={v.sym}
               type="button"
               onClick={() => insertVar(v.sym)}
-              className="px-2 py-1 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 font-mono"
+              className="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:bg-slate-800 font-mono"
               title={v.label}
             >
               {v.sym} = {v.label}
@@ -141,35 +141,35 @@ export default function FormulaForm({
           ))}
         </div>
 
-        <div className="mt-3 bg-slate-50 rounded-md p-3 text-xs">
-          <div className="text-slate-500 mb-2">试算（填一组数验证公式对不对）</div>
+        <div className="mt-3 bg-slate-50 dark:bg-slate-900 rounded-md p-3 text-xs">
+          <div className="text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-2">试算（填一组数验证公式对不对）</div>
           <div className="grid grid-cols-3 gap-2">
             <label className="block">
-              <span className="text-slate-400">检测样 A</span>
+              <span className="text-slate-400 dark:text-slate-500">检测样 A</span>
               <input
                 type="number"
                 step="any"
-                className="mt-1 w-full border border-slate-200 rounded px-2 py-1 bg-white"
+                className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800"
                 value={testA}
                 onChange={(e) => setTestA(e.target.value)}
               />
             </label>
             <label className="block">
-              <span className="text-slate-400">空白 A0</span>
+              <span className="text-slate-400 dark:text-slate-500">空白 A0</span>
               <input
                 type="number"
                 step="any"
-                className="mt-1 w-full border border-slate-200 rounded px-2 py-1 bg-white"
+                className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800"
                 value={testA0}
                 onChange={(e) => setTestA0(e.target.value)}
               />
             </label>
             <label className="block">
-              <span className="text-slate-400">稀释 D</span>
+              <span className="text-slate-400 dark:text-slate-500">稀释 D</span>
               <input
                 type="number"
                 step="any"
-                className="mt-1 w-full border border-slate-200 rounded px-2 py-1 bg-white"
+                className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800"
                 value={testD}
                 onChange={(e) => setTestD(e.target.value)}
               />
@@ -177,7 +177,7 @@ export default function FormulaForm({
           </div>
           <div className="mt-2">
             {testResult == null ? (
-              <span className="text-slate-400">输入公式后可试算</span>
+              <span className="text-slate-400 dark:text-slate-500">输入公式后可试算</span>
             ) : testResult.ok ? (
               <span className="text-teal-700 font-medium">
                 试算结果：{formatNumber(testResult.value, 4)} mg/L
@@ -189,9 +189,9 @@ export default function FormulaForm({
         </div>
 
         <label className="block mt-3 text-xs">
-          <span className="text-slate-500">备注</span>
+          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">备注</span>
           <input
-            className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5"
+            className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
@@ -201,7 +201,7 @@ export default function FormulaForm({
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600"
+            className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500"
           >
             取消
           </button>

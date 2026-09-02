@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import ErrorBoundary from './ErrorBoundary';
 
 /** 一个渲染时必定抛错的组件 */
-function Boom({ msg = 'boom' }: { msg?: string }) {
+function Boom({ msg = 'boom' }: { msg?: string }): JSX.Element {
   throw new Error(msg);
 }
 

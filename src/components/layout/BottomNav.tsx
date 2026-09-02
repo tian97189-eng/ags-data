@@ -3,7 +3,7 @@ import { NAV_ITEMS } from './nav';
 
 export default function BottomNav() {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex z-40">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex z-40">
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
         return (
@@ -12,7 +12,7 @@ export default function BottomNav() {
             to={item.path}
             className={({ isActive }) =>
               `relative flex-1 py-2 flex flex-col items-center gap-0.5 text-[10px] transition-colors ${
-                isActive ? 'text-brand-700 font-medium' : 'text-slate-500'
+                isActive ? 'text-brand-700 font-medium' : 'text-slate-500 dark:text-slate-400 dark:text-slate-500'
               }`
             }
           >

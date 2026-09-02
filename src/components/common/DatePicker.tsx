@@ -77,21 +77,21 @@ export default function DatePicker({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="border border-slate-200 rounded-md px-2 py-1.5 text-xs flex items-center gap-2 bg-white hover:border-teal-300"
+        className="border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 text-xs flex items-center gap-2 bg-white dark:bg-slate-800 hover:border-teal-300"
       >
         <span>{value}</span>
-        <span className="text-slate-400">▾</span>
+        <span className="text-slate-400 dark:text-slate-500">▾</span>
       </button>
 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute z-50 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-3 w-64">
+          <div className="absolute z-50 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3 w-64">
             <div className="flex items-center justify-between mb-2">
               <button
                 type="button"
                 onClick={prevMonth}
-                className="w-6 h-6 rounded hover:bg-slate-100 text-slate-500"
+                className="w-6 h-6 rounded hover:bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 dark:text-slate-500"
               >
                 ‹
               </button>
@@ -101,13 +101,13 @@ export default function DatePicker({
               <button
                 type="button"
                 onClick={nextMonth}
-                className="w-6 h-6 rounded hover:bg-slate-100 text-slate-500"
+                className="w-6 h-6 rounded hover:bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 dark:text-slate-500"
               >
                 ›
               </button>
             </div>
 
-            <div className="grid grid-cols-7 text-center text-[11px] text-slate-400 mb-1">
+            <div className="grid grid-cols-7 text-center text-[11px] text-slate-400 dark:text-slate-500 mb-1">
               {WEEKDAYS.map((w) => (
                 <span key={w}>{w}</span>
               ))}
@@ -135,7 +135,7 @@ export default function DatePicker({
                         ? 'bg-teal-600 text-white font-medium'
                         : marked
                         ? 'bg-teal-100 text-teal-800 font-medium'
-                        : 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                     } ${today && !selected ? 'ring-1 ring-teal-300' : ''}`}
                   >
                     {Number(d.slice(8))}
@@ -144,7 +144,7 @@ export default function DatePicker({
               })}
             </div>
 
-            <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500">
+            <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-500">
               <span className="flex items-center gap-1">
                 <span className="inline-block w-3 h-3 rounded bg-teal-100" /> 有数据
               </span>

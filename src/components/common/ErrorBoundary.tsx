@@ -41,7 +41,7 @@ export default class ErrorBoundary extends Component<
           <p className="text-xs text-red-700 mb-3">
             数据都已经保存在本地，不会丢失。你可以返回其他页面继续工作，把下面的错误信息发给我来修复。
           </p>
-          <pre className="text-[11px] bg-white border border-red-200 rounded p-3 overflow-x-auto whitespace-pre-wrap text-slate-700">
+          <pre className="text-[11px] bg-white dark:bg-slate-800 border border-red-200 rounded p-3 overflow-x-auto whitespace-pre-wrap text-slate-700 dark:text-slate-300">
             {error.message || String(error)}
             {info ? `\n\n${info.split('\n').slice(0, 6).join('\n')}` : ''}
           </pre>

@@ -256,38 +256,38 @@ export default function BackupSettings() {
 
   return (
     <div className="max-w-lg space-y-4">
-      <div className="text-xs text-slate-500">
+      <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
         当前数据：{counts?.measurements ?? 0} 条测量记录 · {counts?.reactors ?? 0} 个反应器 · {counts?.curves ?? 0} 条标曲
       </div>
 
-      <div className="bg-white rounded-lg shadow-card p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="text-base font-medium mb-1">备份文件（用于电脑 ↔ 手机搬运数据）</div>
-        <p className="text-sm text-slate-500 mb-3">备份是一个文件，包含反应器、指标、标曲和全部测量数据。手机和电脑各自保留一份，通过这个文件互相同步。</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3">备份是一个文件，包含反应器、指标、标曲和全部测量数据。手机和电脑各自保留一份，通过这个文件互相同步。</p>
         <div className="flex gap-2 flex-wrap">
           <button type="button" onClick={handleExportBackup} className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white hover:bg-teal-700">
             导出备份文件
           </button>
-          <button type="button" onClick={() => fileRef.current?.click()} className="px-3 py-1.5 text-xs rounded-md border border-slate-300 text-slate-700">
+          <button type="button" onClick={() => fileRef.current?.click()} className="px-3 py-1.5 text-xs rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300">
             导入备份文件
           </button>
           <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={handleFileSelected} />
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-card p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="text-base font-medium mb-1">导出 Excel</div>
-        <p className="text-sm text-slate-500 mb-3">把数据（含标曲追溯、空白、稀释倍数）导出成 Excel，可选日期范围、罐和指标。</p>
-        <button type="button" onClick={openExport} className="px-3 py-1.5 text-xs rounded-md border border-slate-300 text-slate-700">
+        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3">把数据（含标曲追溯、空白、稀释倍数）导出成 Excel，可选日期范围、罐和指标。</p>
+        <button type="button" onClick={openExport} className="px-3 py-1.5 text-xs rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300">
           导出 Excel
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow-card p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="text-base font-medium mb-1">生成 Word 报告</div>
-        <p className="text-sm text-slate-500 mb-3">
+        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3">
           选时间段、罐和指标，生成一份带统计表（平均值 / 标准差 / 去除率 / 亚硝积累率）和趋势图的 Word 报告，可直接放进实验记录或论文。
         </p>
-        <button type="button" onClick={() => setReportOpen(true)} className="px-3 py-1.5 text-xs rounded-md border border-slate-300 text-slate-700">
+        <button type="button" onClick={() => setReportOpen(true)} className="px-3 py-1.5 text-xs rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300">
           生成报告
         </button>
       </div>
@@ -301,26 +301,26 @@ export default function BackupSettings() {
           onClick={() => setExportOpen(false)}
         >
           <div
-            className="bg-white rounded-xl p-5 max-w-md w-full max-h-[90vh] overflow-y-auto"
+            className="bg-white dark:bg-slate-800 rounded-xl p-5 max-w-md w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-sm font-medium mb-3">选择导出的数据范围</h3>
 
             <div className="grid grid-cols-2 gap-3 mb-3">
               <label className="block">
-                <span className="text-slate-500 text-xs">起始日期（可留空）</span>
+                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">起始日期（可留空）</span>
                 <input
                   type="date"
-                  className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5 text-xs"
+                  className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 text-xs"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
                 />
               </label>
               <label className="block">
-                <span className="text-slate-500 text-xs">结束日期（可留空）</span>
+                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">结束日期（可留空）</span>
                 <input
                   type="date"
-                  className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5 text-xs"
+                  className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 text-xs"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
                 />
@@ -329,10 +329,10 @@ export default function BackupSettings() {
 
             <div className="mb-3">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-slate-500 text-xs">选择罐</span>
+                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">选择罐</span>
                 <div className="flex gap-2 text-[11px]">
                   <button type="button" className="text-teal-700" onClick={() => setPickedReactors((reactors ?? []).map((r) => r.id!))}>全选</button>
-                  <button type="button" className="text-slate-500" onClick={() => setPickedReactors([])}>清空</button>
+                  <button type="button" className="text-slate-500 dark:text-slate-400 dark:text-slate-500" onClick={() => setPickedReactors([])}>清空</button>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -342,7 +342,7 @@ export default function BackupSettings() {
                     <label
                       key={r.id}
                       className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer border ${
-                        checked ? 'bg-teal-50 border-teal-300 text-teal-800' : 'border-slate-200 text-slate-500'
+                        checked ? 'bg-teal-50 border-teal-300 text-teal-800' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 dark:text-slate-500'
                       }`}
                     >
                       <input
@@ -360,10 +360,10 @@ export default function BackupSettings() {
 
             <div className="mb-3">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-slate-500 text-xs">选择指标</span>
+                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">选择指标</span>
                 <div className="flex gap-2 text-[11px]">
                   <button type="button" className="text-teal-700" onClick={() => setPickedIndicators((indicators ?? []).map((i) => i.id!))}>全选</button>
-                  <button type="button" className="text-slate-500" onClick={() => setPickedIndicators([])}>清空</button>
+                  <button type="button" className="text-slate-500 dark:text-slate-400 dark:text-slate-500" onClick={() => setPickedIndicators([])}>清空</button>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -373,7 +373,7 @@ export default function BackupSettings() {
                     <label
                       key={i.id}
                       className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer border ${
-                        checked ? 'bg-teal-50 border-teal-300 text-teal-800' : 'border-slate-200 text-slate-500'
+                        checked ? 'bg-teal-50 border-teal-300 text-teal-800' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 dark:text-slate-500'
                       }`}
                     >
                       <input
@@ -395,10 +395,10 @@ export default function BackupSettings() {
                 checked={includeExtras}
                 onChange={(e) => setIncludeExtras(e.target.checked)}
               />
-              <span className="text-slate-500">包含其他指标（污泥浓度 / 筛分粒径 / EPS）</span>
+              <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">包含其他指标（污泥浓度 / 筛分粒径 / EPS）</span>
             </label>
 
-            <div className="text-xs text-slate-500 mb-3 space-y-0.5">
+            <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3 space-y-0.5">
               <div>预计导出（按 sheet 分）：</div>
               <div className="pl-2">
                 · 测量数据 <span className="font-medium text-teal-700">{exportPreview?.measurement ?? 0}</span> 条
@@ -416,7 +416,7 @@ export default function BackupSettings() {
               <button
                 type="button"
                 onClick={() => setExportOpen(false)}
-                className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600"
+                className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500"
               >
                 取消
               </button>
@@ -433,16 +433,16 @@ export default function BackupSettings() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-card p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="text-base font-medium mb-1">导入 Excel</div>
-        <p className="text-sm text-slate-500 mb-3">
+        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3">
           按固定列模板（日期 / 罐 / 指标 / 浓度 / 备注）上传 Excel，可一次导入多条测量记录。不识别的罐/指标会跳过并提示。
         </p>
         <div className="flex gap-2 flex-wrap">
-          <button type="button" onClick={() => excelFileRef.current?.click()} className="px-3 py-1.5 text-xs rounded-md border border-slate-300 text-slate-700">
+          <button type="button" onClick={() => excelFileRef.current?.click()} className="px-3 py-1.5 text-xs rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300">
             选择 Excel 文件
           </button>
-          <button type="button" onClick={handleDownloadTemplate} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-500 hover:border-teal-400">
+          <button type="button" onClick={handleDownloadTemplate} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 dark:text-slate-500 hover:border-teal-400">
             下载模板
           </button>
           <input
@@ -457,10 +457,10 @@ export default function BackupSettings() {
 
       {excelImport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" onClick={() => setExcelImport(null)}>
-          <div className="bg-white rounded-xl p-5 max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-5 max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-sm font-medium mb-3">Excel 导入预览</h3>
 
-            <div className="text-xs text-slate-600 mb-3 space-y-1">
+            <div className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500 mb-3 space-y-1">
               <div>
                 共 {excelImport.totalRows} 行，<span className="text-teal-700 font-medium">{excelImport.okCount} 行可导入</span>
                 {excelImport.unknownIndicatorNames.length > 0 && (
@@ -479,28 +479,28 @@ export default function BackupSettings() {
             <div className="overflow-x-auto -mx-5 px-5 mb-3">
               <table className="w-full table-fixed border-collapse text-xs min-w-[600px]">
                 <thead>
-                  <tr className="text-slate-500">
-                    <th className="text-left py-1.5 px-2 border-b border-slate-200 w-12">行</th>
-                    <th className="text-left py-1.5 px-2 border-b border-slate-200">日期</th>
-                    <th className="text-left py-1.5 px-2 border-b border-slate-200">罐</th>
-                    <th className="text-left py-1.5 px-2 border-b border-slate-200">指标</th>
-                    <th className="text-right py-1.5 px-2 border-b border-slate-200">浓度</th>
-                    <th className="text-left py-1.5 px-2 border-b border-slate-200">备注</th>
-                    <th className="text-left py-1.5 px-2 border-b border-slate-200">状态</th>
+                  <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                    <th className="text-left py-1.5 px-2 border-b border-slate-200 dark:border-slate-700 w-12">行</th>
+                    <th className="text-left py-1.5 px-2 border-b border-slate-200 dark:border-slate-700">日期</th>
+                    <th className="text-left py-1.5 px-2 border-b border-slate-200 dark:border-slate-700">罐</th>
+                    <th className="text-left py-1.5 px-2 border-b border-slate-200 dark:border-slate-700">指标</th>
+                    <th className="text-right py-1.5 px-2 border-b border-slate-200 dark:border-slate-700">浓度</th>
+                    <th className="text-left py-1.5 px-2 border-b border-slate-200 dark:border-slate-700">备注</th>
+                    <th className="text-left py-1.5 px-2 border-b border-slate-200 dark:border-slate-700">状态</th>
                   </tr>
                 </thead>
                 <tbody>
                   {excelImport.rows.map((r) => (
                     <tr key={r.excelRow}>
-                      <td className="py-1.5 px-2 border-b border-slate-100">{r.excelRow}</td>
-                      <td className="py-1.5 px-2 border-b border-slate-100">{r.date ?? '—'}</td>
-                      <td className="py-1.5 px-2 border-b border-slate-100">{r.reactorCode ?? '—'}</td>
-                      <td className="py-1.5 px-2 border-b border-slate-100">{r.indicatorName ?? '—'}</td>
-                      <td className="py-1.5 px-2 border-b border-slate-100 text-right">
+                      <td className="py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">{r.excelRow}</td>
+                      <td className="py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">{r.date ?? '—'}</td>
+                      <td className="py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">{r.reactorCode ?? '—'}</td>
+                      <td className="py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">{r.indicatorName ?? '—'}</td>
+                      <td className="py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 text-right">
                         {r.value ?? '—'}
                       </td>
-                      <td className="py-1.5 px-2 border-b border-slate-100">{r.note}</td>
-                      <td className="py-1.5 px-2 border-b border-slate-100">
+                      <td className="py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">{r.note}</td>
+                      <td className="py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">
                         {r.status === 'ok' ? (
                           <span className="text-teal-700">可导入</span>
                         ) : (
@@ -516,7 +516,7 @@ export default function BackupSettings() {
             </div>
 
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setExcelImport(null)} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600">
+              <button type="button" onClick={() => setExcelImport(null)} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500">
                 取消
               </button>
               <button
@@ -534,17 +534,17 @@ export default function BackupSettings() {
 
       {modeChoiceOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" onClick={() => setModeChoiceOpen(false)}>
-          <div className="bg-white rounded-xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-medium">选择导入方式</h3>
-            <p className="text-sm text-slate-500 mt-2">你正在导入一个备份文件，请选择处理方式：</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mt-2">你正在导入一个备份文件，请选择处理方式：</p>
             <div className="space-y-2 mt-3">
-              <button type="button" onClick={() => doImport('merge')} className="w-full text-left px-3 py-2 text-xs rounded-md border border-slate-200 hover:border-teal-300">
+              <button type="button" onClick={() => doImport('merge')} className="w-full text-left px-3 py-2 text-xs rounded-md border border-slate-200 dark:border-slate-700 hover:border-teal-300">
                 <span className="font-medium">合并导入</span>
-                <span className="text-slate-500 ml-1">只新增本地没有的记录，已有数据不动（推荐）</span>
+                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 ml-1">只新增本地没有的记录，已有数据不动（推荐）</span>
               </button>
-              <button type="button" onClick={() => { setModeChoiceOpen(false); setConfirmOverwrite(true); }} className="w-full text-left px-3 py-2 text-xs rounded-md border border-slate-200 hover:border-red-300">
+              <button type="button" onClick={() => { setModeChoiceOpen(false); setConfirmOverwrite(true); }} className="w-full text-left px-3 py-2 text-xs rounded-md border border-slate-200 dark:border-slate-700 hover:border-red-300">
                 <span className="font-medium text-red-600">覆盖导入</span>
-                <span className="text-slate-500 ml-1">清空本地全部数据，用备份整体替换</span>
+                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 ml-1">清空本地全部数据，用备份整体替换</span>
               </button>
             </div>
           </div>

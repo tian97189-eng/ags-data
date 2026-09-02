@@ -111,25 +111,25 @@ export default function CurveForm({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl p-5 w-full max-w-xl max-h-[90vh] overflow-auto"
+        className="bg-white dark:bg-slate-800 rounded-xl p-5 w-full max-w-xl max-h-[90vh] overflow-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-base font-medium">新建标曲 · {indicator.name}</h3>
 
         <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
           <label className="block">
-            <span className="text-slate-500">生效日期</span>
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">生效日期</span>
             <input
               type="date"
-              className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5"
+              className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
               value={effectiveFrom}
               onChange={(e) => setEffectiveFrom(e.target.value)}
             />
           </label>
           <label className="block">
-            <span className="text-slate-500">试剂批号</span>
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">试剂批号</span>
             <input
-              className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5"
+              className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
               value={batchNo}
               onChange={(e) => setBatchNo(e.target.value)}
             />
@@ -138,12 +138,12 @@ export default function CurveForm({
 
         <div className="mt-3 grid md:grid-cols-2 gap-4">
           <div>
-            <div className="text-xs text-slate-500 mb-1">标液点</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-1">标液点</div>
             <table className="w-full border-collapse text-xs">
               <thead>
-                <tr className="text-slate-500">
-                  <th className="text-left py-1 px-1 border-b border-slate-200">浓度 mg/L</th>
-                  <th className="text-left py-1 px-1 border-b border-slate-200">吸光度</th>
+                <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                  <th className="text-left py-1 px-1 border-b border-slate-200 dark:border-slate-700">浓度 mg/L</th>
+                  <th className="text-left py-1 px-1 border-b border-slate-200 dark:border-slate-700">吸光度</th>
                   <th className="w-8"></th>
                 </tr>
               </thead>
@@ -154,7 +154,7 @@ export default function CurveForm({
                       <input
                         type="number"
                         step="any"
-                        className="w-full border border-slate-200 rounded px-2 py-1"
+                        className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
                         value={r.c}
                         onChange={(e) => updateRow(i, 'c', e.target.value)}
                       />
@@ -163,7 +163,7 @@ export default function CurveForm({
                       <input
                         type="number"
                         step="any"
-                        className="w-full border border-slate-200 rounded px-2 py-1"
+                        className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
                         value={r.a}
                         onChange={(e) => updateRow(i, 'a', e.target.value)}
                       />
@@ -198,16 +198,16 @@ export default function CurveForm({
               lazyUpdate
             />
             <div className="grid grid-cols-3 gap-2 mt-2 text-center">
-              <div className="bg-slate-50 rounded-md p-2">
-                <div className="text-[11px] text-slate-500">k</div>
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-md p-2">
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-500">k</div>
                 <div className="text-base font-medium">{fit ? formatNumber(fit.k, 4) : '—'}</div>
               </div>
-              <div className="bg-slate-50 rounded-md p-2">
-                <div className="text-[11px] text-slate-500">b</div>
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-md p-2">
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-500">b</div>
                 <div className="text-base font-medium">{fit ? formatNumber(fit.b, 4) : '—'}</div>
               </div>
-              <div className="bg-slate-50 rounded-md p-2">
-                <div className="text-[11px] text-slate-500">R²</div>
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-md p-2">
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-500">R²</div>
                 <div className={`text-sm font-medium ${fit && fit.r2 < 0.99 ? 'text-amber-600' : 'text-teal-700'}`}>
                   {fit ? formatNumber(fit.r2, 4) : '—'}
                 </div>
@@ -217,9 +217,9 @@ export default function CurveForm({
         </div>
 
         <label className="block mt-3 text-xs">
-          <span className="text-slate-500">备注</span>
+          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">备注</span>
           <input
-            className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5"
+            className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
@@ -229,7 +229,7 @@ export default function CurveForm({
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600"
+            className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500"
           >
             取消
           </button>

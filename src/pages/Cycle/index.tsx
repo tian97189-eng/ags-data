@@ -234,7 +234,7 @@ export default function CyclePage() {
 
       <div className="flex items-center gap-2 flex-wrap mb-3">
         <select
-          className="border border-slate-200 rounded-md px-2 py-1.5 text-xs"
+          className="border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 text-xs"
           value={cycleId ?? ''}
           onChange={(e) => setCycleId(Number(e.target.value) || null)}
         >
@@ -288,34 +288,34 @@ export default function CyclePage() {
 
           {indicator && (
             <div className="flex items-center gap-3 text-xs mb-2">
-              <span className="text-slate-500">
+              <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
                 {cycle.startTime} 起 · 每 {cycle.intervalMinutes} 分钟 · 共 {times.length} 点
               </span>
               {indicator.method === 'absorbance' && !isComposite && (
                 <>
                   <label className="flex items-center gap-1">
-                    <span className="text-slate-500">空白</span>
+                    <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">空白</span>
                     <input
                       type="number"
                       step="any"
-                      className="w-20 border border-slate-200 rounded px-2 py-1"
+                      className="w-20 border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
                       value={blank}
                       onChange={(e) => setBlank(e.target.value)}
                     />
                   </label>
                   <label className="flex items-center gap-1">
-                    <span className="text-slate-500">稀释</span>
+                    <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">稀释</span>
                     <input
                       type="number"
                       step="any"
-                      className="w-20 border border-slate-200 rounded px-2 py-1"
+                      className="w-20 border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
                       value={dilution}
                       onChange={(e) => setDilution(e.target.value)}
                     />
                   </label>
                 </>
               )}
-              <span className="text-slate-400 ml-auto">可直接从 Excel 框选整块 Ctrl+V 粘贴</span>
+              <span className="text-slate-400 dark:text-slate-500 ml-auto">可直接从 Excel 框选整块 Ctrl+V 粘贴</span>
             </div>
           )}
 
@@ -335,11 +335,11 @@ export default function CyclePage() {
               onPaste={onPaste}
             >
               <thead>
-                <tr className="text-slate-500">
-                  <th className="text-left py-2 px-2 border-b border-slate-200 w-16">时间</th>
-                  <th className="text-left py-2 px-2 border-b border-slate-200 w-20">阶段</th>
+                <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                  <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 w-16">时间</th>
+                  <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 w-20">阶段</th>
                   {reactors?.map((r) => (
-                    <th key={r.id} className="text-left py-2 px-2 border-b border-slate-200">
+                    <th key={r.id} className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">
                       {r.code} {indicator?.method === 'absorbance' && !isComposite ? '吸光度' : '浓度'}
                     </th>
                   ))}
@@ -351,7 +351,7 @@ export default function CyclePage() {
                     <td className="py-1.5 px-2 border-b border-slate-50">{t}</td>
                     <td className="py-1.5 px-2 border-b border-slate-50">
                       <select
-                        className="border border-slate-200 rounded px-1 py-1 text-[11px]"
+                        className="border border-slate-200 dark:border-slate-700 rounded px-1 py-1 text-[11px]"
                         value={phases[t] ?? ''}
                         onChange={(e) =>
                           setPhases((prev) => ({ ...prev, [t]: (e.target.value || null) as Phase }))
@@ -382,7 +382,7 @@ export default function CyclePage() {
                           <input
                             type="number"
                             step="any"
-                            className="w-full border border-slate-200 rounded px-2 py-1"
+                            className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
                             value={cell.sample}
                             onChange={(e) =>
                               setCells((prev) => ({
@@ -401,16 +401,16 @@ export default function CyclePage() {
           </div>
 
           <div className="mt-4">
-            <div className="text-xs text-slate-500 mb-2">周期统计（{indicator?.name}）</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-2">周期统计（{indicator?.name}）</div>
             <div className="overflow-x-auto">
               <table className="w-full table-fixed border-collapse text-xs">
                 <thead>
-                  <tr className="text-slate-500">
-                    <th className="text-left py-2 px-2 border-b border-slate-200">罐</th>
-                    <th className="text-right py-2 px-2 border-b border-slate-200">起始</th>
-                    <th className="text-right py-2 px-2 border-b border-slate-200">最低</th>
-                    <th className="text-right py-2 px-2 border-b border-slate-200">最高</th>
-                    <th className="text-right py-2 px-2 border-b border-slate-200">降到 2 用时</th>
+                  <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                    <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">罐</th>
+                    <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">起始</th>
+                    <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">最低</th>
+                    <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">最高</th>
+                    <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">降到 2 用时</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -426,11 +426,11 @@ export default function CyclePage() {
                     const s = cycleStats(times, values, 2);
                     return (
                       <tr key={r.id}>
-                        <td className="py-2 px-2 border-b border-slate-100">{r.code}</td>
-                        <td className="py-2 px-2 border-b border-slate-100 text-right">{formatNumber(s.start)}</td>
-                        <td className="py-2 px-2 border-b border-slate-100 text-right">{formatNumber(s.min)}</td>
-                        <td className="py-2 px-2 border-b border-slate-100 text-right">{formatNumber(s.max)}</td>
-                        <td className="py-2 px-2 border-b border-slate-100 text-right">
+                        <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">{r.code}</td>
+                        <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right">{formatNumber(s.start)}</td>
+                        <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right">{formatNumber(s.min)}</td>
+                        <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right">{formatNumber(s.max)}</td>
+                        <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right">
                           {s.timeToTarget != null ? `${s.timeToTarget} 分钟` : '—'}
                         </td>
                       </tr>
@@ -511,29 +511,29 @@ function NewCycleForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" onClick={onClose}>
-      <div className="bg-white rounded-xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-base font-medium">新建周期</h3>
         <div className="mt-3 space-y-3 text-xs">
           <label className="block">
-            <span className="text-slate-500">日期</span>
-            <input type="date" className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5" value={date} onChange={(e) => setDate(e.target.value)} />
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">日期</span>
+            <input type="date" className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5" value={date} onChange={(e) => setDate(e.target.value)} />
           </label>
           <div className="grid grid-cols-3 gap-3">
             <label className="block">
-              <span className="text-slate-500">起始</span>
-              <input type="time" className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+              <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">起始</span>
+              <input type="time" className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
             </label>
             <label className="block">
-              <span className="text-slate-500">间隔(分)</span>
-              <input type="number" className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5" value={interval} onChange={(e) => setInterval(e.target.value)} />
+              <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">间隔(分)</span>
+              <input type="number" className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5" value={interval} onChange={(e) => setInterval(e.target.value)} />
             </label>
             <label className="block">
-              <span className="text-slate-500">点数</span>
-              <input type="number" className="mt-1 w-full border border-slate-200 rounded-md px-2 py-1.5" value={count} onChange={(e) => setCount(e.target.value)} />
+              <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">点数</span>
+              <input type="number" className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5" value={count} onChange={(e) => setCount(e.target.value)} />
             </label>
           </div>
           <div>
-            <span className="text-slate-500">参与反应器</span>
+            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">参与反应器</span>
             <div className="flex gap-3 mt-1 flex-wrap">
               {reactors.map((r) => (
                 <label key={r.id} className="flex items-center gap-1">
@@ -553,7 +553,7 @@ function NewCycleForm({
           </div>
         </div>
         <div className="flex justify-end gap-2 mt-4">
-          <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600">取消</button>
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500">取消</button>
           <button type="button" onClick={create} className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white">创建</button>
         </div>
       </div>

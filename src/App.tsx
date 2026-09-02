@@ -10,12 +10,29 @@ import ChartPage from './pages/Chart';
 import StatsPage from './pages/Stats';
 import SettingsPage from './pages/Settings';
 import OverviewPage from './pages/Overview';
-import { useAppStore } from './store/useAppStore';
+import { useAppStore, resolveDark } from './store/useAppStore';
 import { db } from './db/schema';
 import { checkUpdate, shouldAutoCheck } from './lib/updater';
 
 export default function App() {
   const toast = useAppStore((s) => s.toast);
+  const theme = useAppStore((s) => s.theme);
+
+  // 主题应用到 <html> 的 dark class
+  useEffect(() => {
+    const root = document.documentElement;
+    const apply = () => {
+      if (resolveDark(theme)) root.classList.add('dark');
+      else root.classList.remove('dark');
+    };
+    apply();
+    if (theme === 'system' && typeof window !== 'undefined') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const onChange = () => apply();
+      mq.addEventListener('change', onChange);
+      return () => mq.removeEventListener('change', onChange);
+    }
+  }, [theme]);
 
   // 启动时自动检查一次更新（每天最多一次；未配置检查地址则跳过）
   useEffect(() => {

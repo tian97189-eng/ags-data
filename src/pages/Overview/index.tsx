@@ -152,11 +152,11 @@ export default function OverviewPage() {
         />
       </div>
 
-      <div className="bg-white rounded-lg shadow-card p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-base font-medium">氨氮去除率 · 近 7 天</span>
           {removalTrend && (
-            <span className="flex gap-3 text-[13px] text-slate-500">
+            <span className="flex gap-3 text-[13px] text-slate-500 dark:text-slate-400 dark:text-slate-500">
               {removalTrend.tanks.map((c, i) => (
                 <span key={c} className="flex items-center gap-1.5">
                   <span
@@ -198,24 +198,24 @@ function StatCard({
         : value.toFixed(precision);
   return (
     <div
-      className={`rounded-lg p-4 ${accent ? 'bg-brand-600 text-white' : 'bg-white shadow-card'}`}
+      className={`rounded-lg p-4 ${accent ? 'bg-brand-600 text-white' : 'bg-white dark:bg-slate-800 shadow-card'}`}
     >
       <div
-        className={`text-[13px] ${accent ? 'text-brand-100' : 'text-slate-500'}`}
+        className={`text-[13px] ${accent ? 'text-brand-100' : 'text-slate-500 dark:text-slate-400 dark:text-slate-500'}`}
       >
         {label}
       </div>
       <div className="mt-1 flex items-baseline gap-1">
         <span
           className={`tabular-nums ${
-            accent ? 'text-white' : 'text-slate-900'
+            accent ? 'text-white' : 'text-slate-900 dark:text-slate-100'
           } text-[26px] font-medium leading-none`}
         >
           {display}
         </span>
         {suffix && (
           <span
-            className={`text-[13px] ${accent ? 'text-brand-100' : 'text-slate-500'}`}
+            className={`text-[13px] ${accent ? 'text-brand-100' : 'text-slate-500 dark:text-slate-400 dark:text-slate-500'}`}
           >
             {suffix.trim()}
           </span>
@@ -223,7 +223,7 @@ function StatCard({
       </div>
       {subLabel && (
         <div
-          className={`text-[11px] mt-1 ${accent ? 'text-brand-100' : 'text-slate-400'}`}
+          className={`text-[11px] mt-1 ${accent ? 'text-brand-100' : 'text-slate-400 dark:text-slate-500'}`}
         >
           {subLabel}
         </div>
@@ -239,7 +239,7 @@ function TrendChart({
 }) {
   if (!trend || trend.data.length === 0) {
     return (
-      <div className="h-24 flex items-center justify-center text-[13px] text-slate-400">
+      <div className="h-24 flex items-center justify-center text-[13px] text-slate-400 dark:text-slate-500">
         暂无数据
       </div>
     );

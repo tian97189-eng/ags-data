@@ -82,34 +82,34 @@ export default function IndicatorCard({
   }
 
   return (
-    <div className="border border-slate-200 rounded-lg mb-3">
-      <div className="flex items-center gap-3 flex-wrap px-3 py-2 border-b border-slate-100 bg-slate-50 rounded-t-lg">
+    <div className="border border-slate-200 dark:border-slate-700 rounded-lg mb-3">
+      <div className="flex items-center gap-3 flex-wrap px-3 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 rounded-t-lg">
         <span className="text-base font-medium">{indicator.name}</span>
         {isComposite && (
-          <span className="ml-auto text-[11px] text-slate-400">
+          <span className="ml-auto text-[11px] text-slate-400 dark:text-slate-500">
             由 {indicator.compositeRefs?.length ?? 0} 个指标自动求和
           </span>
         )}
         {!isDirect && !isComposite && (
           <div className="flex items-center gap-3 text-xs ml-auto">
             <label className="flex items-center gap-1">
-              <span className="text-slate-500">空白</span>
+              <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">空白</span>
               <input
                 type="number"
                 step="any"
                 aria-label={`${indicator.name} 空白`}
-                className="w-20 border border-slate-200 rounded px-2 py-1 bg-white"
+                className="w-20 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800"
                 value={defaultBlank}
                 onChange={(e) => onDefaultChange(e.target.value, defaultDilution)}
               />
             </label>
             <label className="flex items-center gap-1">
-              <span className="text-slate-500">稀释</span>
+              <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">稀释</span>
               <input
                 type="number"
                 step="any"
                 aria-label={`${indicator.name} 稀释`}
-                className="w-20 border border-slate-200 rounded px-2 py-1 bg-white"
+                className="w-20 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800"
                 value={defaultDilution}
                 onChange={(e) => onDefaultChange(defaultBlank, e.target.value)}
               />
@@ -117,27 +117,27 @@ export default function IndicatorCard({
           </div>
         )}
         {isDirect && (
-          <span className="ml-auto text-[11px] text-slate-400">仪器直读，直接填浓度</span>
+          <span className="ml-auto text-[11px] text-slate-400 dark:text-slate-500">仪器直读，直接填浓度</span>
         )}
       </div>
 
       <table className="w-full table-fixed border-collapse text-xs">
         <thead>
-          <tr className="text-slate-500">
-            <th className="text-left py-1.5 px-3 border-b border-slate-100 w-16">罐</th>
+          <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            <th className="text-left py-1.5 px-3 border-b border-slate-100 dark:border-slate-800 w-16">罐</th>
             {isComposite ? (
-              <th className="text-left py-1.5 px-2 border-b border-slate-100">自动计算</th>
+              <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">自动计算</th>
             ) : (
               <>
-                <th className="text-left py-1.5 px-2 border-b border-slate-100">
+                <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">
                   {isDirect ? '浓度' : '吸光度'}
                 </th>
                 {!isDirect && (
-                  <th className="text-left py-1.5 px-2 border-b border-slate-100 w-24">稀释</th>
+                  <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-24">稀释</th>
                 )}
               </>
             )}
-            <th className="text-right py-1.5 px-3 border-b border-slate-100 w-24">mg/L</th>
+            <th className="text-right py-1.5 px-3 border-b border-slate-100 dark:border-slate-800 w-24">mg/L</th>
           </tr>
         </thead>
         <tbody>
@@ -151,7 +151,7 @@ export default function IndicatorCard({
                 <td className="py-1.5 px-3 border-b border-slate-50">{r.code}</td>
                 {isComposite ? (
                   <td
-                    className="py-1.5 px-2 border-b border-slate-50 text-slate-500 text-[11px]"
+                    className="py-1.5 px-2 border-b border-slate-50 text-slate-500 dark:text-slate-400 dark:text-slate-500 text-[11px]"
                     colSpan={2}
                   >
                     由三氮等指标自动算得
@@ -163,7 +163,7 @@ export default function IndicatorCard({
                         type="number"
                         step="any"
                         aria-label={`${r.code} ${isDirect ? '浓度' : '吸光度'}`}
-                        className="w-full border border-slate-200 rounded px-2 py-1"
+                        className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
                         value={cell.sample}
                         onChange={(e) => onCellChange(r.id!, { ...cell, sample: e.target.value })}
                       />
@@ -177,7 +177,7 @@ export default function IndicatorCard({
                           className={`w-full border rounded px-2 py-1 ${
                             cell.dilutionOverridden
                               ? 'border-amber-400 bg-amber-50 text-amber-700'
-                              : 'border-slate-200'
+                              : 'border-slate-200 dark:border-slate-700'
                           }`}
                           value={cell.dilution}
                           title={cell.dilutionOverridden ? '单独改过稀释倍数' : undefined}
