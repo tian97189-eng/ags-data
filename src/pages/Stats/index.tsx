@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import ReactECharts from 'echarts-for-react';
 import { db } from '../../db/schema';
-import { removalRate, nar, mean, stdev, min as statsMin, max as statsMax, pearson, attainmentRate, describe as statsDescribe } from '../../lib/stats';
+import { removalRate, nar, mean, stdev, min as statsMin, max as statsMax, pearson, attainmentRate, describe as statsDescribe, linearRegression } from '../../lib/stats';
 import { computeParticleDistribution } from '../../lib/extras';
 import { formatNumber, formatPercent } from '../../lib/format';
 import PageHeader from '../../components/layout/PageHeader';
@@ -15,6 +15,9 @@ export default function StatsPage() {
   const [corrXId, setCorrXId] = useState<number | null>(null);
   const [corrYId, setCorrYId] = useState<number | null>(null);
   const [corrReactorId, setCorrReactorId] = useState<number | null>(null);
+  // 浓度梯度 vs 去除率
+  const [gradXId, setGradXId] = useState<number | null>(null);
+  const [gradYId, setGradYId] = useState<number | null>(null);
 
   const mlss = useLiveQuery(() => db.mlssRecords.toArray(), []);
   const particle = useLiveQuery(() => db.particleSizeRecords.toArray(), []);
@@ -120,6 +123,110 @@ export default function StatsPage() {
 
 const corrX = indicators?.find((i) => i.id === corrXId);
 const corrY = indicators?.find((i) => i.id === corrYId);
+
+// —— 浓度梯度 vs 去除率：每个罐每个有数据的日期一个点 ——
+// X = 投加/进水浓度（梯度指标），Y = 响应指标的去除率（%）
+const grad = useMemo(() => {
+  if (gradXId == null || gradYId == null) return null;
+  const infs = influents ?? [];
+  const meas = measurements ?? [];
+  const xIdx = gradXId;
+  const yIdx = gradYId;
+
+  // 出水值：按 (罐,日,指标) → 值
+  const outMap = new Map<string, number>();
+  for (const m of meas) {
+    if (m.scene !== 'daily' || m.value == null) continue;
+    outMap.set(`${m.reactorId}|${m.date}|${m.indicatorId}`, m.value);
+  }
+  // 进水值：perReactor 优先，否则 shared（reactorId==null）
+  function influentVal(indicatorId: number, reactorId: number | null, date: string): number | null {
+    const own = infs.filter((i) => i.indicatorId === indicatorId && i.reactorId === reactorId && i.date === date && i.value != null);
+    if (own.length > 0) return own.reduce((s, x) => s + (x.value ?? 0), 0) / own.length;
+    const shared = infs.filter((i) => i.indicatorId === indicatorId && i.reactorId == null && i.date === date && i.value != null);
+    if (shared.length > 0) return shared.reduce((s, x) => s + (x.value ?? 0), 0) / shared.length;
+    return null;
+  }
+
+  const points: { reactorId: number; x: number; y: number; date: string }[] = [];
+  const dates = new Set<string>();
+  for (const m of meas) {
+    if (m.scene === 'daily') dates.add(m.date);
+  }
+  for (const inf of infs) dates.add(inf.date);
+
+  for (const r of reactors ?? []) {
+    for (const d of dates) {
+      if (!inRange(d)) continue;
+      const x = influentVal(xIdx, r.id!, d);
+      const outY = outMap.get(`${r.id!}|${d}|${yIdx}`) ?? null;
+      const inY = influentVal(yIdx, r.id!, d);
+      const rate = removalRate(inY, outY);
+      if (x != null && rate != null) {
+        points.push({ reactorId: r.id!, x, y: rate, date: d });
+      }
+    }
+  }
+  points.sort((a, b) => a.date.localeCompare(b.date));
+  return points.length > 0 ? points : null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [measurements, influents, reactors, gradXId, gradYId, dateFrom, dateTo]);
+
+const gradByReactor = useMemo(() => {
+  if (!grad) return [];
+  const map = new Map<number, { code: string; pts: number[][] }>();
+  const codeById = new Map((reactors ?? []).map((r) => [r.id!, r.code]));
+  for (const p of grad) {
+    const g = map.get(p.reactorId) ?? { code: codeById.get(p.reactorId) ?? `#${p.reactorId}`, pts: [] };
+    g.pts.push([p.x, p.y]);
+    map.set(p.reactorId, g);
+  }
+  return Array.from(map.values());
+}, [grad, reactors]);
+
+const gradReg = useMemo(() => {
+  if (!grad || grad.length < 2) return null;
+  const xs = grad.map((p) => p.x);
+  const ys = grad.map((p) => p.y);
+  return linearRegression(xs, ys);
+}, [grad]);
+
+const gradOption = useMemo(() => {
+  const palette = ['#0d9488', '#0f766e', '#14b8a6', '#115e59', '#2dd4bf', '#134e4a', '#5eead4'];
+  const xName = indicators?.find((i) => i.id === gradXId)?.name ?? 'X 进水浓度';
+  const yName = indicators?.find((i) => i.id === gradYId)?.name ?? '去除率';
+  const series: object[] = gradByReactor.map((g, i) => ({
+    name: g.code,
+    type: 'scatter',
+    data: g.pts,
+    symbolSize: 10,
+    itemStyle: { color: palette[i % palette.length] },
+  }));
+  if (gradReg && gradByReactor.length > 0) {
+    const xs = gradByReactor.flatMap((g) => g.pts.map((p) => p[0]));
+    const xMin = Math.min(...xs);
+    const xMax = Math.max(...xs);
+    series.push({
+      name: `趋势线 R²=${gradReg.r2.toFixed(3)}`,
+      type: 'line',
+      data: [
+        [xMin, gradReg.slope * xMin + gradReg.intercept],
+        [xMax, gradReg.slope * xMax + gradReg.intercept],
+      ],
+      symbol: 'none',
+      lineStyle: { type: 'dashed', width: 2, color: '#e24b4a' },
+    });
+  }
+  return {
+    color: palette,
+    tooltip: { trigger: 'item' as const },
+    legend: { top: 0 },
+    grid: { left: 60, right: 24, top: 36, bottom: 48 },
+    xAxis: { type: 'value' as const, name: `${xName}（进水）`, nameTextStyle: { fontSize: 11 }, axisLabel: { color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
+    yAxis: { type: 'value' as const, name: `${yName} 去除率 %`, nameTextStyle: { fontSize: 11 }, axisLabel: { color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
+    series,
+  };
+}, [gradByReactor, gradReg, gradXId, gradYId, indicators]);
 
 // —— 其他指标（污泥浓度/粒径 d50/EPS）统计 ——
 const extrasStats = useMemo(() => {
@@ -267,6 +374,39 @@ const extrasStats = useMemo(() => {
             <EmptyState title="选择两个指标查看相关性" desc={`需要同一罐在相同日期都有 ${corrX?.name ?? 'X'} 和 ${corrY?.name ?? 'Y'} 的数据`} />
           ) : (
             <ReactECharts option={corrOption} style={{ height: 300 }} notMerge lazyUpdate />
+          )}
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4 md:col-span-2">
+          <div className="text-sm font-medium mb-1">浓度梯度 vs 去除率</div>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">
+            梯度实验分析：X 为投加/进水浓度（各罐或各批次不同），Y 为对应去除率。
+            每个罐有数据的每个日期一个点（按罐分色），红色虚线为整体趋势线。
+          </p>
+          <div className="flex items-center gap-2 flex-wrap text-xs mb-3">
+            <span className="text-slate-500 dark:text-slate-400">浓度指标（X·进水）</span>
+            <select className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={gradXId ?? ''} onChange={(e) => setGradXId(Number(e.target.value) || null)}>
+              <option value="">选择</option>
+              {indicators?.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+            </select>
+            <span className="text-slate-500 dark:text-slate-400">响应指标（Y·去除率）</span>
+            <select className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={gradYId ?? ''} onChange={(e) => setGradYId(Number(e.target.value) || null)}>
+              <option value="">选择</option>
+              {indicators?.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+            </select>
+            {gradReg && (
+              <span className="ml-auto font-medium tabular-nums">
+                n={gradReg.n} · 趋势 y = {formatNumber(gradReg.slope, 3)}x {gradReg.intercept >= 0 ? '+' : '−'} {formatNumber(Math.abs(gradReg.intercept), 1)} · R² = {gradReg.r2.toFixed(3)}
+              </span>
+            )}
+          </div>
+          {!grad || grad.length === 0 ? (
+            <EmptyState
+              title="选择浓度指标和响应指标"
+              desc="需要日期范围内有 X 指标的进水浓度，以及 Y 指标同罐的进出水数据才能算出去除率"
+            />
+          ) : (
+            <ReactECharts option={gradOption} style={{ height: 320 }} notMerge lazyUpdate />
           )}
         </div>
 

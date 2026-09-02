@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { computeConcentration, computeCompositeValue, type ComputeStatus } from '../../lib/calibration';
 import { db } from '../../db/schema';
 import { formatNumber } from '../../lib/format';
+import { outOfRange } from '../../lib/stats';
 
 export interface CellState {
   sample: string;
@@ -193,7 +194,18 @@ export default function IndicatorCard({
                     )}
                   </>
                 )}
-                <td className="py-1.5 px-3 border-b border-slate-50 text-right font-medium text-teal-700">
+                <td
+                  className={`py-1.5 px-3 border-b border-slate-50 text-right font-medium ${
+                    value != null && outOfRange(value, indicator.refLow, indicator.refHigh)
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-teal-700'
+                  }`}
+                  title={
+                    value != null && outOfRange(value, indicator.refLow, indicator.refHigh)
+                      ? `超出参考范围 ${indicator.refLow ?? '—'} ~ ${indicator.refHigh ?? '—'}`
+                      : undefined
+                  }
+                >
                   {formatNumber(value)}
                 </td>
               </tr>

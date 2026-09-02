@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { removalRate, nar, mean, stdev, min as statsMin, max as statsMax, pearson, attainmentRate, describe as statsDescribe } from './stats';
+import { removalRate, nar, mean, stdev, min as statsMin, max as statsMax, pearson, attainmentRate, describe as statsDescribe, outOfRange, linearRegression } from './stats';
 
 describe('removalRate', () => {
   it('基本计算', () => {
@@ -82,5 +82,52 @@ describe('min / max / describe', () => {
     expect(d.stdev).toBeCloseTo(2.138, 3);
     expect(d.min).toBe(2);
     expect(d.max).toBe(9);
+  });
+});
+
+describe('outOfRange（异常值标红判断）', () => {
+  it('超出上限（> refHigh）为异常', () => {
+    expect(outOfRange(9, 0, 8)).toBe(true);
+    expect(outOfRange(8, 0, 8)).toBe(false); // 等于上限不算
+  });
+  it('低于下限（< refLow）为异常', () => {
+    expect(outOfRange(-1, 0, null)).toBe(true);
+    expect(outOfRange(0.5, 0, null)).toBe(false);
+  });
+  it('只设一侧范围时，另一侧不判断', () => {
+    expect(outOfRange(-1, null, 8)).toBe(false); // 没设下限
+    expect(outOfRange(9, null, 8)).toBe(true);
+    expect(outOfRange(9, 0, null)).toBe(false); // 没设上限
+    expect(outOfRange(0, 0, null)).toBe(false);
+  });
+  it('null 值或完全没有范围 → 不标红', () => {
+    expect(outOfRange(null, 0, 8)).toBe(false);
+    expect(outOfRange(5, null, null)).toBe(false);
+  });
+});
+
+describe('linearRegression（浓度梯度-去除率趋势线）', () => {
+  it('完美直线 y=2x+1 → slope=2, intercept=1, R²=1', () => {
+    const xs = [0, 1, 2, 3, 4];
+    const ys = xs.map((x) => 2 * x + 1);
+    const r = linearRegression(xs, ys)!;
+    expect(r.slope).toBeCloseTo(2, 6);
+    expect(r.intercept).toBeCloseTo(1, 6);
+    expect(r.r2).toBeCloseTo(1, 6);
+    expect(r.n).toBe(5);
+  });
+  it('数据点少于 2 个返回 null', () => {
+    expect(linearRegression([1], [2])).toBeNull();
+  });
+  it('x 全部相同（sxx=0）返回 null', () => {
+    expect(linearRegression([2, 2, 2], [1, 2, 3])).toBeNull();
+  });
+  it('有噪声数据时 R² 在 0~1 之间且趋势合理', () => {
+    const xs = [1, 2, 3, 4, 5, 6];
+    const ys = [3.1, 5.9, 8.8, 11.2, 14.1, 17.0];
+    const r = linearRegression(xs, ys)!;
+    expect(r.slope).toBeCloseTo(2.79, 1);
+    expect(r.r2).toBeGreaterThan(0.99);
+    expect(r.r2).toBeLessThanOrEqual(1);
   });
 });

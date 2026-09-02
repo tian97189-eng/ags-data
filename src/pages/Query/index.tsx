@@ -4,6 +4,7 @@ import { db, type Measurement, type Scene } from '../../db/schema';
 import { matchFilter, sortMeasurements, type SortKey, type SortDir } from '../../lib/query';
 import { buildExportRows, buildWorkbook, downloadWorkbook } from '../../lib/excel';
 import { formatNumber } from '../../lib/format';
+import { outOfRange } from '../../lib/stats';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -201,8 +202,11 @@ export default function QueryPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((m) => (
-                <tr key={m.id}>
+              {rows.map((m) => {
+                const ind = iMap.get(m.indicatorId);
+                const abnormal = m.value != null && outOfRange(m.value, ind?.refLow ?? null, ind?.refHigh ?? null);
+                return (
+                  <tr key={m.id} className={abnormal ? 'bg-red-50/60 dark:bg-red-900/15' : ''}>
                   <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">
                     <input type="checkbox" checked={selected.has(m.id!)} onChange={() => toggleSelect(m.id!)} />
                   </td>
@@ -211,17 +215,29 @@ export default function QueryPage() {
                   <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">{m.time ?? '—'}</td>
                   <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">{rMap.get(m.reactorId)?.code ?? `#${m.reactorId}`}</td>
                   <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">
-                    {iMap.get(m.indicatorId)?.name ?? `#${m.indicatorId}`}
+                    {ind?.name ?? `#${m.indicatorId}`}
                     {m.phase && <span className="ml-1 text-[10px] text-slate-400 dark:text-slate-500">{PHASE_LABEL[m.phase]}</span>}
                   </td>
-                  <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right font-medium">{formatNumber(m.value)}</td>
+                  <td
+                    className={`py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right font-medium ${
+                      abnormal ? 'text-red-600 dark:text-red-400' : ''
+                    }`}
+                    title={
+                      abnormal
+                        ? `超出参考范围 ${ind?.refLow ?? '—'} ~ ${ind?.refHigh ?? '—'}`
+                        : undefined
+                    }
+                  >
+                    {formatNumber(m.value)}
+                  </td>
                   <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">{m.note || '—'}</td>
                   <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right space-x-1">
                     <button type="button" className="text-teal-700" onClick={() => openEdit(m)}>编辑</button>
                     <button type="button" className="text-red-600" onClick={() => { setSelected(new Set([m.id!])); setConfirmDelete(true); }}>删除</button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

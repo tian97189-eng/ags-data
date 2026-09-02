@@ -78,3 +78,40 @@ export function describe(xs: number[]): { count: number; mean: number | null; st
     max: max(xs),
   };
 }
+
+/** 是否超出参考范围（refLow/refHigh 只设置的那侧生效）；无范围或 null 值返回 false */
+export function outOfRange(
+  value: number | null,
+  refLow: number | null,
+  refHigh: number | null,
+): boolean {
+  if (value == null) return false;
+  if (refLow != null && value < refLow) return true;
+  if (refHigh != null && value > refHigh) return true;
+  return false;
+}
+
+/** 最小二乘线性回归 y = slope*x + intercept；点数 < 2 返回 null */
+export function linearRegression(
+  xs: number[],
+  ys: number[],
+): { slope: number; intercept: number; r2: number; n: number } | null {
+  if (xs.length !== ys.length || xs.length < 2) return null;
+  const n = xs.length;
+  const mx = mean(xs)!;
+  const my = mean(ys)!;
+  let sxy = 0;
+  let sxx = 0;
+  let syy = 0;
+  for (let i = 0; i < n; i++) {
+    sxy += (xs[i] - mx) * (ys[i] - my);
+    sxx += (xs[i] - mx) ** 2;
+    syy += (ys[i] - my) ** 2;
+  }
+  if (sxx === 0) return null;
+  const slope = sxy / sxx;
+  const intercept = my - slope * mx;
+  // R² = 相关系数²（syy=0 时所有 y 相同 → 完美贴合但无解释力，按 1 处理）
+  const r2 = syy === 0 ? 1 : (sxy * sxy) / (sxx * syy);
+  return { slope, intercept, r2, n };
+}

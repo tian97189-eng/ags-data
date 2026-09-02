@@ -22,6 +22,7 @@ export default function ChartPage() {
   const [dateTo, setDateTo] = useState('');
   const [cycleId, setCycleId] = useState<number | null>(null);
   const [overlayReactorId, setOverlayReactorId] = useState<number | null>(null);
+  const [overlayCycleIds, setOverlayCycleIds] = useState<number[]>([]); // 空 = 全选
   const [extrasKind, setExtrasKind] = useState<ExtrasKind>('mlss');
   const [extrasField, setExtrasField] = useState<ExtrasField>('mlss');
 
@@ -62,10 +63,13 @@ export default function ChartPage() {
       const filtered = (measurements ?? []).filter(
         (m) => m.indicatorId === indicatorId && m.scene === 'cycle' && m.reactorId === overlayReactorId,
       );
-      return buildCycleOverlay(filtered, cycles ?? [], overlayReactorId);
+      const selCycles = (cycles ?? [])
+        .filter((c) => overlayCycleIds.length === 0 || overlayCycleIds.includes(c.id!))
+        .map((c) => ({ id: c.id!, name: c.name }));
+      return buildCycleOverlay(filtered, selCycles, overlayReactorId);
     }
     return [];
-  }, [measurements, reactors, reactorIds, indicatorId, mode, dateFrom, dateTo, cycleId, overlayReactorId, cycles]);
+  }, [measurements, reactors, reactorIds, indicatorId, mode, dateFrom, dateTo, cycleId, overlayReactorId, overlayCycleIds, cycles]);
 
   /** 其他指标（污泥浓度/粒径 d50/EPS）按日期聚合时间序列 */
   const extrasSeries = useMemo<TrendSeries[]>(() => {
@@ -291,15 +295,56 @@ export default function ChartPage() {
           )}
 
           {mode === 'overlay' && (
-            <div>
-              <div className="text-slate-500 dark:text-slate-400 mb-1.5">反应器</div>
-              <select className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={overlayReactorId ?? ''} onChange={(e) => setOverlayReactorId(Number(e.target.value) || null)}>
-                <option value="">选择罐</option>
-                {reactors?.map((r) => (
-                  <option key={r.id} value={r.id}>{r.code}</option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div>
+                <div className="text-slate-500 dark:text-slate-400 mb-1.5">反应器</div>
+                <select className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={overlayReactorId ?? ''} onChange={(e) => setOverlayReactorId(Number(e.target.value) || null)}>
+                  <option value="">选择罐</option>
+                  {reactors?.map((r) => (
+                    <option key={r.id} value={r.id}>{r.code}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="text-slate-500 dark:text-slate-400">周期（多选对比）</div>
+                  <button
+                    type="button"
+                    onClick={() => setOverlayCycleIds([])}
+                    className="text-[11px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400"
+                  >
+                    全选
+                  </button>
+                </div>
+                <div className="max-h-40 overflow-y-auto space-y-0.5 pr-1">
+                  {(cycles ?? []).map((c) => {
+                    const on = overlayCycleIds.length === 0 || overlayCycleIds.includes(c.id!);
+                    return (
+                      <label key={c.id} className="flex items-center gap-1.5 cursor-pointer text-xs">
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={() => {
+                            setOverlayCycleIds((prev) => {
+                              const cur = prev.length === 0 ? (cycles ?? []).map((x) => x.id!) : prev;
+                              return cur.includes(c.id!)
+                                ? cur.filter((x) => x !== c.id!)
+                                : [...cur, c.id!];
+                            });
+                          }}
+                        />
+                        <span className={on ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'}>
+                          {c.name}
+                        </span>
+                      </label>
+                    );
+                  })}
+                  {(!cycles || cycles.length === 0) && (
+                    <div className="text-[11px] text-slate-400 dark:text-slate-500">还没有周期数据</div>
+                  )}
+                </div>
+              </div>
+            </>
           )}
 
           {mode !== 'overlay' && (
