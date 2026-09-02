@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { db } from '../../db/schema';
 import CyclePage from './index';
 import { loadAnyDraft } from '../../lib/draft';
@@ -95,12 +95,14 @@ describe('Cycle 草稿（问题：全周期误关可恢复）', () => {
       await new Promise((r) => setTimeout(r, 25));
     }
     // 等加载 effect 真正完成（toolbar 稀释输入框从空变为 indicator.defaultDilution 默认值「10」）
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 80; i++) {
       const dilutionInput = [...document.querySelectorAll<HTMLInputElement>('input[type="number"]')]
         .find((i) => (i.previousElementSibling?.textContent ?? '') === '稀释');
       if (dilutionInput && dilutionInput.value === '10') break;
       await new Promise((r) => setTimeout(r, 50));
     }
+    // 额外 idle 一个微任务，确保 schedule effect 的 timer 也跑过（避免 600ms 防抖 vs 后续轮询抢跑）
+    await new Promise((r) => setTimeout(r, 200));
     const firstCell = document.querySelectorAll('tbody input[type="number"]')[0] as HTMLInputElement;
     expect(firstCell).toBeTruthy();
     fireEvent.change(firstCell, { target: { value: '0.42' } });

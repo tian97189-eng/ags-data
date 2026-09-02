@@ -86,9 +86,8 @@ export default function CyclePage() {
   }
   useEffect(() => {
     scheduleDraftSave();
-    return () => {
-      if (draftTimer.current != null) window.clearTimeout(draftTimer.current);
-    };
+    // 不 return cleanup：timer 由 scheduleDraftSave 内部 clearTimeout 管理。
+    // 否则 useLiveQuery 异步触发的回填 effect 会清掉用户输入触发的 timer，导致用户输入丢失。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cells, phases, blank, dilution, cycleId, indicatorId]);
 

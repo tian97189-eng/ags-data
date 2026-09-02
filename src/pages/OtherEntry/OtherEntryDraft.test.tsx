@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { db } from '../../db/schema';
 import OtherEntryPage from './index';
 import { today } from '../../lib/format';
@@ -48,14 +48,18 @@ describe('OtherEntry 草稿（问题：他人数据误关可恢复）', () => {
     render(<OtherEntryPage />);
     // 他人罐/指标渲染后，按 aria-label 找到吸光度输入
     const input = (await screen.findByLabelText('氨氮 B1 吸光度', undefined, { timeout: 3000 })) as HTMLInputElement;
+    // 等加载回填 effect 完成（避免 backfill 干扰）
+    await new Promise((r) => setTimeout(r, 200));
     fireEvent.change(input, { target: { value: '0.28' } });
-    let draft = null;
-    for (let i = 0; i < 40; i++) {
-      draft = loadAnyDraft(DRAFT_KEY);
-      const cells = (draft?.cells ?? {}) as Record<string, { sample?: string }>;
-      if (cells[`${reactorId}:${indicatorId}`]?.sample === '0.28') break;
-      await new Promise((r) => setTimeout(r, 25));
-    }
+    await waitFor(
+      () => {
+        const d = loadAnyDraft(DRAFT_KEY);
+        const cells = (d?.cells ?? {}) as Record<string, { sample?: string }>;
+        expect(cells[`${reactorId}:${indicatorId}`]?.sample).toBe('0.28');
+      },
+      { timeout: 5000 },
+    );
+    const draft = loadAnyDraft(DRAFT_KEY);
     expect(draft?.date).toBe(today());
     expect(
       ((draft?.cells as Record<string, { sample?: string }>)[`${reactorId}:${indicatorId}`])?.sample,
