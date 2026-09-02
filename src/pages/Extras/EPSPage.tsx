@@ -198,25 +198,25 @@ export default function EPSPage() {
     <div className="space-y-4">
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="text-base font-medium mb-1">新增 EPS 测量</div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3">
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
           EPS（胞外聚合物）由蛋白质（PN）和多糖（PS）构成。测 PN / PS 吸光度后，按标准曲线自动换算浓度，再结合 VSS 算出每克污泥的含量。标曲在「系统设置 → 标准曲线」里给 PS（多糖）、PN（蛋白质）建。
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">日期</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">日期</span>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">样品编号</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">样品编号</span>
             <input value={sampleCode} onChange={(e) => setSampleCode(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" placeholder="R1-D1" />
           </label>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">VSS 质量 (mg)</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">VSS 质量 (mg)</span>
             <input type="number" step="any" value={vssMg} onChange={(e) => setVssMg(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">提取液体积 (mL)</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">提取液体积 (mL)</span>
             <input type="number" step="any" value={extractVolume} onChange={(e) => setExtractVolume(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
         </div>
@@ -227,15 +227,15 @@ export default function EPSPage() {
             <div className="text-[11px] text-slate-400 dark:text-slate-500 mb-2">{curveHint(psCurve, 'PS')}</div>
             <div className="grid grid-cols-3 gap-2">
               <label className="block">
-                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">样品吸光度</span>
+                <span className="text-slate-500 dark:text-slate-400 text-xs">样品吸光度</span>
                 <input type="number" step="any" value={psSampleAbs} onChange={(e) => setPsSampleAbs(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
               </label>
               <label className="block">
-                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">空白吸光度</span>
+                <span className="text-slate-500 dark:text-slate-400 text-xs">空白吸光度</span>
                 <input type="number" step="any" value={psBlankAbs} onChange={(e) => setPsBlankAbs(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
               </label>
               <label className="block">
-                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">稀释倍数</span>
+                <span className="text-slate-500 dark:text-slate-400 text-xs">稀释倍数</span>
                 <input type="number" step="any" value={psDilution} onChange={(e) => setPsDilution(e.target.value)} placeholder={String(psIndicator?.defaultDilution ?? 1)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
               </label>
             </div>
@@ -249,15 +249,15 @@ export default function EPSPage() {
             <div className="text-[11px] text-slate-400 dark:text-slate-500 mb-2">{curveHint(pnCurve, 'PN')}</div>
             <div className="grid grid-cols-3 gap-2">
               <label className="block">
-                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">样品吸光度</span>
+                <span className="text-slate-500 dark:text-slate-400 text-xs">样品吸光度</span>
                 <input type="number" step="any" value={pnSampleAbs} onChange={(e) => setPnSampleAbs(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
               </label>
               <label className="block">
-                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">空白吸光度</span>
+                <span className="text-slate-500 dark:text-slate-400 text-xs">空白吸光度</span>
                 <input type="number" step="any" value={pnBlankAbs} onChange={(e) => setPnBlankAbs(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
               </label>
               <label className="block">
-                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">稀释倍数</span>
+                <span className="text-slate-500 dark:text-slate-400 text-xs">稀释倍数</span>
                 <input type="number" step="any" value={pnDilution} onChange={(e) => setPnDilution(e.target.value)} placeholder={String(pnIndicator?.defaultDilution ?? 1)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
               </label>
             </div>
@@ -268,7 +268,7 @@ export default function EPSPage() {
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
+          <div className="text-xs text-slate-600 dark:text-slate-400">
             实时计算：
             PS 含量 = <span className="font-mono text-teal-700">{preview.psContent?.toFixed(4) ?? '—'}</span> mg/g VSS；
             PN 含量 = <span className="font-mono text-teal-700">{preview.pnContent?.toFixed(4) ?? '—'}</span> mg/g VSS；
@@ -282,36 +282,36 @@ export default function EPSPage() {
 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="text-base font-medium mb-1">PN 加药计时规划</div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3">
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
           测 PN 时需依次给每个样品加甲液 → 静置 → 加乙液 → 静置 → 测吸光度。多个样品错开加药，自动排出每个样品的加甲液 / 加乙液 / 测量时刻。
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">样品数</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">样品数</span>
             <input type="number" min={1} value={pnSampleCount} onChange={(e) => setPnSampleCount(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">每样间隔(秒)</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">每样间隔(秒)</span>
             <input type="number" min={1} value={pnIntervalSec} onChange={(e) => setPnIntervalSec(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">准备时间(分)</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">准备时间(分)</span>
             <input type="number" min={0} value={pnPrepareMin} onChange={(e) => setPnPrepareMin(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">甲液静置(分)</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">甲液静置(分)</span>
             <input type="number" min={0} value={pnSettleA} onChange={(e) => setPnSettleA(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">乙液静置(分)</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">乙液静置(分)</span>
             <input type="number" min={0} value={pnSettleB} onChange={(e) => setPnSettleB(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
         </div>
 
         {pnSchedule.steps.length > 0 && (
           <div>
-            <div className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500 mb-2">
+            <div className="text-xs text-slate-600 dark:text-slate-400 mb-2">
               准备 <span className="font-mono text-teal-700">{formatScheduleOffset(pnSchedule.prepareSec)}</span> 后开始 ·
               共 {pnSchedule.steps.length} 样 ·
               最后一个样品测完在 <span className="font-mono text-teal-700">{formatScheduleOffset(pnSchedule.steps[pnSchedule.steps.length - 1].measureOffsetSec)}</span>
@@ -319,7 +319,7 @@ export default function EPSPage() {
             <div className="overflow-x-auto max-h-64">
               <table className="w-full table-fixed border-collapse text-xs min-w-[480px]">
                 <thead>
-                  <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                  <tr className="text-slate-500 dark:text-slate-400">
                     <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-16">样品</th>
                     <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">加甲液</th>
                     <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">加乙液</th>
@@ -360,7 +360,7 @@ export default function EPSPage() {
           <div className="overflow-x-auto -mx-4 px-4">
             <table className="w-full table-fixed border-collapse text-xs min-w-[720px]">
               <thead>
-                <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                <tr className="text-slate-500 dark:text-slate-400">
                   <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-24">日期</th>
                   <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">样品</th>
                   <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-16">PS 浓</th>

@@ -25,7 +25,7 @@ export default function Sidebar() {
                 `flex items-center gap-2 px-2.5 py-2 text-[13px] rounded-md transition-colors ${
                   isActive
                     ? 'bg-brand-50 dark:bg-slate-800 text-brand-800 dark:text-brand-200 font-medium'
-                    : 'text-slate-600 dark:text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
                 }`
               }
             >
@@ -40,7 +40,7 @@ export default function Sidebar() {
         type="button"
         onClick={() => setTheme(isDark ? 'light' : 'dark')}
         title={isDark ? '切换到浅色' : '切换到深色'}
-        className="flex items-center justify-center gap-1.5 mt-2 py-1.5 text-[12px] rounded-md text-slate-500 dark:text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
+        className="flex items-center justify-center gap-1.5 mt-2 py-1.5 text-[12px] rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
       >
         {isDark ? <IconSun size={14} /> : <IconMoon size={14} />}
         <span>{isDark ? '浅色' : '深色'}</span>

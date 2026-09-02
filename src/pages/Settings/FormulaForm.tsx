@@ -98,7 +98,7 @@ export default function FormulaForm({
 
         <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">生效日期</span>
+            <span className="text-slate-500 dark:text-slate-400">生效日期</span>
             <input
               type="date"
               className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
@@ -107,7 +107,7 @@ export default function FormulaForm({
             />
           </label>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">试剂批号</span>
+            <span className="text-slate-500 dark:text-slate-400">试剂批号</span>
             <input
               className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
               value={batchNo}
@@ -117,7 +117,7 @@ export default function FormulaForm({
         </div>
 
         <label className="block mt-3 text-xs">
-          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">计算公式</span>
+          <span className="text-slate-500 dark:text-slate-400">计算公式</span>
           <input
             className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-md px-2 py-2 font-mono text-sm"
             placeholder="例如：(6.9627*(A-A0)-0.004)*D"
@@ -127,7 +127,7 @@ export default function FormulaForm({
         </label>
 
         <div className="mt-2 flex items-center gap-2 flex-wrap text-xs">
-          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">插入变量：</span>
+          <span className="text-slate-500 dark:text-slate-400">插入变量：</span>
           {VAR_HELP.map((v) => (
             <button
               key={v.sym}
@@ -142,7 +142,7 @@ export default function FormulaForm({
         </div>
 
         <div className="mt-3 bg-slate-50 dark:bg-slate-900 rounded-md p-3 text-xs">
-          <div className="text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-2">试算（填一组数验证公式对不对）</div>
+          <div className="text-slate-500 dark:text-slate-400 mb-2">试算（填一组数验证公式对不对）</div>
           <div className="grid grid-cols-3 gap-2">
             <label className="block">
               <span className="text-slate-400 dark:text-slate-500">检测样 A</span>
@@ -189,7 +189,7 @@ export default function FormulaForm({
         </div>
 
         <label className="block mt-3 text-xs">
-          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">备注</span>
+          <span className="text-slate-500 dark:text-slate-400">备注</span>
           <input
             className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
             value={note}
@@ -201,7 +201,7 @@ export default function FormulaForm({
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500"
+            className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"
           >
             取消
           </button>

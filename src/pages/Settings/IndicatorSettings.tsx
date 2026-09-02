@@ -90,7 +90,7 @@ export default function IndicatorSettings() {
         </button>
       </div>
 
-      <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3 border-l-2 border-teal-200 pl-2">
+      <div className="text-xs text-slate-500 dark:text-slate-400 mb-3 border-l-2 border-teal-200 pl-2">
         新增的自定义指标默认<strong>停用</strong>，需要测量时在下面表格点<strong>「启用」</strong>才会出现在数据录入和全周期。
         不想测了再点「停用」就行，历史数据保留。
       </div>
@@ -98,7 +98,7 @@ export default function IndicatorSettings() {
       <div className="overflow-x-auto -mx-3 px-3">
         <table className="w-full table-fixed border-collapse text-xs min-w-[680px]">
           <thead>
-            <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            <tr className="text-slate-500 dark:text-slate-400">
               <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[5.5rem] whitespace-nowrap">名称</th>
               <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[5.5rem] whitespace-nowrap">计量方式</th>
               <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 w-16 whitespace-nowrap">单位</th>
@@ -123,7 +123,7 @@ export default function IndicatorSettings() {
                 <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right whitespace-nowrap">
                   {i.method === 'absorbance' ? `×${i.defaultDilution}` : '—'}
                 </td>
-                <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                   {i.refLow != null || i.refHigh != null
                     ? `${i.refLow ?? '?'} ~ ${i.refHigh ?? '?'}`
                     : '—'}
@@ -134,7 +134,7 @@ export default function IndicatorSettings() {
                   </button>
                   <button
                     type="button"
-                    className={i.active ? 'text-slate-500 dark:text-slate-400 dark:text-slate-500' : 'text-amber-600'}
+                    className={i.active ? 'text-slate-500 dark:text-slate-400' : 'text-amber-600'}
                     onClick={() => toggleActive(i)}
                   >
                     {i.active ? '停用' : '启用'}
@@ -165,7 +165,7 @@ export default function IndicatorSettings() {
             </h3>
             <div className="mt-3 space-y-3 text-xs">
               <label className="block">
-                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">名称</span>
+                <span className="text-slate-500 dark:text-slate-400">名称</span>
                 <input
                   className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
                   value={editing.name ?? ''}
@@ -175,7 +175,7 @@ export default function IndicatorSettings() {
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
-                  <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">单位</span>
+                  <span className="text-slate-500 dark:text-slate-400">单位</span>
                   <input
                     className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
                     value={editing.unit ?? ''}
@@ -184,7 +184,7 @@ export default function IndicatorSettings() {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">默认稀释倍数</span>
+                  <span className="text-slate-500 dark:text-slate-400">默认稀释倍数</span>
                   <input
                     type="number"
                     className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
@@ -197,7 +197,7 @@ export default function IndicatorSettings() {
                 </label>
               </div>
               <label className="block" htmlFor="ind-method">
-                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">计量方式</span>
+                <span className="text-slate-500 dark:text-slate-400">计量方式</span>
                 <select
                   id="ind-method"
                   className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 bg-white dark:bg-slate-800 disabled:bg-slate-100 dark:bg-slate-800"
@@ -218,7 +218,7 @@ export default function IndicatorSettings() {
               </label>
               <div className="grid grid-cols-3 gap-3">
                 <label className="block">
-                  <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">参考下限</span>
+                  <span className="text-slate-500 dark:text-slate-400">参考下限</span>
                   <input
                     type="number"
                     className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
@@ -232,7 +232,7 @@ export default function IndicatorSettings() {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">参考上限</span>
+                  <span className="text-slate-500 dark:text-slate-400">参考上限</span>
                   <input
                     type="number"
                     className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
@@ -246,7 +246,7 @@ export default function IndicatorSettings() {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">检出限</span>
+                  <span className="text-slate-500 dark:text-slate-400">检出限</span>
                   <input
                     type="number"
                     className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
@@ -265,7 +265,7 @@ export default function IndicatorSettings() {
               <button
                 type="button"
                 onClick={() => setEditing(null)}
-                className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500"
+                className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"
               >
                 取消
               </button>

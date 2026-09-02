@@ -147,7 +147,7 @@ export default function CurveSettings() {
         />
       ) : (
         <>
-          <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-2">
+          <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 mb-2">
             <span>
               当前生效 · {indicator?.name}
               {current && (
@@ -172,21 +172,21 @@ export default function CurveSettings() {
             />
           ) : isFormula ? (
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4 mb-4">
-              <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-2">当前公式</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mb-2">当前公式</div>
               <div className="font-mono text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-3 py-2 mb-3 break-all">
                 {current.formula}
               </div>
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="bg-slate-50 dark:bg-slate-900 rounded-md p-2">
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-500">A</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">A</div>
                   <div className="text-xs">检测样吸光度</div>
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-900 rounded-md p-2">
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-500">A0</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">A0</div>
                   <div className="text-xs">空白吸光度</div>
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-900 rounded-md p-2">
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-500">D</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">D</div>
                   <div className="text-xs">稀释倍数</div>
                 </div>
               </div>
@@ -198,30 +198,30 @@ export default function CurveSettings() {
                 <ReactECharts option={currentOption} style={{ height: 180 }} notMerge lazyUpdate />
                 <div className="grid grid-cols-4 gap-2 mt-3 text-center">
                   <div className="bg-slate-50 dark:bg-slate-900 rounded-md p-2">
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-500">k</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">k</div>
                     <div className="text-base font-medium">{formatNumber(current.k, 4)}</div>
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-900 rounded-md p-2">
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-500">b</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">b</div>
                     <div className="text-base font-medium">{formatNumber(current.b, 4)}</div>
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-900 rounded-md p-2">
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-500">R²</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">R²</div>
                     <div className="text-sm font-medium text-teal-700">
                       {formatNumber(current.r2, 4)}
                     </div>
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-900 rounded-md p-2">
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-500">批号</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">批号</div>
                     <div className="text-base font-medium">{current.batchNo || '—'}</div>
                   </div>
                 </div>
               </div>
               <div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-1">标液点</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">标液点</div>
                 <table className="w-full border-collapse text-xs">
                   <thead>
-                    <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                    <tr className="text-slate-500 dark:text-slate-400">
                       <th className="text-left py-1 px-1 border-b border-slate-200 dark:border-slate-700">浓度</th>
                       <th className="text-left py-1 px-1 border-b border-slate-200 dark:border-slate-700">吸光度</th>
                     </tr>
@@ -239,13 +239,13 @@ export default function CurveSettings() {
             </div>
           )}
 
-          <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-2">历史曲线</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 mb-2">历史曲线</div>
           {history.length === 0 ? (
             <div className="text-xs text-slate-400 dark:text-slate-500 py-4">暂无历史曲线</div>
           ) : (
             <table className="w-full table-fixed border-collapse text-xs">
               <thead>
-                <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                <tr className="text-slate-500 dark:text-slate-400">
                   <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">生效区间</th>
                   <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">方式</th>
                   <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">参数 / 公式</th>
@@ -268,13 +268,13 @@ export default function CurveSettings() {
                       {c.formulaType === 'formula' ? (
                         <span className="font-mono text-[11px]">{c.formula}</span>
                       ) : (
-                        <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                        <span className="text-slate-500 dark:text-slate-400">
                           k={formatNumber(c.k, 4)} b={formatNumber(c.b, 4)} R²={formatNumber(c.r2, 4)}
                         </span>
                       )}
                     </td>
                     <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800">{c.batchNo || '—'}</td>
-                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                    <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
                       停用 · 仍算着 {(counts[c.id!] ?? 0)} 条旧数据
                     </td>
                     <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-right">

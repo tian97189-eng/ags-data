@@ -45,13 +45,13 @@ export default function UpdateSettings() {
     <div className="max-w-lg space-y-4">
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="text-base font-medium mb-1">软件更新</div>
-        <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3">
+        <div className="text-xs text-slate-500 dark:text-slate-400 mb-3">
           当前版本：<span className="font-mono text-teal-700">v{getAppVersion()}</span>
           <span className="ml-2 text-slate-400 dark:text-slate-500">电脑端改完功能重新构建后刷新即新版；手机 App 需要在这里检查并下载新版安装包。</span>
         </div>
 
         <div className="flex items-center gap-2 mb-2">
-          <label className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500 w-20 shrink-0" htmlFor="update-url">
+          <label className="text-xs text-slate-600 dark:text-slate-400 w-20 shrink-0" htmlFor="update-url">
             检查地址
           </label>
           <input
@@ -102,11 +102,11 @@ export default function UpdateSettings() {
                     下载新版安装包
                   </a>
                 ) : (
-                  <div className="text-slate-500 dark:text-slate-400 dark:text-slate-500 mt-1">（version.json 未提供下载地址，请联系开发者获取新版安装包）</div>
+                  <div className="text-slate-500 dark:text-slate-400 mt-1">（version.json 未提供下载地址，请联系开发者获取新版安装包）</div>
                 )}
               </div>
             ) : (
-              <div className="text-slate-600 dark:text-slate-400 dark:text-slate-500">已是最新版本（v{getAppVersion()}）</div>
+              <div className="text-slate-600 dark:text-slate-400">已是最新版本（v{getAppVersion()}）</div>
             )}
           </div>
         )}
@@ -114,7 +114,7 @@ export default function UpdateSettings() {
 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="text-base font-medium mb-1">发布新版本怎么做</div>
-        <ol className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 space-y-1.5 list-decimal pl-4">
+        <ol className="text-xs text-slate-500 dark:text-slate-400 space-y-1.5 list-decimal pl-4">
           <li>修改代码后，把 <span className="font-mono">package.json</span> 里的版本号往上加（如 1.0.0 → 1.1.0）</li>
           <li>双击 <span className="font-mono">build-apk.bat</span> 重新打包出新的 APK</li>
           <li>把新 APK 传到任意文件托管（腾讯云存储 / GitHub Releases / 网盘直链均可），拿到下载链接</li>
@@ -126,11 +126,11 @@ export default function UpdateSettings() {
       {/* 关于本软件（仅显示在软件更新 tab 下方） */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4 bg-slate-50 dark:bg-slate-900">
         <div className="text-base font-medium mb-2">关于本软件</div>
-        <dl className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500 space-y-1">
-          <div className="flex"><dt className="w-20 shrink-0 text-slate-500 dark:text-slate-400 dark:text-slate-500">版本</dt><dd><span className="font-mono text-teal-700">v{getAppVersion()}</span></dd></div>
-          <div className="flex"><dt className="w-20 shrink-0 text-slate-500 dark:text-slate-400 dark:text-slate-500">用途</dt><dd>好氧颗粒污泥（AGS）实验室数据记录与分析</dd></div>
-          <div className="flex"><dt className="w-20 shrink-0 text-slate-500 dark:text-slate-400 dark:text-slate-500">作者</dt><dd>人无再少年</dd></div>
-          <div className="flex"><dt className="w-20 shrink-0 text-slate-500 dark:text-slate-400 dark:text-slate-500">联系</dt><dd>QQ：<a className="text-teal-700 hover:underline font-mono" href="tencent://message/?uin=2448820735" rel="noopener">2448820735</a>（点击发起临时会话）</dd></div>
+        <dl className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+          <div className="flex"><dt className="w-20 shrink-0 text-slate-500 dark:text-slate-400">版本</dt><dd><span className="font-mono text-teal-700">v{getAppVersion()}</span></dd></div>
+          <div className="flex"><dt className="w-20 shrink-0 text-slate-500 dark:text-slate-400">用途</dt><dd>好氧颗粒污泥（AGS）实验室数据记录与分析</dd></div>
+          <div className="flex"><dt className="w-20 shrink-0 text-slate-500 dark:text-slate-400">作者</dt><dd>人无再少年</dd></div>
+          <div className="flex"><dt className="w-20 shrink-0 text-slate-500 dark:text-slate-400">联系</dt><dd>QQ：<a className="text-teal-700 hover:underline font-mono" href="tencent://message/?uin=2448820735" rel="noopener">2448820735</a>（点击发起临时会话）</dd></div>
         </dl>
         <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-3">本工具所有数据均存储在本地浏览器/手机端，不上传到任何云服务（除非你主动配置云同步）。</p>
       </div>

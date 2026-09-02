@@ -77,7 +77,7 @@ export default function SVIPage() {
     <div className="space-y-4">
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="text-base font-medium mb-1">新增沉降性测量</div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3">
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
           取混合液于量筒，静置 5min 和 30min 后各读一次污泥层体积刻度。
           SV(%) = 污泥层体积 / 量筒体积 × 100；SVI(mL/g) = SV(%) × 10 / MLSS(g/L)。
           MLSS 可在「污泥浓度」里测得。
@@ -85,33 +85,33 @@ export default function SVIPage() {
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-3">
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">日期</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">日期</span>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">样品编号</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">样品编号</span>
             <input value={sampleCode} onChange={(e) => setSampleCode(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" placeholder="R1" />
           </label>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">量筒体积 (mL)</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">量筒体积 (mL)</span>
             <input type="number" step="any" value={cylinderVolumeMl} onChange={(e) => setCylinderVolumeMl(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">5min 污泥层体积 (mL)</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">5min 污泥层体积 (mL)</span>
             <input type="number" step="any" value={v5Ml} onChange={(e) => setV5Ml(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">30min 污泥层体积 (mL)</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">30min 污泥层体积 (mL)</span>
             <input type="number" step="any" value={v30Ml} onChange={(e) => setV30Ml(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">MLSS (g/L)</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">MLSS (g/L)</span>
             <input type="number" step="any" value={mlss} onChange={(e) => setMlss(e.target.value)} className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs" />
           </label>
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
+          <div className="text-xs text-slate-600 dark:text-slate-400">
             实时计算：
             SV5 = <span className="font-mono text-teal-700">{preview.sv5?.toFixed(1) ?? '—'}</span>% ·
             SV30 = <span className="font-mono text-teal-700">{preview.sv30?.toFixed(1) ?? '—'}</span>% ·
@@ -132,7 +132,7 @@ export default function SVIPage() {
           <div className="overflow-x-auto -mx-4 px-4">
             <table className="w-full table-fixed border-collapse text-xs min-w-[680px]">
               <thead>
-                <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                <tr className="text-slate-500 dark:text-slate-400">
                   <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-24">日期</th>
                   <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">样品</th>
                   <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-14">量筒</th>

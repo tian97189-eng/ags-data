@@ -76,7 +76,7 @@ export default function ReactorSettings() {
         <div className="overflow-x-auto -mx-3 px-3">
           <table className="w-full table-fixed border-collapse text-xs min-w-[640px]">
             <thead>
-              <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+              <tr className="text-slate-500 dark:text-slate-400">
                 <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 w-16 whitespace-nowrap">编号</th>
                 <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[6rem] whitespace-nowrap">显示名</th>
                 <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700 min-w-[8rem] whitespace-nowrap">备注</th>
@@ -89,7 +89,7 @@ export default function ReactorSettings() {
                 <tr key={r.id}>
                   <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">{r.code}</td>
                   <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">{r.name}</td>
-                  <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 dark:text-slate-500 whitespace-nowrap">{r.note || '—'}</td>
+                  <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 whitespace-nowrap">{r.note || '—'}</td>
                   <td className="py-2 px-2 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">
                     {r.active ? (
                       <span className="text-teal-700">启用</span>
@@ -107,7 +107,7 @@ export default function ReactorSettings() {
                     </button>
                     <button
                       type="button"
-                      className={r.active ? 'text-slate-500 dark:text-slate-400 dark:text-slate-500' : 'text-amber-600'}
+                      className={r.active ? 'text-slate-500 dark:text-slate-400' : 'text-amber-600'}
                       onClick={() => toggleActive(r)}
                     >
                       {r.active ? '停用' : '启用'}
@@ -135,7 +135,7 @@ export default function ReactorSettings() {
             <h3 className="text-base font-medium">{editing.id ? '编辑反应器' : '新增反应器'}</h3>
             <div className="mt-3 space-y-3 text-xs">
               <label className="block">
-                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">编号</span>
+                <span className="text-slate-500 dark:text-slate-400">编号</span>
                 <input
                   className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
                   value={editing.code ?? ''}
@@ -143,7 +143,7 @@ export default function ReactorSettings() {
                 />
               </label>
               <label className="block">
-                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">显示名</span>
+                <span className="text-slate-500 dark:text-slate-400">显示名</span>
                 <input
                   className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
                   value={editing.name ?? ''}
@@ -151,7 +151,7 @@ export default function ReactorSettings() {
                 />
               </label>
               <label className="block">
-                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">备注</span>
+                <span className="text-slate-500 dark:text-slate-400">备注</span>
                 <input
                   className="mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5"
                   value={editing.note ?? ''}
@@ -163,7 +163,7 @@ export default function ReactorSettings() {
               <button
                 type="button"
                 onClick={() => setEditing(null)}
-                className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500"
+                className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"
               >
                 取消
               </button>

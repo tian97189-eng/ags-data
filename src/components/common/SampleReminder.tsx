@@ -143,7 +143,7 @@ export default function SampleReminder({
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-3 text-xs">
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">{label}</span>
+        <span className="text-slate-500 dark:text-slate-400">{label}</span>
         {!isExternal && (
           <>
             <label className="flex items-center gap-1">
@@ -253,7 +253,7 @@ function ElapsedDisplay({
       : msUntilNext <= 0
         ? `即将响铃（${done + 1}/${total}）`
         : `距离下次响铃 ${mm2}:${ss2}`;
-  const nextColor = isImminent ? 'text-red-600 animate-pulse font-semibold' : 'text-slate-500 dark:text-slate-400 dark:text-slate-500';
+  const nextColor = isImminent ? 'text-red-600 animate-pulse font-semibold' : 'text-slate-500 dark:text-slate-400';
 
   return (
     <div className="mt-3 flex flex-col items-center select-none" data-testid="elapsed-display">

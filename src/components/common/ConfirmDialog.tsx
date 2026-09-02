@@ -26,12 +26,12 @@ export default function ConfirmDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-base font-medium">{title}</h3>
-        <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-500 mt-2 whitespace-pre-line">{message}</p>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 whitespace-pre-line">{message}</p>
         <div className="flex justify-end gap-2 mt-4">
           <button
             type="button"
             onClick={onCancel}
-            className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500"
+            className="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"
           >
             取消
           </button>

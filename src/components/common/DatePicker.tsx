@@ -91,7 +91,7 @@ export default function DatePicker({
               <button
                 type="button"
                 onClick={prevMonth}
-                className="w-6 h-6 rounded hover:bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 dark:text-slate-500"
+                className="w-6 h-6 rounded hover:bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
               >
                 ‹
               </button>
@@ -101,7 +101,7 @@ export default function DatePicker({
               <button
                 type="button"
                 onClick={nextMonth}
-                className="w-6 h-6 rounded hover:bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 dark:text-slate-500"
+                className="w-6 h-6 rounded hover:bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
               >
                 ›
               </button>
@@ -144,7 +144,7 @@ export default function DatePicker({
               })}
             </div>
 
-            <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500 dark:text-slate-400">
               <span className="flex items-center gap-1">
                 <span className="inline-block w-3 h-3 rounded bg-teal-100" /> 有数据
               </span>

@@ -110,10 +110,10 @@ export default function ParticleSizePage() {
             + 新增段
           </button>
         </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3">默认 6 段（&gt;355 / 200-355 / 150-200 / 100-150 / 50-100 / &lt;50）。每段可改下限/上限/中位径。</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">默认 6 段（&gt;355 / 200-355 / 150-200 / 100-150 / 50-100 / &lt;50）。每段可改下限/上限/中位径。</p>
         <table className="w-full text-xs border-collapse">
           <thead>
-            <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            <tr className="text-slate-500 dark:text-slate-400">
               <th className="text-left py-1.5 px-2 border-b border-slate-200 dark:border-slate-700 w-16">下限</th>
               <th className="text-left py-1.5 px-2 border-b border-slate-200 dark:border-slate-700 w-16">上限</th>
               <th className="text-left py-1.5 px-2 border-b border-slate-200 dark:border-slate-700 w-20">中位径</th>
@@ -149,7 +149,7 @@ export default function ParticleSizePage() {
                     onChange={(e) => handleUpdateRange(r, { mid: Number(e.target.value) })}
                   />
                 </td>
-                <td className="py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                <td className="py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
                   {rangeLabel(r)}
                 </td>
                 <td className="py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 text-right">
@@ -172,16 +172,16 @@ export default function ParticleSizePage() {
             onChange={(e) => setDate(e.target.value)}
             className="border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs"
           />
-          <span className="ml-auto text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
+          <span className="ml-auto text-xs text-slate-600 dark:text-slate-400">
             平均粒径 d50 = <span className="font-mono text-teal-700 font-medium">{dist.d50?.toFixed(2) ?? '—'}</span> μm
           </span>
         </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3">填滤纸重 M1 和滤纸+泥重 M2。泥重 = M2 − M1，占比% = 泥重 / 总泥重 × 100。</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">填滤纸重 M1 和滤纸+泥重 M2。泥重 = M2 − M1，占比% = 泥重 / 总泥重 × 100。</p>
 
         <div className="overflow-x-auto -mx-4 px-4">
           <table className="w-full table-fixed border-collapse text-xs min-w-[640px]">
             <thead>
-              <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+              <tr className="text-slate-500 dark:text-slate-400">
                 <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">粒径区间</th>
                 <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">M1 滤纸</th>
                 <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">M2 滤纸+泥</th>

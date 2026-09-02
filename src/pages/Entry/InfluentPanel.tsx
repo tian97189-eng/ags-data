@@ -208,7 +208,7 @@ const InfluentPanel = forwardRef<
   return (
     <div className="border border-slate-200 dark:border-slate-700 rounded-lg mb-4 p-3 text-xs">
       <div className="flex items-center gap-3 flex-wrap mb-2">
-        <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">进水浓度（吸光度自动换算）</span>
+        <span className="text-slate-500 dark:text-slate-400">进水浓度（吸光度自动换算）</span>
         <span className="text-[11px] text-slate-400 dark:text-slate-500">空白吸光度与出水共用</span>
         <div className="flex items-center gap-1 ml-auto">
           <button
@@ -217,7 +217,7 @@ const InfluentPanel = forwardRef<
             className={`px-2.5 py-1 rounded-md border ${
               mode === 'shared'
                 ? 'bg-teal-50 border-teal-300 text-teal-800'
-                : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500'
+                : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
             }`}
           >
             几罐共用
@@ -228,7 +228,7 @@ const InfluentPanel = forwardRef<
             className={`px-2.5 py-1 rounded-md border ${
               mode === 'perReactor'
                 ? 'bg-teal-50 border-teal-300 text-teal-800'
-                : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500'
+                : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
             }`}
           >
             每罐各自
@@ -239,7 +239,7 @@ const InfluentPanel = forwardRef<
       <div className="overflow-x-auto -mx-3 px-3">
         <table className="w-full table-fixed border-collapse text-xs min-w-[640px]">
           <thead>
-            <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            <tr className="text-slate-500 dark:text-slate-400">
               <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-16">指标</th>
               <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">
                 空白（同出水）

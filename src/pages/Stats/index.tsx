@@ -164,11 +164,11 @@ const extrasStats = useMemo(() => {
 
       <div className="flex items-center gap-2 flex-wrap mb-4 text-xs">
         <label className="flex items-center gap-1">
-          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">从</span>
+          <span className="text-slate-500 dark:text-slate-400">从</span>
           <input type="date" className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
         </label>
         <label className="flex items-center gap-1">
-          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">到</span>
+          <span className="text-slate-500 dark:text-slate-400">到</span>
           <input type="date" className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         </label>
       </div>
@@ -177,7 +177,7 @@ const extrasStats = useMemo(() => {
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
           <div className="text-base font-medium mb-1">去除率</div>
           <div className="flex items-center gap-2 text-xs mb-3">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">指标</span>
+            <span className="text-slate-500 dark:text-slate-400">指标</span>
             <select className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={removalIndicatorId ?? ''} onChange={(e) => setRemovalIndicatorId(Number(e.target.value) || null)}>
               <option value="">选择指标</option>
               {indicators?.map((i) => (
@@ -190,7 +190,7 @@ const extrasStats = useMemo(() => {
           ) : (
             <table className="w-full table-fixed border-collapse text-xs">
               <thead>
-                <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                <tr className="text-slate-500 dark:text-slate-400">
                   <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">罐</th>
                   <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">进水均值</th>
                   <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">出水均值</th>
@@ -222,7 +222,7 @@ const extrasStats = useMemo(() => {
           ) : (
             <table className="w-full table-fixed border-collapse text-xs">
               <thead>
-                <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                <tr className="text-slate-500 dark:text-slate-400">
                   <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">罐</th>
                   <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">平均 NAR</th>
                 </tr>
@@ -242,17 +242,17 @@ const extrasStats = useMemo(() => {
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4 md:col-span-2">
           <div className="text-sm font-medium mb-3">相关性分析</div>
           <div className="flex items-center gap-2 flex-wrap text-xs mb-3">
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">指标 X</span>
+            <span className="text-slate-500 dark:text-slate-400">指标 X</span>
             <select className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={corrXId ?? ''} onChange={(e) => setCorrXId(Number(e.target.value) || null)}>
               <option value="">选择</option>
               {indicators?.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
             </select>
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">指标 Y</span>
+            <span className="text-slate-500 dark:text-slate-400">指标 Y</span>
             <select className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={corrYId ?? ''} onChange={(e) => setCorrYId(Number(e.target.value) || null)}>
               <option value="">选择</option>
               {indicators?.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
             </select>
-            <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">罐</span>
+            <span className="text-slate-500 dark:text-slate-400">罐</span>
             <select className="border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={corrReactorId ?? ''} onChange={(e) => setCorrReactorId(Number(e.target.value) || null)}>
               <option value="">全部</option>
               {reactors?.map((r) => <option key={r.id} value={r.id}>{r.code}</option>)}
@@ -274,7 +274,7 @@ const extrasStats = useMemo(() => {
           <div className="text-sm font-medium mb-3">其他指标统计（污泥浓度 / 粒径 d50 / EPS）</div>
           <table className="w-full table-fixed border-collapse text-xs">
             <thead>
-              <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+              <tr className="text-slate-500 dark:text-slate-400">
                 <th className="text-left py-2 px-2 border-b border-slate-200 dark:border-slate-700">指标</th>
                 <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700 w-12">n</th>
                 <th className="text-right py-2 px-2 border-b border-slate-200 dark:border-slate-700">均值</th>

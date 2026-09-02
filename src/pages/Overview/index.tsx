@@ -156,7 +156,7 @@ export default function OverviewPage() {
         <div className="flex items-center justify-between mb-2">
           <span className="text-base font-medium">氨氮去除率 · 近 7 天</span>
           {removalTrend && (
-            <span className="flex gap-3 text-[13px] text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            <span className="flex gap-3 text-[13px] text-slate-500 dark:text-slate-400">
               {removalTrend.tanks.map((c, i) => (
                 <span key={c} className="flex items-center gap-1.5">
                   <span
@@ -201,7 +201,7 @@ function StatCard({
       className={`rounded-lg p-4 ${accent ? 'bg-brand-600 text-white' : 'bg-white dark:bg-slate-800 shadow-card'}`}
     >
       <div
-        className={`text-[13px] ${accent ? 'text-brand-100' : 'text-slate-500 dark:text-slate-400 dark:text-slate-500'}`}
+        className={`text-[13px] ${accent ? 'text-brand-100' : 'text-slate-500 dark:text-slate-400'}`}
       >
         {label}
       </div>
@@ -215,7 +215,7 @@ function StatCard({
         </span>
         {suffix && (
           <span
-            className={`text-[13px] ${accent ? 'text-brand-100' : 'text-slate-500 dark:text-slate-400 dark:text-slate-500'}`}
+            className={`text-[13px] ${accent ? 'text-brand-100' : 'text-slate-500 dark:text-slate-400'}`}
           >
             {suffix.trim()}
           </span>

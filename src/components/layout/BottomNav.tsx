@@ -12,7 +12,7 @@ export default function BottomNav() {
             to={item.path}
             className={({ isActive }) =>
               `relative flex-1 py-2 flex flex-col items-center gap-0.5 text-[10px] transition-colors ${
-                isActive ? 'text-brand-700 font-medium' : 'text-slate-500 dark:text-slate-400 dark:text-slate-500'
+                isActive ? 'text-brand-700 font-medium' : 'text-slate-500 dark:text-slate-400'
               }`
             }
           >

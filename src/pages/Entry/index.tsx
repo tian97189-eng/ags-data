@@ -193,7 +193,7 @@ export default function EntryPage() {
 
       <div className="flex items-center gap-3 flex-wrap mb-3">
         <label className="flex items-center gap-1 text-xs">
-          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">日期</span>
+          <span className="text-slate-500 dark:text-slate-400">日期</span>
           <DatePicker value={date} markedDates={markedDates} onChange={setDate} />
         </label>
         <button

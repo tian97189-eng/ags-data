@@ -204,19 +204,19 @@ export default function ChartPage() {
       <div className="grid md:grid-cols-[170px_minmax(0,1fr)] gap-4">
         <div className="text-xs space-y-4">
           <div>
-            <div className="text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-1.5">数据类型</div>
+            <div className="text-slate-500 dark:text-slate-400 mb-1.5">数据类型</div>
             <div className="space-y-1">
-              <button type="button" onClick={() => setMode('daily')} className={`block w-full text-left px-2 py-1 rounded ${mode === 'daily' ? 'bg-teal-50 text-teal-800' : 'text-slate-600 dark:text-slate-400 dark:text-slate-500'}`}>日常趋势</button>
-              <button type="button" onClick={() => setMode('cycle')} className={`block w-full text-left px-2 py-1 rounded ${mode === 'cycle' ? 'bg-teal-50 text-teal-800' : 'text-slate-600 dark:text-slate-400 dark:text-slate-500'}`}>周期曲线</button>
-              <button type="button" onClick={() => setMode('overlay')} className={`block w-full text-left px-2 py-1 rounded ${mode === 'overlay' ? 'bg-teal-50 text-teal-800' : 'text-slate-600 dark:text-slate-400 dark:text-slate-500'}`}>周期叠周期</button>
-              <button type="button" onClick={() => { setMode('extras'); setExtrasKind('mlss'); setExtrasField('mlss'); }} className={`block w-full text-left px-2 py-1 rounded ${mode === 'extras' ? 'bg-teal-50 text-teal-800' : 'text-slate-600 dark:text-slate-400 dark:text-slate-500'}`}>其他指标趋势</button>
+              <button type="button" onClick={() => setMode('daily')} className={`block w-full text-left px-2 py-1 rounded ${mode === 'daily' ? 'bg-teal-50 text-teal-800' : 'text-slate-600 dark:text-slate-400'}`}>日常趋势</button>
+              <button type="button" onClick={() => setMode('cycle')} className={`block w-full text-left px-2 py-1 rounded ${mode === 'cycle' ? 'bg-teal-50 text-teal-800' : 'text-slate-600 dark:text-slate-400'}`}>周期曲线</button>
+              <button type="button" onClick={() => setMode('overlay')} className={`block w-full text-left px-2 py-1 rounded ${mode === 'overlay' ? 'bg-teal-50 text-teal-800' : 'text-slate-600 dark:text-slate-400'}`}>周期叠周期</button>
+              <button type="button" onClick={() => { setMode('extras'); setExtrasKind('mlss'); setExtrasField('mlss'); }} className={`block w-full text-left px-2 py-1 rounded ${mode === 'extras' ? 'bg-teal-50 text-teal-800' : 'text-slate-600 dark:text-slate-400'}`}>其他指标趋势</button>
             </div>
           </div>
 
           {mode === 'extras' && (
             <>
               <div>
-                <div className="text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-1.5">数据类型</div>
+                <div className="text-slate-500 dark:text-slate-400 mb-1.5">数据类型</div>
                 <select
                   aria-label="其他指标数据类型"
                   className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
@@ -235,7 +235,7 @@ export default function ChartPage() {
                 </select>
               </div>
               <div>
-                <div className="text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-1.5">指标字段</div>
+                <div className="text-slate-500 dark:text-slate-400 mb-1.5">指标字段</div>
                 <select
                   aria-label="其他指标字段"
                   className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
@@ -259,7 +259,7 @@ export default function ChartPage() {
                 </select>
               </div>
               <div>
-                <div className="text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-1.5">日期范围</div>
+                <div className="text-slate-500 dark:text-slate-400 mb-1.5">日期范围</div>
                 <div className="space-y-1">
                   <input type="date" className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
                   <input type="date" className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
@@ -270,7 +270,7 @@ export default function ChartPage() {
 
           {mode === 'daily' && (
             <div>
-              <div className="text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-1.5">日期范围</div>
+              <div className="text-slate-500 dark:text-slate-400 mb-1.5">日期范围</div>
               <div className="space-y-1">
                 <input type="date" className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
                 <input type="date" className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
@@ -280,7 +280,7 @@ export default function ChartPage() {
 
           {mode === 'cycle' && (
             <div>
-              <div className="text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-1.5">周期</div>
+              <div className="text-slate-500 dark:text-slate-400 mb-1.5">周期</div>
               <select className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={cycleId ?? ''} onChange={(e) => setCycleId(Number(e.target.value) || null)}>
                 <option value="">选择周期</option>
                 {cycles?.map((c) => (
@@ -292,7 +292,7 @@ export default function ChartPage() {
 
           {mode === 'overlay' && (
             <div>
-              <div className="text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-1.5">反应器</div>
+              <div className="text-slate-500 dark:text-slate-400 mb-1.5">反应器</div>
               <select className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={overlayReactorId ?? ''} onChange={(e) => setOverlayReactorId(Number(e.target.value) || null)}>
                 <option value="">选择罐</option>
                 {reactors?.map((r) => (
@@ -304,7 +304,7 @@ export default function ChartPage() {
 
           {mode !== 'overlay' && (
             <div>
-              <div className="text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-1.5">反应器</div>
+              <div className="text-slate-500 dark:text-slate-400 mb-1.5">反应器</div>
               <div className="flex gap-1 flex-wrap">
                 {reactors?.map((r) => (
                   <Chip key={r.id} active={reactorIds.includes(r.id!)} onClick={() => toggleReactor(r.id!)}>
@@ -316,7 +316,7 @@ export default function ChartPage() {
           )}
 
           <div>
-            <div className="text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-1.5">指标</div>
+            <div className="text-slate-500 dark:text-slate-400 mb-1.5">指标</div>
             <select className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1" value={indicatorId ?? ''} onChange={(e) => setIndicatorId(Number(e.target.value) || null)}>
               <option value="">选择指标</option>
               {indicators?.map((i) => (
@@ -334,7 +334,7 @@ export default function ChartPage() {
               <ReactECharts ref={chartRef} option={option} style={{ height: 380 }} notMerge lazyUpdate />
               <div className="flex gap-4 flex-wrap text-xs mt-2">
                 {series.map((s) => (
-                  <span key={s.name} className="text-slate-600 dark:text-slate-400 dark:text-slate-500">
+                  <span key={s.name} className="text-slate-600 dark:text-slate-400">
                     {s.name}　均值 {formatNumber(s.mean)}
                   </span>
                 ))}

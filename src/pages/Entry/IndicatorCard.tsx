@@ -93,7 +93,7 @@ export default function IndicatorCard({
         {!isDirect && !isComposite && (
           <div className="flex items-center gap-3 text-xs ml-auto">
             <label className="flex items-center gap-1">
-              <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">空白</span>
+              <span className="text-slate-500 dark:text-slate-400">空白</span>
               <input
                 type="number"
                 step="any"
@@ -104,7 +104,7 @@ export default function IndicatorCard({
               />
             </label>
             <label className="flex items-center gap-1">
-              <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">稀释</span>
+              <span className="text-slate-500 dark:text-slate-400">稀释</span>
               <input
                 type="number"
                 step="any"
@@ -123,7 +123,7 @@ export default function IndicatorCard({
 
       <table className="w-full table-fixed border-collapse text-xs">
         <thead>
-          <tr className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+          <tr className="text-slate-500 dark:text-slate-400">
             <th className="text-left py-1.5 px-3 border-b border-slate-100 dark:border-slate-800 w-16">罐</th>
             {isComposite ? (
               <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">自动计算</th>
@@ -151,7 +151,7 @@ export default function IndicatorCard({
                 <td className="py-1.5 px-3 border-b border-slate-50">{r.code}</td>
                 {isComposite ? (
                   <td
-                    className="py-1.5 px-2 border-b border-slate-50 text-slate-500 dark:text-slate-400 dark:text-slate-500 text-[11px]"
+                    className="py-1.5 px-2 border-b border-slate-50 text-slate-500 dark:text-slate-400 text-[11px]"
                     colSpan={2}
                   >
                     由三氮等指标自动算得

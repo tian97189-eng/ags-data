@@ -91,13 +91,13 @@ export default function CloudSyncSettings() {
     <div className="max-w-lg space-y-4">
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="text-base font-medium mb-1">云同步（实时互通）</div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3">
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
           开启后，手机 App 和电脑上的数据会实时保持一致——任何一端保存，另一端自动更新。
           数据存放在腾讯云免费空间（每月 3000 资源点，实验数据量完全够用）。
         </p>
 
         <div className="flex items-center gap-2 mb-2">
-          <label className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500 w-20 shrink-0" htmlFor="cloud-env-id">
+          <label className="text-xs text-slate-600 dark:text-slate-400 w-20 shrink-0" htmlFor="cloud-env-id">
             环境 ID
           </label>
           <input
@@ -112,7 +112,7 @@ export default function CloudSyncSettings() {
         </div>
 
         <div className="flex items-center gap-2 mb-3">
-          <label className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500 w-20 shrink-0" htmlFor="cloud-access-key">
+          <label className="text-xs text-slate-600 dark:text-slate-400 w-20 shrink-0" htmlFor="cloud-access-key">
             API 密钥
           </label>
           <input
@@ -134,7 +134,7 @@ export default function CloudSyncSettings() {
           </button>
         </div>
 
-        <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-3">
+        <div className="text-xs text-slate-500 dark:text-slate-400 mb-3">
           状态：<span className={connected ? 'text-teal-600 font-medium' : status === 'error' ? 'text-red-600' : 'text-slate-700 dark:text-slate-300'}>{STATUS_TEXT[status]}</span>
           {connected && syncState.lastSyncAt != null && (
             <span className="text-slate-400 dark:text-slate-500">
@@ -185,7 +185,7 @@ export default function CloudSyncSettings() {
 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4">
         <div className="text-base font-medium mb-1">怎么开通（5 分钟）</div>
-        <ol className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 space-y-1.5 list-decimal pl-4">
+        <ol className="text-xs text-slate-500 dark:text-slate-400 space-y-1.5 list-decimal pl-4">
           <li>电脑浏览器打开 <span className="font-mono text-teal-700">cloud.tencent.com</span>，用微信/QQ 登录</li>
           <li>搜索进入「<span className="font-medium text-slate-700 dark:text-slate-300">云开发 CloudBase</span>」→ 创建环境（免费体验版，地域选离你近的）</li>
           <li>环境创建完后，到「<span className="font-medium text-slate-700 dark:text-slate-300">用户管理 → 登录方式</span>」页，把「<span className="font-medium text-slate-700 dark:text-slate-300">匿名登录</span>」打开（<span className="text-red-500">这步不打开就连不上</span>）</li>
