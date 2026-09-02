@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CalibrationCurve } from '../../db/schema';
-import { dailyScope, deleteDailyData, getDefault, getMeasurement, saveMeasurement, upsertDefault } from '../../lib/entry';
+import { dailyScope, deleteDailyDataToTrash, getDefault, getMeasurement, saveMeasurement, upsertDefault } from '../../lib/entry';
 import { recomputeAndSaveComposites } from '../../lib/calibration';
 import { today, prevDay } from '../../lib/format';
 import { saveDraft, loadDraft, clearDraft, isDraftEmpty, shouldOfferRestore, type Draft } from '../../lib/draft';
@@ -275,7 +275,7 @@ export default function EntryPage() {
   }
 
   async function handleClear() {
-    await deleteDailyData(date);
+    await deleteDailyDataToTrash(date);
     clearDraft();
     // 重置出水界面
     setCells({});
@@ -286,7 +286,7 @@ export default function EntryPage() {
     }
     setInfluentKey((k) => k + 1); // 强制进水面板重挂载刷新
     setConfirmClear(false);
-    toast('已清空当日数据', 'info');
+    toast('已清空当日数据（可在「查询整理 → 回收站」恢复）', 'info');
   }
 
   return (
@@ -390,7 +390,7 @@ export default function EntryPage() {
       <ConfirmDialog
         open={confirmClear}
         title="清空当日数据"
-        message={`确定清空 ${date} 的全部录入数据吗？\n包括所有指标的测量值和进水记录，此操作不可撤销。`}
+        message={`确定清空 ${date} 的全部录入数据吗？\n包括所有指标的测量值和进水记录。\n清空后进入回收站，30 天内可在「查询整理 → 回收站」恢复。`}
         confirmText="清空"
         danger
         onConfirm={handleClear}

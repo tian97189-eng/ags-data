@@ -8,6 +8,7 @@ import {
   type InputType,
 } from '../db/schema';
 import { resolveCurve, computeConcentration } from './calibration';
+import { trashRows } from './trash';
 
 export function dailyScope(date: string): string {
   return `daily:${date}`;
@@ -227,6 +228,29 @@ export async function deleteDailyData(date: string): Promise<void> {
     .delete();
   await db.influents.where('date').equals(date).delete();
   await db.defaults.where('scopeKey').equals(dailyScope(date)).delete();
+}
+
+/**
+ * 「清空当日」进回收站：先把当天 measurement(daily)/influent/default 快照存入回收站，
+ * 再物理删除。30 天内可在回收站恢复。
+ */
+export async function deleteDailyDataToTrash(date: string): Promise<{ measurements: number; influents: number; defaults: number }> {
+  const daily = await db.measurements
+    .where('date')
+    .equals(date)
+    .filter((m) => m.scene === 'daily')
+    .toArray();
+  const infs = await db.influents.where('date').equals(date).toArray();
+  const defs = await db.defaults.where('scopeKey').equals(dailyScope(date)).toArray();
+
+  const n1 = await trashRows('measurements', daily);
+  const n2 = await trashRows('influents', infs);
+  const n3 = await trashRows('defaults', defs);
+
+  await db.measurements.bulkDelete(daily.map((m) => m.id!));
+  await db.influents.bulkDelete(infs.map((m) => m.id!));
+  await db.defaults.bulkDelete(defs.map((m) => m.id!));
+  return { measurements: n1, influents: n2, defaults: n3 };
 }
 
 /** 返回有日常录入数据（测量或进水）的日期集合，用于日历高亮 */

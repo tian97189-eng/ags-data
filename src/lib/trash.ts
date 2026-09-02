@@ -3,16 +3,21 @@ import type { Measurement } from '../db/schema';
 
 /**
  * 回收站：删除数据先进回收站（JSON 快照保原 id），30 天内可恢复，超期自动清理。
- * 当前支持 measurements（查询页删除入口）；table 字段留作扩展。
+ * 支持表：measurements / influents / defaults（其余表新增时在 restoreTrash 里补写回逻辑）。
  */
 
 const TTL_DAYS = 30;
 
 /** 把整组记录移入回收站（数据仍由调用方负责从原表删除） */
 export async function trashMeasurements(rows: Measurement[]): Promise<number> {
+  return trashRows('measurements', rows);
+}
+
+/** 通用：把任意表的多行记录存为一条回收站条目；返回行数 */
+export async function trashRows(table: string, rows: object[]): Promise<number> {
   if (rows.length === 0) return 0;
   await db.trashRecords.add({
-    table: 'measurements',
+    table,
     data: JSON.stringify(rows),
     deletedAt: new Date().toISOString(),
   });
@@ -34,13 +39,24 @@ export async function listTrash(): Promise<{ id: number; count: number; table: s
   });
 }
 
-/** 恢复一条回收站记录（写回原表后删除回收站条目） */
+/** 恢复一条回收站记录（写回原表后删除回收站条目）；返回恢复行数 */
 export async function restoreTrash(trashId: number): Promise<number> {
   const t = await db.trashRecords.get(trashId);
   if (!t) return 0;
-  const parsed = JSON.parse(t.data) as Measurement[];
-  if (t.table === 'measurements' && Array.isArray(parsed) && parsed.length > 0) {
-    await db.measurements.bulkPut(parsed);
+  const parsed = JSON.parse(t.data) as object[];
+  if (!Array.isArray(parsed) || parsed.length === 0) return 0;
+  if (t.table === 'measurements') {
+    await db.measurements.bulkPut(parsed as Measurement[]);
+    await db.trashRecords.delete(trashId);
+    return parsed.length;
+  }
+  if (t.table === 'influents') {
+    await db.influents.bulkPut(parsed as Parameters<typeof db.influents.bulkPut>[0]);
+    await db.trashRecords.delete(trashId);
+    return parsed.length;
+  }
+  if (t.table === 'defaults') {
+    await db.defaults.bulkPut(parsed as Parameters<typeof db.defaults.bulkPut>[0]);
     await db.trashRecords.delete(trashId);
     return parsed.length;
   }
