@@ -4,9 +4,11 @@
 
 ## 🤖 给 AI 的交接模板（新开任务时复制这句）
 
-> 项目在 `C:\Users\sky\Desktop\数据APP`。请先看 `PRD.md`（需求文档）和 `.workbuddy\memory\` 里的开发记录，了解已实现的功能和约定，再解决我的问题：……
+> 项目在 `C:\Users\sky\Desktop\数据APP`。**先看 `AGENTS.md`（工作约定）**、`PRD.md`（需求）和 `.workbuddy\memory\` 里的开发记录（特别是最近 2 天），再解决我的问题：……
 
-**每个任务完成后，开发记录都会追加到 `.workbuddy\memory\`**（当天日期.md），所以隔多久再开新任务，AI 看那几个文件就能接上进度。**不要删除 `.workbuddy` 文件夹**，那是项目的"记忆"。
+**每个任务完成后，开发记录都会追加到 `.workbuddy\memory\YYYY-MM-DD.md`**，跨问题有长期价值的内容写到 `.workbuddy\memory\MEMORY.md`。**不要删除 `.workbuddy` 文件夹**，那是项目的"记忆"。
+
+**工作约定要点**（详见 `AGENTS.md`）：一次只解决一个问题；每个问题配有效测试；完成一个立即 `git add -A` + 中文提交（不要 5 个问题一起提交）；写 memory；用户原话也记入日志；出问题可回退。
 
 ## 前置条件
 
