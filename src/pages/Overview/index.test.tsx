@@ -63,33 +63,34 @@ describe('OverviewPage', () => {
     expect(temp).toBeTruthy();
   });
 
-  it('倒计时：保存 label+date 后显示 天后/天前 + 可清除', () => {
+  it('倒计时：添加事件后显示 天后/天前 + 可删除', () => {
     render(<OverviewPage />);
-    // 进入编辑态（首页"编辑"按钮）
-    // 没初始化时显示表单：填 label + date + 提交
-    const labelInput = screen.getAllByPlaceholderText(/答辩/i)[0] as HTMLInputElement;
+    // 新 UI 默认折叠表单，先点"+ 添加倒计时事件"
+    fireEvent.click(screen.getByText('+ 添加倒计时事件'));
+    const labelInput = screen.getByLabelText('新事件名') as HTMLInputElement;
     fireEvent.change(labelInput, { target: { value: '答辩' } });
-    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    const dateInput = screen.getByLabelText('新事件日期') as HTMLInputElement;
     fireEvent.change(dateInput, { target: { value: '2026-12-30' } });
-    fireEvent.click(screen.getByText('开始计时'));
-    // 倒计时应显示 "天后" 或 "天前"，label 也在
+    fireEvent.click(screen.getByText('添加'));
+    // 倒计时应显示 "天后" + label
     expect(screen.getByText('答辩')).toBeTruthy();
     expect(screen.getByText(/(天后|天前)/)).toBeTruthy();
-    // localStorage 已写入
+    // localStorage 已写入（数组）
     const saved = JSON.parse(localStorage.getItem(COUNTDOWN_KEY) || 'null');
-    expect(saved).toEqual({ label: '答辩', date: '2026-12-30' });
+    expect(Array.isArray(saved)).toBe(true);
+    expect(saved[0]).toMatchObject({ label: '答辩', date: '2026-12-30' });
   });
 
   it('笔记：textarea 输入后会存入 localStorage（防抖 300ms）', async () => {
     render(<OverviewPage />);
     const ta = screen.getByPlaceholderText(/随手写点什么/i) as HTMLTextAreaElement;
     fireEvent.change(ta, { target: { value: '今天想到一个 idea' } });
-    await waitFor(
-      () => {
-        expect(localStorage.getItem(NOTES_KEY)).toBe('今天想到一个 idea');
-      },
-      { timeout: 800 },
-    );
+    // 等防抖 300ms + 余量（jsdom 真实 setTimeout）
+    for (let i = 0; i < 50; i++) {
+      if (localStorage.getItem(NOTES_KEY) === '今天想到一个 idea') break;
+      await new Promise((r) => setTimeout(r, 30));
+    }
+    expect(localStorage.getItem(NOTES_KEY)).toBe('今天想到一个 idea');
   });
 
   it('从 localStorage 恢复笔记内容', () => {
