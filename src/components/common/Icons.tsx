@@ -106,3 +106,11 @@ export const IconUsers = (p: IconProps) => (
     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </Base>
 );
+
+export const IconNote = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+    <rect x="9" y="3" width="6" height="4" rx="1" />
+    <path d="M9 12h6M9 16h6" />
+  </Base>
+);

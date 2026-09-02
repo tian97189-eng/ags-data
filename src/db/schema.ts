@@ -269,6 +269,19 @@ export interface OtherMeasurement {
   createdAt: string;
 }
 
+/** 实验记录（时间线）：记某时间段做了什么、加了什么、测了哪些指标；可附照片 */
+export interface ExperimentRecord {
+  id?: number;
+  date: string; // 记录所属日期
+  title: string; // 标题（如"第 3 天：换水 + 加碳源"）
+  content: string; // 详细描述
+  /** 测了哪些指标（指标名数组，快照存储，避免指标删除后丢失） */
+  indicators: string[];
+  /** 照片 base64 DataURL 数组（JSON 可序列化，能进备份） */
+  photos: string[];
+  createdAt: string;
+}
+
 export class AgsDB extends Dexie {
   reactors!: Table<Reactor, number>;
   indicators!: Table<Indicator, number>;
@@ -286,6 +299,7 @@ export class AgsDB extends Dexie {
   sviRecords!: Table<SVIRecord, number>;
   otherReactors!: Table<OtherReactor, number>;
   otherMeasurements!: Table<OtherMeasurement, number>;
+  experimentRecords!: Table<ExperimentRecord, number>;
 
   constructor() {
     super('ags-data');
@@ -313,6 +327,10 @@ export class AgsDB extends Dexie {
     this.version(3).stores({
       otherReactors: '++id, code, active, sortOrder',
       otherMeasurements: '++id, date, reactorId, indicatorId',
+    });
+    // v4：实验记录（时间线 + 照片 base64）
+    this.version(4).stores({
+      experimentRecords: '++id, date',
     });
   }
 }

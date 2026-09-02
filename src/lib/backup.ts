@@ -9,6 +9,14 @@ import type {
   DailyDefault,
   CustomRecord,
   SettingKV,
+  MLSSRecord,
+  ParticleSizeRange,
+  ParticleSizeRecord,
+  EPSRecord,
+  SVIRecord,
+  OtherReactor,
+  OtherMeasurement,
+  ExperimentRecord,
 } from '../db/schema';
 
 export interface BackupFile {
@@ -25,6 +33,14 @@ export interface BackupFile {
     defaults: DailyDefault[];
     customRecords: CustomRecord[];
     settings: SettingKV[];
+    mlssRecords: MLSSRecord[];
+    particleSizeRanges: ParticleSizeRange[];
+    particleSizeRecords: ParticleSizeRecord[];
+    epsRecords: EPSRecord[];
+    sviRecords: SVIRecord[];
+    otherReactors: OtherReactor[];
+    otherMeasurements: OtherMeasurement[];
+    experimentRecords: ExperimentRecord[];
   };
 }
 
@@ -49,6 +65,14 @@ export async function exportBackupData(): Promise<BackupFile> {
       defaults: await db.defaults.toArray(),
       customRecords: await db.customRecords.toArray(),
       settings: await db.settings.toArray(),
+      mlssRecords: await db.mlssRecords.toArray(),
+      particleSizeRanges: await db.particleSizeRanges.toArray(),
+      particleSizeRecords: await db.particleSizeRecords.toArray(),
+      epsRecords: await db.epsRecords.toArray(),
+      sviRecords: await db.sviRecords.toArray(),
+      otherReactors: await db.otherReactors.toArray(),
+      otherMeasurements: await db.otherMeasurements.toArray(),
+      experimentRecords: await db.experimentRecords.toArray(),
     },
   };
 }
@@ -85,6 +109,14 @@ export async function importOverwrite(backup: BackupFile): Promise<ImportReport>
   await db.defaults.bulkPut(d.defaults ?? []);
   await db.customRecords.bulkPut(d.customRecords ?? []);
   await db.settings.bulkPut(d.settings ?? []);
+  await db.mlssRecords.bulkPut(d.mlssRecords ?? []);
+  await db.particleSizeRanges.bulkPut(d.particleSizeRanges ?? []);
+  await db.particleSizeRecords.bulkPut(d.particleSizeRecords ?? []);
+  await db.epsRecords.bulkPut(d.epsRecords ?? []);
+  await db.sviRecords.bulkPut(d.sviRecords ?? []);
+  await db.otherReactors.bulkPut(d.otherReactors ?? []);
+  await db.otherMeasurements.bulkPut(d.otherMeasurements ?? []);
+  await db.experimentRecords.bulkPut(d.experimentRecords ?? []);
   const total =
     (d.reactors?.length ?? 0) +
     (d.indicators?.length ?? 0) +
@@ -94,7 +126,15 @@ export async function importOverwrite(backup: BackupFile): Promise<ImportReport>
     (d.influents?.length ?? 0) +
     (d.defaults?.length ?? 0) +
     (d.customRecords?.length ?? 0) +
-    (d.settings?.length ?? 0);
+    (d.settings?.length ?? 0) +
+    (d.mlssRecords?.length ?? 0) +
+    (d.particleSizeRanges?.length ?? 0) +
+    (d.particleSizeRecords?.length ?? 0) +
+    (d.epsRecords?.length ?? 0) +
+    (d.sviRecords?.length ?? 0) +
+    (d.otherReactors?.length ?? 0) +
+    (d.otherMeasurements?.length ?? 0) +
+    (d.experimentRecords?.length ?? 0);
   return { imported: total, overwritten: true };
 }
 
@@ -184,6 +224,40 @@ export async function importMerge(backup: BackupFile): Promise<ImportReport> {
       await db.settings.put(s);
       imported++;
     }
+  }
+
+  // 其他指标 / 他人数据 / 实验记录：merge 模式直接追加（id 置空避免冲突）
+  for (const x of d.mlssRecords ?? []) {
+    await db.mlssRecords.add({ ...x, id: undefined });
+    imported++;
+  }
+  for (const x of d.particleSizeRanges ?? []) {
+    await db.particleSizeRanges.add({ ...x, id: undefined });
+    imported++;
+  }
+  for (const x of d.particleSizeRecords ?? []) {
+    await db.particleSizeRecords.add({ ...x, id: undefined });
+    imported++;
+  }
+  for (const x of d.epsRecords ?? []) {
+    await db.epsRecords.add({ ...x, id: undefined });
+    imported++;
+  }
+  for (const x of d.sviRecords ?? []) {
+    await db.sviRecords.add({ ...x, id: undefined });
+    imported++;
+  }
+  for (const x of d.otherReactors ?? []) {
+    await db.otherReactors.add({ ...x, id: undefined });
+    imported++;
+  }
+  for (const x of d.otherMeasurements ?? []) {
+    await db.otherMeasurements.add({ ...x, id: undefined });
+    imported++;
+  }
+  for (const x of d.experimentRecords ?? []) {
+    await db.experimentRecords.add({ ...x, id: undefined });
+    imported++;
   }
 
   return { imported, overwritten: false };
