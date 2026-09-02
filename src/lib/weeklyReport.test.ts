@@ -74,6 +74,37 @@ describe('buildWeeklyReport', () => {
     expect(txt).toContain('【异常记录】无');
     expect(txt).toContain('【当日备注】无');
   });
+
+  it('超范围记录带出原因标注（测量 note）', () => {
+    const m = out('2026-08-30', 1, 10, 12.0);
+    m.note = '取样时颗粒物污染';
+    const txt = buildWeeklyReport({
+      start: '2026-08-26',
+      end: '2026-09-01',
+      measurements: [m],
+      influents: [],
+      reactors,
+      indicators,
+      dayNotes: new Map(),
+    });
+    expect(txt).toContain('2026-08-30 R1 氨氮 = 12.00');
+    expect(txt).toContain('原因：取样时颗粒物污染');
+  });
+
+  it('超范围记录无原因时不输出原因字样', () => {
+    const m = out('2026-08-30', 1, 10, 12.0); // note 为空
+    const txt = buildWeeklyReport({
+      start: '2026-08-26',
+      end: '2026-09-01',
+      measurements: [m],
+      influents: [],
+      reactors,
+      indicators,
+      dayNotes: new Map(),
+    });
+    expect(txt).toContain('= 12.00');
+    expect(txt).not.toContain('原因：');
+  });
 });
 
 describe('recentWindow', () => {

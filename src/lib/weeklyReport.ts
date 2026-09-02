@@ -79,7 +79,7 @@ export function buildWeeklyReport(inp: WeeklyInput): string {
     }
   }
 
-  // 异常记录
+  // 异常记录（含超范围原因标注，如有）
   const abnormal: string[] = [];
   for (const m of dailyOut) {
     const ind = indicators.find((i) => i.id === m.indicatorId);
@@ -89,7 +89,11 @@ export function buildWeeklyReport(inp: WeeklyInput): string {
     const over = (low != null && m.value! < low) || (high != null && m.value! > high);
     if (over) {
       const rc = activeReactors.find((r) => r.id === m.reactorId)?.code ?? `#${m.reactorId}`;
-      abnormal.push(`  · ${m.date} ${rc} ${ind.name} = ${num(m.value, 2)}（参考 ${low ?? '—'}~${high ?? '—'}）`);
+      const cause = m.note?.trim();
+      abnormal.push(
+        `  · ${m.date} ${rc} ${ind.name} = ${num(m.value, 2)}（参考 ${low ?? '—'}~${high ?? '—'}）` +
+          (cause ? `　原因：${cause}` : ''),
+      );
     }
   }
   L.push(`【异常记录】${abnormal.length > 0 ? '' : '无超参考范围数据'}`);

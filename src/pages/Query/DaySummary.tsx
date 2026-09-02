@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/schema';
 import { removalRate } from '../../lib/stats';
@@ -16,6 +16,9 @@ export default function DaySummary({ onClose }: { onClose: () => void }) {
   const [date, setDate] = useState(today());
   const [note, setNote] = useState('');
   const [noteDirty, setNoteDirty] = useState(false);
+  // 原因标注编辑：key = `${indId}:${code}` → 该行在编辑
+  const [reasonKey, setReasonKey] = useState<string | null>(null);
+  const [reasonDraft, setReasonDraft] = useState('');
 
   const measurements = useLiveQuery(() => db.measurements.toArray(), []);
   const influents = useLiveQuery(() => db.influents.toArray(), []);
@@ -54,10 +57,10 @@ export default function DaySummary({ onClose }: { onClose: () => void }) {
   // 当日各罐×指标的进出水聚合
   const rows = useMemo(() => {
     if (!measurements || !influents || !reactors || !indicators) return null;
-    const outMap = new Map<string, number>();
+    const outMap = new Map<string, Measurement>();
     for (const m of measurements) {
       if (m.scene === 'daily' && m.date === date && m.value != null) {
-        outMap.set(`${m.reactorId}|${m.indicatorId}`, m.value); // 同组多条取最后
+        outMap.set(`${m.reactorId}|${m.indicatorId}`, m); // 同组多条取最后
       }
     }
     const infOf = (indicatorId: number, reactorId: number | null) => {
@@ -78,17 +81,34 @@ export default function DaySummary({ onClose }: { onClose: () => void }) {
       unit: string;
       refLow: number | null;
       refHigh: number | null;
-      rows: { code: string; inV: number | null; outV: number | null; rate: number | null; abnormal: boolean }[];
+      rows: {
+        code: string;
+        inV: number | null;
+        outV: number | null;
+        rate: number | null;
+        abnormal: boolean;
+        mId?: number;
+        reason: string;
+      }[];
     }[] = [];
 
     for (const ind of indicators) {
       const per = reactors
         .map((r) => {
-          const outV = outMap.get(`${r.id!}|${ind.id!}`) ?? null;
+          const m = outMap.get(`${r.id!}|${ind.id!}`) ?? null;
+          const outV = m?.value ?? null;
           const inV = infOf(ind.id!, r.id!);
           const rate = removalRate(inV, outV);
           const abnormal = outV != null && outOfRange(outV, ind.refLow, ind.refHigh);
-          return { code: r.code, inV, outV, rate, abnormal };
+          return {
+            code: r.code,
+            inV,
+            outV,
+            rate,
+            abnormal,
+            mId: m?.id,
+            reason: m?.note ?? '',
+          };
         })
         .filter((x) => x.inV != null || x.outV != null);
       if (per.length === 0) continue;
@@ -103,6 +123,24 @@ export default function DaySummary({ onClose }: { onClose: () => void }) {
     }
     return list;
   }, [measurements, influents, reactors, indicators, date]);
+
+  /** 打开原因标注编辑 */
+  function startReason(indId: number, code: string, current: string) {
+    setReasonKey(`${indId}:${code}`);
+    setReasonDraft(current);
+  }
+
+  /** 保存原因到该条测量 note */
+  async function saveReason() {
+    if (reasonKey == null) return;
+    const [indIdStr, code] = reasonKey.split(':');
+    const g = rows?.find((x) => x.indId === Number(indIdStr));
+    const rr = g?.rows.find((x) => x.code === code);
+    if (!rr || rr.mId == null) return;
+    await db.measurements.update(rr.mId, { note: reasonDraft.trim() });
+    setReasonKey(null);
+    toast(reasonDraft.trim() ? '已记录异常原因（会出现在周报里）' : '原因已清除', 'success');
+  }
 
   const summary = useMemo(() => {
     if (!rows) return null;
@@ -211,39 +249,86 @@ export default function DaySummary({ onClose }: { onClose: () => void }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {g.rows.map((r) => (
-                      <tr key={r.code}>
-                        <td className="py-1.5 px-3 border-t border-slate-50 dark:border-slate-800">
-                          {r.code}
-                        </td>
-                        <td className="py-1.5 px-2 border-t border-slate-50 dark:border-slate-800 text-right tabular-nums">
-                          {r.inV == null ? '—' : r.inV.toFixed(2)}
-                        </td>
-                        <td
-                          className={`py-1.5 px-2 border-t border-slate-50 dark:border-slate-800 text-right font-medium tabular-nums ${
-                            r.abnormal ? 'text-red-600 dark:text-red-400' : ''
-                          }`}
-                        >
-                          {r.outV == null ? '—' : r.outV.toFixed(2)}
-                        </td>
-                        <td
-                          className={`py-1.5 px-2 border-t border-slate-50 dark:border-slate-800 text-right tabular-nums ${
-                            r.rate == null ? 'text-slate-300 dark:text-slate-600' : ''
-                          }`}
-                        >
-                          {r.rate == null ? '—' : `${r.rate.toFixed(1)}%`}
-                        </td>
-                        <td className="py-1.5 px-3 border-t border-slate-50 dark:border-slate-800 text-right">
-                          {r.outV == null ? (
-                            <span className="text-slate-300 dark:text-slate-600">—</span>
-                          ) : r.abnormal ? (
-                            <span className="text-red-600 dark:text-red-400 font-medium">超范围</span>
-                          ) : (
-                            <span className="text-teal-700 dark:text-teal-300">正常</span>
+                    {g.rows.map((r) => {
+                      const editing = reasonKey === `${g.indId}:${r.code}`;
+                      return (
+                        <Fragment key={r.code}>
+                          <tr>
+                            <td className="py-1.5 px-3 border-t border-slate-50 dark:border-slate-800">
+                              {r.code}
+                            </td>
+                            <td className="py-1.5 px-2 border-t border-slate-50 dark:border-slate-800 text-right tabular-nums">
+                              {r.inV == null ? '—' : r.inV.toFixed(2)}
+                            </td>
+                            <td
+                              className={`py-1.5 px-2 border-t border-slate-50 dark:border-slate-800 text-right font-medium tabular-nums ${
+                                r.abnormal ? 'text-red-600 dark:text-red-400' : ''
+                              }`}
+                            >
+                              {r.outV == null ? '—' : r.outV.toFixed(2)}
+                            </td>
+                            <td
+                              className={`py-1.5 px-2 border-t border-slate-50 dark:border-slate-800 text-right tabular-nums ${
+                                r.rate == null ? 'text-slate-300 dark:text-slate-600' : ''
+                              }`}
+                            >
+                              {r.rate == null ? '—' : `${r.rate.toFixed(1)}%`}
+                            </td>
+                            <td className="py-1.5 px-3 border-t border-slate-50 dark:border-slate-800 text-right whitespace-nowrap">
+                              {r.outV == null ? (
+                                <span className="text-slate-300 dark:text-slate-600">—</span>
+                              ) : r.abnormal ? (
+                                <button
+                                  type="button"
+                                  onClick={() => startReason(g.indId, r.code, r.reason)}
+                                  className="text-red-600 dark:text-red-400 font-medium hover:underline"
+                                  title={r.reason ? `原因：${r.reason}` : '给这个超范围值标注原因（会进周报）'}
+                                >
+                                  超范围{r.reason ? ' · 已注' : ''}
+                                </button>
+                              ) : (
+                                <span className="text-teal-700 dark:text-teal-300">正常</span>
+                              )}
+                            </td>
+                          </tr>
+                          {editing && (
+                            <tr>
+                              <td colSpan={5} className="px-3 py-1.5 border-t border-slate-50 dark:border-slate-800 bg-amber-50/60 dark:bg-amber-500/5">
+                                <div className="flex items-center gap-1.5 text-xs">
+                                  <span className="text-red-600 dark:text-red-400 shrink-0">
+                                    {r.code} {g.indName} 超范围原因：
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={reasonDraft}
+                                    aria-label="异常原因"
+                                    placeholder="如：取样污染 / 曝气故障 / 试剂问题…"
+                                    maxLength={120}
+                                    className="flex-1 min-w-0 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 bg-white dark:bg-slate-900"
+                                    onChange={(e) => setReasonDraft(e.target.value)}
+                                    autoFocus
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => void saveReason()}
+                                    className="px-2.5 py-1 rounded bg-teal-600 text-white shrink-0"
+                                  >
+                                    保存
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setReasonKey(null)}
+                                    className="px-2 py-1 rounded border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 shrink-0"
+                                  >
+                                    取消
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
                           )}
-                        </td>
-                      </tr>
-                    ))}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
