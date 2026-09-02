@@ -68,3 +68,45 @@ describe('实验记录（ExperimentRecord）', () => {
     expect(list[1].title).toBe('早');
   });
 });
+
+describe('实验记录 照片入口（问题4：拍照+选图分两个按钮）', () => {
+  beforeEach(clearAll);
+
+  it('新建表单有「拍照」和「选图」两个入口，文件选择器分别带/不带 capture', async () => {
+    const { render, screen } = await import('@testing-library/react');
+    const ExperimentPage = (await import('./index')).default;
+    render(<ExperimentPage />);
+    expect(screen.getByLabelText('拍照')).toBeTruthy();
+    expect(screen.getByLabelText('从相册选图')).toBeTruthy();
+
+    // 两个隐藏 input：拍照的带 capture=environment，选图的不带
+    const inputs = document.querySelectorAll('input[type="file"]');
+    const camera = Array.from(inputs).find((i) => i.getAttribute('capture') === 'environment');
+    const gallery = Array.from(inputs).find((i) => i.getAttribute('capture') === null);
+    expect(camera).toBeTruthy();
+    expect(gallery).toBeTruthy();
+    // 选图 input 多个属性验证：必须没 capture 才会弹文件选择器
+    expect(gallery!.getAttribute('capture')).toBeNull();
+  });
+});
+
+describe('实验记录 照片入口（问题4：拍照+选图分两个按钮）', () => {
+  beforeEach(clearAll);
+
+  it('新建表单有「拍照」和「选图」两个入口，文件选择器分别带/不带 capture', async () => {
+    const { render, screen } = await import('@testing-library/react');
+    const ExperimentPage = (await import('./index')).default;
+    render(<ExperimentPage />);
+    expect(screen.getByLabelText('拍照')).toBeTruthy();
+    expect(screen.getByLabelText('从相册选图')).toBeTruthy();
+
+    // 两个隐藏 input：拍照的带 capture=environment，选图的不带
+    const inputs = document.querySelectorAll('input[type="file"]');
+    const camera = Array.from(inputs).find((i) => i.getAttribute('capture') === 'environment');
+    const gallery = Array.from(inputs).find((i) => i.getAttribute('capture') === null);
+    expect(camera).toBeTruthy();
+    expect(gallery).toBeTruthy();
+    // 选图 input 多个属性验证：必须没 capture 才会弹文件选择器
+    expect(gallery!.getAttribute('capture')).toBeNull();
+  });
+});

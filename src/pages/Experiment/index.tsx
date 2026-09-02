@@ -34,7 +34,9 @@ export default function ExperimentPage() {
   const [content, setContent] = useState('');
   const [checkedInd, setCheckedInd] = useState<Record<number, boolean>>({});
   const [photos, setPhotos] = useState<string[]>([]);
-  const fileRef = useRef<HTMLInputElement>(null);
+  // 区分两个入口：拍照（capture=environment 强制后置摄像头）vs 从相册/文件选图（不带 capture，弹文件选择器）
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
   async function handlePickPhotos(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -45,7 +47,7 @@ export default function ExperimentPage() {
     } catch {
       toast('图片读取失败', 'warning');
     }
-    if (fileRef.current) fileRef.current.value = '';
+    e.target.value = '';
   }
 
   async function handleAdd() {
@@ -158,20 +160,43 @@ export default function ExperimentPage() {
               </div>
             ))}
             {photos.length < 9 && (
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="w-20 h-20 rounded-md border border-dashed border-slate-300 dark:border-slate-600 text-slate-400 text-xs flex flex-col items-center justify-center gap-1"
-              >
-                <span className="text-lg leading-none">+</span>
-                拍照/选图
-              </button>
+              <div className="w-20 h-20 rounded-md border border-dashed border-slate-300 dark:border-slate-600 flex flex-col items-center justify-center text-[10px] text-slate-400 gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => cameraRef.current?.click()}
+                  aria-label="拍照"
+                  title="拍照（打开相机）"
+                  className="px-1 py-0.5 hover:text-teal-600"
+                >
+                  拍照
+                </button>
+                <span className="opacity-50">|</span>
+                <button
+                  type="button"
+                  onClick={() => galleryRef.current?.click()}
+                  aria-label="从相册选图"
+                  title="从相册/文件选图（不开相机）"
+                  className="px-1 py-0.5 hover:text-teal-600"
+                >
+                  选图
+                </button>
+              </div>
             )}
+            {/* 拍照：带 capture 强制调起后置摄像头 */}
             <input
-              ref={fileRef}
+              ref={cameraRef}
               type="file"
               accept="image/*"
               capture="environment"
+              multiple
+              className="hidden"
+              onChange={(e) => void handlePickPhotos(e)}
+            />
+            {/* 选图（相册/文件）：不带 capture，弹出系统文件选择器，可选相册/文件管理器 */}
+            <input
+              ref={galleryRef}
+              type="file"
+              accept="image/*"
               multiple
               className="hidden"
               onChange={(e) => void handlePickPhotos(e)}
