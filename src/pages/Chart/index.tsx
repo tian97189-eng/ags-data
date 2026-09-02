@@ -183,13 +183,48 @@ export default function ChartPage() {
     setReactorIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   }
 
-  function exportPng() {
+  /** 从当前实例取 SVG 字符串 dataURL（svg renderer 下可用） */
+  function svgDataUrl(): string | null {
     const inst = chartRef.current?.getEchartsInstance();
-    if (!inst) return;
-    const url = inst.getDataURL({ backgroundColor: '#fff', pixelRatio: 2 });
+    if (!inst) return null;
+    try {
+      return inst.getDataURL({ type: 'svg', backgroundColor: '#ffffff' }) as string;
+    } catch {
+      return null;
+    }
+  }
+
+  /** 高清 PNG（3x）：SVG → Image → canvas → PNG，论文/PPT 用不糊 */
+  function exportPng() {
+    const svgUrl = svgDataUrl();
+    if (!svgUrl) return;
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const scale = 3;
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0);
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = '图表.png';
+      a.click();
+    };
+    img.src = svgUrl;
+  }
+
+  /** SVG 矢量图（期刊投稿要求矢量，可再编辑字号/线宽） */
+  function exportSvg() {
+    const svgUrl = svgDataUrl();
+    if (!svgUrl) return;
     const a = document.createElement('a');
-    a.href = url;
-    a.download = '图表.png';
+    a.href = svgUrl;
+    a.download = '图表.svg';
     a.click();
   }
 
@@ -199,9 +234,26 @@ export default function ChartPage() {
         title="可视化"
         desc="趋势图、周期曲线与对比分析"
         actions={
-          <button type="button" onClick={exportPng} disabled={series.length === 0} className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white disabled:opacity-40">
-            导出图片
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={exportSvg}
+              disabled={series.length === 0}
+              className="px-3 py-1.5 text-xs rounded-md border border-teal-300 text-teal-700 dark:border-teal-700 dark:text-teal-300 disabled:opacity-40"
+              title="SVG 矢量图（期刊投稿、Origin 可编辑）"
+            >
+              导出 SVG
+            </button>
+            <button
+              type="button"
+              onClick={exportPng}
+              disabled={series.length === 0}
+              className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white disabled:opacity-40"
+              title="高清 3 倍 PNG，论文 PPT 用不糊"
+            >
+              导出图片
+            </button>
+          </div>
         }
       />
 
@@ -376,7 +428,14 @@ export default function ChartPage() {
             <EmptyState title="请选择指标" desc="在左侧选择指标（必要时选择罐、日期或周期）" />
           ) : (
             <>
-              <ReactECharts ref={chartRef} option={option} style={{ height: 380 }} notMerge lazyUpdate />
+              <ReactECharts
+                ref={chartRef}
+                option={option}
+                style={{ height: 380 }}
+                opts={{ renderer: 'svg' }}
+                notMerge
+                lazyUpdate
+              />
               <div className="flex gap-4 flex-wrap text-xs mt-2">
                 {series.map((s) => (
                   <span key={s.name} className="text-slate-600 dark:text-slate-400">

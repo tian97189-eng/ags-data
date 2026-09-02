@@ -16,6 +16,7 @@ import { useAppStore, resolveDark } from './store/useAppStore';
 import { db } from './db/schema';
 import { checkUpdate, shouldAutoCheck } from './lib/updater';
 import { purgeExpiredTrash } from './lib/trash';
+import { maybePromptBackup } from './lib/backupReminder';
 
 export default function App() {
   const toast = useAppStore((s) => s.toast);
@@ -24,6 +25,14 @@ export default function App() {
   // 启动时清理回收站中超过 30 天的记录（静默，不打扰）
   useEffect(() => {
     void purgeExpiredTrash(30);
+  }, []);
+
+  // 每周首次打开：轻提示导出一份备份（数据纯本地，无云端）
+  useEffect(() => {
+    if (maybePromptBackup()) {
+      toast('💾 建议导出一份数据备份（设置 → 备份与导出），本地数据最稳妥', 'info');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 主题应用到 <html> 的 dark class

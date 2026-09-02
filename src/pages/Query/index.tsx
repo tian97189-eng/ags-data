@@ -9,7 +9,9 @@ import { outOfRange } from '../../lib/stats';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import DaySummary from './DaySummary';
 import { useAppStore } from '../../store/useAppStore';
+import { buildWideCsv, downloadCsv } from '../../lib/csv';
 import {
   trashMeasurements,
   listTrash,
@@ -43,6 +45,8 @@ export default function QueryPage() {
   // 回收站
   const [trashOpen, setTrashOpen] = useState(false);
   const [trashList, setTrashList] = useState<Awaited<ReturnType<typeof listTrash>>>([]);
+  // 单日小结
+  const [dayOpen, setDayOpen] = useState(false);
   // 快捷筛选预设
   const [presets, setPresets] = useState<QueryPreset[]>(() => loadPresets());
   const [showSavePreset, setShowSavePreset] = useState(false);
@@ -148,6 +152,14 @@ export default function QueryPage() {
     toast('已导出', 'success');
   }
 
+  function handleExportCsv() {
+    const reactorCodes = new Map((reactors ?? []).map((r) => [r.id!, r.code]));
+    const indicatorNames = new Map((indicators ?? []).map((i) => [i.id!, i.name]));
+    const content = buildWideCsv(rows, reactorCodes, indicatorNames);
+    downloadCsv(content, 'AGS宽表.csv');
+    toast('已导出宽表 CSV（Origin/SPSS 可直接打开）', 'success');
+  }
+
   async function openTrash() {
     setTrashList(await listTrash());
     setTrashOpen(true);
@@ -178,6 +190,14 @@ export default function QueryPage() {
           <div className="flex gap-2">
             <button
               type="button"
+              onClick={() => setDayOpen(true)}
+              className="px-3 py-1.5 text-xs rounded-md border border-teal-300 text-teal-700 dark:border-teal-700 dark:text-teal-300"
+              title="某天所有罐×指标的进水/出水/去除率/异常一屏总览，可写当日备注"
+            >
+              单日小结
+            </button>
+            <button
+              type="button"
               onClick={() => void openTrash()}
               className="px-3 py-1.5 text-xs rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300"
             >
@@ -190,6 +210,15 @@ export default function QueryPage() {
               className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white disabled:opacity-40"
             >
               导出 Excel
+            </button>
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={rows.length === 0}
+              className="px-3 py-1.5 text-xs rounded-md border border-teal-300 text-teal-700 dark:border-teal-700 dark:text-teal-300 disabled:opacity-40"
+              title="宽表格式（行=日期，列=罐-指标），Origin / SPSS 可直接拖入"
+            >
+              宽表 CSV
             </button>
           </div>
         }
@@ -420,6 +449,9 @@ export default function QueryPage() {
         onConfirm={deleteSelected}
         onCancel={() => setConfirmDelete(false)}
       />
+
+      {/* 单日小结（全屏视图） */}
+      {dayOpen && <DaySummary onClose={() => setDayOpen(false)} />}
 
       {/* 回收站弹窗 */}
       {trashOpen && (

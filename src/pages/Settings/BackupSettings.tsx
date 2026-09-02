@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/schema';
 import { exportBackupData, backupToJson, jsonToBackup, importBackupData } from '../../lib/backup';
+import { markBackupDone } from '../../lib/backupReminder';
 import { buildExportRows, buildFullWorkbook, type ExportFilter } from '../../lib/excel';
 import { parseImportFile, buildImportTemplate, type ImportPreview } from '../../lib/importExcel';
 import { saveAndShare } from '../../lib/share';
@@ -153,6 +154,7 @@ export default function BackupSettings() {
     const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const filename = `AGS备份-${stamp}.json`;
     const res = await saveAndShare({ filename, content: json, mime: 'application/json' });
+    markBackupDone(); // 记录本次备份，重置每周提醒
     if (res.method === 'native') {
       toast('已保存到手机 Documents 目录，请在分享面板选择"保存到文件"', 'success');
     } else {

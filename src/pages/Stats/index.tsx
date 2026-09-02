@@ -7,10 +7,16 @@ import { computeParticleDistribution } from '../../lib/extras';
 import { formatNumber, formatPercent } from '../../lib/format';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
+import { buildWeeklyReport, recentWindow } from '../../lib/weeklyReport';
+import { getAllDayNotes } from '../../lib/dayNotes';
 
 export default function StatsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  // 周报弹窗
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportText, setReportText] = useState('');
+  const [reportCopied, setReportCopied] = useState(false);
   const [removalIndicatorId, setRemovalIndicatorId] = useState<number | null>(null);
   const [corrXId, setCorrXId] = useState<number | null>(null);
   const [corrYId, setCorrYId] = useState<number | null>(null);
@@ -33,6 +39,39 @@ export default function StatsPage() {
   const indicators = useLiveQuery(() => db.indicators.orderBy('sortOrder').toArray(), []);
 
   const inRange = (d: string) => (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo);
+
+  async function handleWeeklyReport() {
+    const { start, end } = recentWindow(7);
+    const dayNotes = await getAllDayNotes();
+    const text = buildWeeklyReport({
+      start,
+      end,
+      measurements: measurements ?? [],
+      influents: influents ?? [],
+      reactors: reactors ?? [],
+      indicators: indicators ?? [],
+      dayNotes,
+    });
+    setReportText(text);
+    setReportCopied(false);
+    setReportOpen(true);
+  }
+
+  async function copyReport() {
+    try {
+      await navigator.clipboard.writeText(reportText);
+      setReportCopied(true);
+    } catch {
+      // fallback：textarea 复制
+      const ta = document.createElement('textarea');
+      ta.value = reportText;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setReportCopied(true);
+    }
+  }
 
   const removalRows = useMemo(() => {
     if (!removalIndicatorId) return [];
@@ -267,7 +306,20 @@ const extrasStats = useMemo(() => {
 
   return (
     <div>
-      <PageHeader title="统计分析" desc="去除率、亚硝积累率与相关性" />
+      <PageHeader
+        title="统计分析"
+        desc="去除率、亚硝积累率与相关性"
+        actions={
+          <button
+            type="button"
+            onClick={() => void handleWeeklyReport()}
+            className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white"
+            title="一键生成最近 7 天实验小结（可复制进 Word）"
+          >
+            生成周报
+          </button>
+        }
+      />
 
       <div className="flex items-center gap-2 flex-wrap mb-4 text-xs">
         <label className="flex items-center gap-1">
@@ -448,6 +500,51 @@ const extrasStats = useMemo(() => {
           </table>
         </div>
       </div>
+
+      {/* 周报弹窗 */}
+      {reportOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setReportOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-xl max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+              <div>
+                <div className="text-base font-medium">实验周报（最近 7 天）</div>
+                <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                  可直接复制进 Word / 论文 timeline
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReportOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm px-1"
+                aria-label="关闭周报"
+              >
+                ✕
+              </button>
+            </div>
+            <pre className="flex-1 overflow-y-auto px-4 py-3 text-xs leading-relaxed whitespace-pre-wrap font-mono text-slate-700 dark:text-slate-300">
+              {reportText}
+            </pre>
+            <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void copyReport()}
+                className="px-4 py-1.5 rounded-lg bg-teal-600 text-white text-sm"
+              >
+                {reportCopied ? '已复制 ✓' : '复制全文'}
+              </button>
+              <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                origin/周报会包含各罐去除率、异常记录与当日备注
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
