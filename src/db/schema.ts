@@ -239,6 +239,36 @@ export interface SVIRecord {
   createdAt: string;
 }
 
+// —— 「他人数据」独立空间（帮别人测水质用）——
+// 与自己的反应器 / 测量数据完全隔离：自己的数据永不因他人录入受影响。
+
+/** 他人的罐（独立于自己的 reactors） */
+export interface OtherReactor {
+  id?: number;
+  code: string;
+  name: string;
+  note: string;
+  active: boolean;
+  sortOrder: number;
+  createdAt: string;
+}
+
+/** 他人的测量数据（独立于自己的 measurements） */
+export interface OtherMeasurement {
+  id?: number;
+  date: string;
+  reactorId: number; // 指向 otherReactors.id
+  indicatorId: number;
+  inputType: InputType;
+  sampleAbs: number | null;
+  blankAbs: number | null;
+  dilution: number | null;
+  value: number | null; // 浓度（自动算或直读）
+  curveId: number | null;
+  note: string;
+  createdAt: string;
+}
+
 export class AgsDB extends Dexie {
   reactors!: Table<Reactor, number>;
   indicators!: Table<Indicator, number>;
@@ -254,6 +284,8 @@ export class AgsDB extends Dexie {
   particleSizeRecords!: Table<ParticleSizeRecord, number>;
   epsRecords!: Table<EPSRecord, number>;
   sviRecords!: Table<SVIRecord, number>;
+  otherReactors!: Table<OtherReactor, number>;
+  otherMeasurements!: Table<OtherMeasurement, number>;
 
   constructor() {
     super('ags-data');
@@ -276,6 +308,11 @@ export class AgsDB extends Dexie {
     // v2：新增污泥沉降性 SVI 表
     this.version(2).stores({
       sviRecords: '++id, date, reactorId',
+    });
+    // v3：他人数据独立空间（帮别人测水质，不碰自己的反应器/测量）
+    this.version(3).stores({
+      otherReactors: '++id, code, active, sortOrder',
+      otherMeasurements: '++id, date, reactorId, indicatorId',
     });
   }
 }

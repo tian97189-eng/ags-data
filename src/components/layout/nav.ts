@@ -8,6 +8,7 @@ import {
   IconChart,
   IconStats,
   IconSettings,
+  IconUsers,
 } from '../common/Icons';
 
 export type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>;
@@ -27,5 +28,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { path: '/extras', label: '其他指标', icon: IconExtras },
   { path: '/chart', label: '可视化', icon: IconChart },
   { path: '/stats', label: '统计分析', icon: IconStats },
+  { path: '/other', label: '他人数据', icon: IconUsers },
   { path: '/settings', label: '设置', icon: IconSettings },
 ];

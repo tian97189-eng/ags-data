@@ -8,7 +8,7 @@ async function clearAll() {
 describe('AgsDB schema', () => {
   beforeEach(clearAll);
 
-  it('包含 14 张表（9 业务表 + 5 其他指标表）', () => {
+  it('包含 16 张表（9 业务表 + 5 其他指标表 + 2 他人数据表）', () => {
     const names = db.tables.map((t) => t.name).sort();
     expect(names).toEqual(
       [
@@ -21,6 +21,8 @@ describe('AgsDB schema', () => {
         'influents',
         'measurements',
         'mlssRecords',
+        'otherMeasurements',
+        'otherReactors',
         'particleSizeRanges',
         'particleSizeRecords',
         'reactors',

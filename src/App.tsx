@@ -10,6 +10,7 @@ import ChartPage from './pages/Chart';
 import StatsPage from './pages/Stats';
 import SettingsPage from './pages/Settings';
 import OverviewPage from './pages/Overview';
+import OtherEntryPage from './pages/OtherEntry';
 import { useAppStore, resolveDark } from './store/useAppStore';
 import { db } from './db/schema';
 import { checkUpdate, shouldAutoCheck } from './lib/updater';
@@ -82,6 +83,7 @@ function AppRoutes() {
         <Route path="/query" element={wrap(<QueryPage />)} />
         <Route path="/extras" element={wrap(<ExtrasPage />)} />
         <Route path="/chart" element={wrap(<ChartPage />)} />
+        <Route path="/other" element={wrap(<OtherEntryPage />)} />
         <Route path="/stats" element={wrap(<StatsPage />)} />
         <Route path="/settings" element={wrap(<SettingsPage />)} />
         <Route path="*" element={<Navigate to="/overview" replace />} />
