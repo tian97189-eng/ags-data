@@ -37,7 +37,7 @@ export default function HistoryCalendar({
   }, [defaultDate]);
 
   return (
-    <div className="grid md:grid-cols-[240px_minmax(0,1fr)] gap-4">
+    <div className="grid md:grid-cols-[240px_minmax(0,1fr)] gap-4 pb-20 md:pb-0">
       <div>
         <DatePicker value={selected ?? ''} markedDates={dates} onChange={setSelected} />
         <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">

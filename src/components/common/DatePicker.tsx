@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -36,9 +36,29 @@ export default function DatePicker({
   onChange: (date: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const init = value ? value.split('-').map(Number) : null;
   const [year, setYear] = useState(init?.[0] ?? new Date().getFullYear());
   const [month, setMonth] = useState(init ? init[1] - 1 : new Date().getMonth());
+
+  // 点击外部关闭（不用 fixed 蒙层——避免盖住 BottomNav 和吞掉滚轮）
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (value) {
@@ -73,20 +93,18 @@ export default function DatePicker({
   }
 
   return (
-    <div className="relative">
+    <div className="relative inline-block" ref={containerRef}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 text-xs flex items-center gap-2 bg-white dark:bg-slate-800 hover:border-teal-300"
       >
-        <span>{value}</span>
+        <span>{value || '选日期'}</span>
         <span className="text-slate-400 dark:text-slate-500">▾</span>
       </button>
 
       {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute z-50 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3 w-64">
+        <div className="absolute z-50 mt-1 left-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3 w-72 max-w-[calc(100vw-2rem)]">
             <div className="flex items-center justify-between mb-2">
               <button
                 type="button"
@@ -153,8 +171,7 @@ export default function DatePicker({
               </span>
             </div>
           </div>
-        </>
-      )}
+        )}
     </div>
   );
 }

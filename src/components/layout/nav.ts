@@ -24,12 +24,12 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { path: '/overview', label: '概览', icon: IconOverview },
   { path: '/entry', label: '录入', icon: IconEntry },
-  { path: '/cycle', label: '全周期', icon: IconCycle },
+  { path: '/cycle', label: '周期', icon: IconCycle },
   { path: '/query', label: '查询', icon: IconQuery },
-  { path: '/extras', label: '其他指标', icon: IconExtras },
-  { path: '/chart', label: '可视化', icon: IconChart },
-  { path: '/stats', label: '统计分析', icon: IconStats },
-  { path: '/experiment', label: '实验记录', icon: IconNote },
-  { path: '/other', label: '他人数据', icon: IconUsers },
+  { path: '/extras', label: '指标', icon: IconExtras },
+  { path: '/chart', label: '可视', icon: IconChart },
+  { path: '/stats', label: '统计', icon: IconStats },
+  { path: '/experiment', label: '实验', icon: IconNote },
+  { path: '/other', label: '他人', icon: IconUsers },
   { path: '/settings', label: '设置', icon: IconSettings },
 ];
