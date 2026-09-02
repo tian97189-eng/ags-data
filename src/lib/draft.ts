@@ -59,6 +59,30 @@ export function clearDraftFor(key: string): void {
   }
 }
 
+/** 通用 JSON 草稿（各页自定义结构，key 隔离）。payload 任意可序列化对象，savedAt 自动注入 */
+export interface AnyDraft {
+  savedAt: number;
+  [k: string]: unknown;
+}
+export function saveAnyDraft(key: string, payload: Record<string, unknown>): void {
+  try {
+    localStorage.setItem(key, JSON.stringify({ ...payload, savedAt: Date.now() }));
+  } catch {
+    /* 超限/不可用则静默（如照片 base64 太大时调用方应先降级为只存文本） */
+  }
+}
+export function loadAnyDraft(key: string): AnyDraft | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const d = JSON.parse(raw) as AnyDraft;
+    if (!d || typeof d !== 'object' || typeof d.savedAt !== 'number') return null;
+    return d;
+  } catch {
+    return null;
+  }
+}
+
 /** 草稿是否为空（没有任何用户输入，无需保存/恢复） */
 export function isDraftEmpty(p: Pick<DraftPayload, 'defaults' | 'cells' | 'influent'>): boolean {
   const hasBlank = Object.values(p.defaults ?? {}).some((x) => (x?.blank ?? '') !== '');

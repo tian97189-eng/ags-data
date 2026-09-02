@@ -1,11 +1,16 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type ExperimentRecord } from '../../db/schema';
 import { useAppStore } from '../../store/useAppStore';
 import { today } from '../../lib/format';
 import { trashRows } from '../../lib/trash';
+import DraftRestoreBanner from '../../components/common/DraftRestoreBanner';
+import { saveAnyDraft, loadAnyDraft, clearDraftFor, type AnyDraft } from '../../lib/draft';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
+
+/** 实验记录新建表单草稿（localStorage 单槽）。照片 base64 较大：能存则连照片一起存，超限降级为只存文字 */
+const EXP_DRAFT_KEY = 'ags-experiment-draft';
 
 /** 把图片文件读成 base64 DataURL（可 JSON 序列化、能进备份） */
 function fileToDataUrl(file: File): Promise<string> {
@@ -43,6 +48,69 @@ export default function ExperimentPage() {
   const [editPhotos, setEditPhotos] = useState<string[]>([]);
   const editCameraRef = useRef<HTMLInputElement>(null);
   const editGalleryRef = useRef<HTMLInputElement>(null);
+  // —— 新建表单草稿：误关/刷新可找回文字（照片尽力存，超限降级）——
+  const [offerRestore, setOfferRestore] = useState<AnyDraft | null>(null);
+  const draftTimer = useRef<number | null>(null);
+
+  function hasFormInput(): boolean {
+    return (
+      title.trim() !== '' ||
+      content.trim() !== '' ||
+      Object.values(checkedInd).some(Boolean)
+    );
+  }
+
+  /** 存草稿（含照片 → 超 localStorage 配额自动降级为纯文字） */
+  function saveExperimentDraft() {
+    const base = { date, title, content, checkedInd };
+    if (photos.length === 0) {
+      saveAnyDraft(EXP_DRAFT_KEY, base);
+      return;
+    }
+    try {
+      localStorage.setItem(EXP_DRAFT_KEY, JSON.stringify({ ...base, photos, savedAt: Date.now() }));
+    } catch {
+      saveAnyDraft(EXP_DRAFT_KEY, base);
+    }
+  }
+
+  useEffect(() => {
+    if (draftTimer.current != null) window.clearTimeout(draftTimer.current);
+    draftTimer.current = window.setTimeout(() => {
+      if (hasFormInput()) saveExperimentDraft();
+    }, 600);
+    return () => {
+      if (draftTimer.current != null) window.clearTimeout(draftTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, content, checkedInd, date]);
+
+  // 表单空且有草稿 → 顶部提示恢复；用户一开始输入（或选照片）就收起提示
+  useEffect(() => {
+    const draft = loadAnyDraft(EXP_DRAFT_KEY);
+    if (draft && !hasFormInput() && photos.length === 0) setOfferRestore(draft);
+    else setOfferRestore(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, content, checkedInd, photos]);
+
+  function handleRestoreDraft() {
+    if (!offerRestore) return;
+    if (typeof offerRestore.date === 'string') setDate(offerRestore.date);
+    if (typeof offerRestore.title === 'string') setTitle(offerRestore.title);
+    if (typeof offerRestore.content === 'string') setContent(offerRestore.content);
+    const ci = offerRestore.checkedInd as Record<number, boolean> | undefined;
+    if (ci) setCheckedInd(ci);
+    const ph = offerRestore.photos as string[] | undefined;
+    if (Array.isArray(ph) && ph.length > 0) setPhotos(ph.slice(0, 9));
+    setOfferRestore(null);
+    toast('已恢复上次草稿，请核对后再保存', 'success');
+  }
+
+  function handleDiscardDraft() {
+    clearDraftFor(EXP_DRAFT_KEY);
+    setOfferRestore(null);
+    toast('草稿已丢弃', 'info');
+  }
 
   async function handlePickPhotos(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -84,6 +152,8 @@ export default function ExperimentPage() {
       photos,
       createdAt: new Date().toISOString(),
     });
+    clearDraftFor(EXP_DRAFT_KEY);
+    setOfferRestore(null);
     toast('已记录', 'success');
     setTitle('');
     setContent('');
@@ -133,6 +203,14 @@ export default function ExperimentPage() {
 
       {/* 新增卡片 */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4 mb-4">
+        {offerRestore && (
+          <DraftRestoreBanner
+            note="实验记录"
+            savedAt={offerRestore.savedAt}
+            onRestore={handleRestoreDraft}
+            onDiscard={handleDiscardDraft}
+          />
+        )}
         <div className="text-base font-medium mb-1">新增一条记录</div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
           <label className="block">

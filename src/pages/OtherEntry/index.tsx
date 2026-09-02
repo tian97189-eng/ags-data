@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/schema';
 import {
@@ -12,12 +12,22 @@ import { today } from '../../lib/format';
 import PageHeader from '../../components/layout/PageHeader';
 import HistoryCalendar from '../../components/common/HistoryCalendar';
 import Chip from '../../components/common/Chip';
+import DraftRestoreBanner from '../../components/common/DraftRestoreBanner';
+import {
+  saveAnyDraft,
+  loadAnyDraft,
+  clearDraftFor,
+  type AnyDraft,
+} from '../../lib/draft';
 
 interface CellInput {
   sample: string;
   blank: string;
   dilution: string;
 }
+
+/** 他人数据录入草稿（绑定日期，单槽） */
+const OTHER_DRAFT_KEY = 'ags-other-draft';
 
 /**
  * 他人数据录入 —— 帮别人测水质时的独立空间。
@@ -62,9 +72,52 @@ export default function OtherEntryPage() {
   /** 某罐某指标的录入态 */
   const [cells, setCells] = useState<Record<string, CellInput>>({});
   const cellKey = (rid: number, iid: number) => `${rid}:${iid}`;
+  // —— 草稿（绑定日期：误关/刷新可恢复；当日已有保存数据时不打扰）——
+  const [offerRestore, setOfferRestore] = useState<AnyDraft | null>(null);
+  const draftTimer = useRef<number | null>(null);
+  // 回填标志：cells 因"从 db 读回"变化时跳过草稿保存（只保存用户输入）
+  const backfillRef = useRef(false);
+  // 待恢复草稿（带日期）：点「恢复」后可能被随后的回填覆盖，用它让恢复值盖过回填一次
+  const pendingRestoreRef = useRef<{ date: string; cells: Record<string, CellInput> } | null>(null);
 
-  // 从已有记录回填当日单元格
+  /** 草稿是否有内容（全空才算空） */
+  function isDraftEmpty(cs: Record<string, CellInput> | undefined): boolean {
+    return !Object.values(cs ?? {}).some(
+      (c) => (c?.sample ?? '') !== '' || (c?.blank ?? '') !== '' || (c?.dilution ?? '') !== '',
+    );
+  }
+
+  /** 防抖 600ms 存草稿（空、或 db 回填导致的变化 → 跳过） */
+  function scheduleDraftSave() {
+    if (draftTimer.current != null) window.clearTimeout(draftTimer.current);
+    draftTimer.current = window.setTimeout(() => {
+      if (isDraftEmpty(cells)) return;
+      saveAnyDraft(OTHER_DRAFT_KEY, { date, cells });
+    }, 600);
+  }
   useEffect(() => {
+    if (backfillRef.current) {
+      backfillRef.current = false;
+      return;
+    }
+    scheduleDraftSave();
+    return () => {
+      if (draftTimer.current != null) window.clearTimeout(draftTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cells]);
+
+  // 从已有记录回填当日单元格（回填的变化不算用户输入 → 不打草稿）。
+  // 若刚点了「恢复草稿」（pendingRestoreRef 匹配当前日期），以恢复值为准，跳过 db 回填。
+  useEffect(() => {
+    const pending = pendingRestoreRef.current;
+    if (pending && pending.date === date) {
+      pendingRestoreRef.current = null;
+      backfillRef.current = true;
+      setCells(pending.cells);
+      return;
+    }
+    if (pending) pendingRestoreRef.current = null; // 日期已切换，放弃待恢复
     const next: Record<string, CellInput> = {};
     for (const r of dayRecords) {
       next[cellKey(r.reactorId, r.indicatorId)] = {
@@ -73,9 +126,28 @@ export default function OtherEntryPage() {
         dilution: r.dilution != null ? String(r.dilution) : '',
       };
     }
+    backfillRef.current = true;
     setCells(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, records]);
+
+  // —— 草稿恢复检查：草稿日期==当前日期 且 当日无已存记录 → 提示恢复 ——
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const draft = loadAnyDraft(OTHER_DRAFT_KEY);
+      const ok =
+        !!draft &&
+        draft.date === date &&
+        dayRecords.length === 0 &&
+        !isDraftEmpty(draft.cells as Record<string, CellInput> | undefined);
+      if (!cancelled) setOfferRestore(ok ? draft : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, dayRecords.length, records]);
 
   function setCell(rid: number, iid: number, patch: Partial<CellInput>) {
     setCells((p) => {
@@ -108,8 +180,7 @@ export default function OtherEntryPage() {
 
   async function handleSave() {
     if (!indicators) return;
-    for (const rid of activeReactors.map((r) => r.id!)) {
-      for (const ind of indicators.filter((i) => i.active)) {
+    for (const rid of activeReactors.map((r) => r.id!)) {      for (const ind of indicators.filter((i) => i.active)) {
         if (ind.id == null) continue;
         const c = cells[cellKey(rid, ind.id)] ?? { sample: '', blank: '', dilution: '' };
         if (c.sample === '' && c.blank === '' && c.dilution === '') continue;
@@ -131,6 +202,8 @@ export default function OtherEntryPage() {
       }
     }
     toast('他人数据已保存（不影响你自己的数据）', 'success');
+    clearDraftFor(OTHER_DRAFT_KEY);
+    setOfferRestore(null);
   }
 
   async function handleClearDay() {
@@ -138,8 +211,28 @@ export default function OtherEntryPage() {
     for (const r of activeReactors) {
       await deleteOtherMeasurements(date, r.id!);
     }
+    backfillRef.current = true;
     setCells({});
+    clearDraftFor(OTHER_DRAFT_KEY);
+    setOfferRestore(null);
     toast(`已清空 ${date} 的他人数据`, 'info');
+  }
+
+  /** 恢复草稿：把上次未保存的格子填回（草稿保留到保存/丢弃，避免二次丢失） */
+  function handleRestoreDraft() {
+    if (!offerRestore) return;
+    const draftCells = (offerRestore.cells ?? {}) as Record<string, CellInput>;
+    // 存进 pending：若随后 records 变化触发回填，以恢复值盖过回填
+    pendingRestoreRef.current = { date, cells: draftCells };
+    setCells(draftCells);
+    setOfferRestore(null);
+    toast('已恢复上次草稿，请核对后再保存', 'success');
+  }
+
+  function handleDiscardDraft() {
+    clearDraftFor(OTHER_DRAFT_KEY);
+    setOfferRestore(null);
+    toast('草稿已丢弃', 'info');
   }
 
   const [newCode, setNewCode] = useState('');
@@ -230,6 +323,14 @@ export default function OtherEntryPage() {
 
       {/* 录入区 */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-card p-4 mb-4">
+        {offerRestore && (
+          <DraftRestoreBanner
+            note="他人数据录入"
+            savedAt={offerRestore.savedAt}
+            onRestore={handleRestoreDraft}
+            onDiscard={handleDiscardDraft}
+          />
+        )}
         <div className="flex items-center gap-3 flex-wrap mb-3">
           <label className="flex items-center gap-1 text-sm">
             <span className="text-slate-500 dark:text-slate-400">日期</span>

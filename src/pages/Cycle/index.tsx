@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Phase } from '../../db/schema';import { cycleScope, getDefault, getMeasurement, saveMeasurement, upsertDefault } from '../../lib/entry';
 import { computeConcentration } from '../../lib/calibration';
@@ -10,8 +10,15 @@ import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import Chip from '../../components/common/Chip';
 import SampleReminder from '../../components/common/SampleReminder';
+import DraftRestoreBanner from '../../components/common/DraftRestoreBanner';
 import { buildDOReminderTimes } from '../../lib/reminder';
 import { useAppStore } from '../../store/useAppStore';
+import {
+  saveAnyDraft,
+  loadAnyDraft,
+  clearDraftFor,
+  type AnyDraft,
+} from '../../lib/draft';
 
 interface CycleCell {
   sample: string;
@@ -25,6 +32,9 @@ const PHASES: { value: Phase; label: string }[] = [
   { value: 'oxic', label: '好氧' },
   { value: 'anoxic', label: '缺氧' },
 ];
+
+/** 全周期录入草稿（绑定 周期+指标，一个槽） */
+const CYCLE_DRAFT_KEY = 'ags-cycle-draft';
 
 export default function CyclePage() {
   const toast = useAppStore((s) => s.toast);
@@ -53,6 +63,34 @@ export default function CyclePage() {
   const [phases, setPhases] = useState<Record<string, Phase>>({});
   const [blank, setBlank] = useState('');
   const [dilution, setDilution] = useState('');
+  // —— 草稿（同周期同指标：误关/刷新可恢复；db 已有数据时不打扰）——
+  const [offerRestore, setOfferRestore] = useState<AnyDraft | null>(null);
+  const draftTimer = useRef<number | null>(null);
+
+  /** 草稿是否算"有内容"（默认稀释预填不算输入） */
+  function isDraftEmpty(p: { cells: Record<string, CycleCell>; phases: Record<string, Phase>; blank: string }) {
+    const hasSample = Object.values(p.cells ?? {}).some((c) => (c?.sample ?? '') !== '');
+    const hasOverridden = Object.values(p.cells ?? {}).some((c) => c?.dilutionOverridden === true);
+    const hasPhases = Object.keys(p.phases ?? {}).length > 0;
+    return !hasSample && !hasOverridden && !hasPhases && (p.blank ?? '') === '';
+  }
+
+  /** 防抖 600ms 存草稿（内容空则跳过） */
+  function scheduleDraftSave() {
+    if (draftTimer.current != null) window.clearTimeout(draftTimer.current);
+    draftTimer.current = window.setTimeout(() => {
+      if (cycleId == null || indicatorId == null) return;
+      const payload = { cycleId, indicatorId, cells, phases, blank, dilution };
+      if (!isDraftEmpty(payload)) saveAnyDraft(CYCLE_DRAFT_KEY, payload);
+    }, 600);
+  }
+  useEffect(() => {
+    scheduleDraftSave();
+    return () => {
+      if (draftTimer.current != null) window.clearTimeout(draftTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cells, phases, blank, dilution, cycleId, indicatorId]);
 
   const cycle = cycles?.find((c) => c.id === cycleId) ?? null;
   const indicator = indicators?.find((i) => i.id === indicatorId);
@@ -132,6 +170,27 @@ export default function CyclePage() {
       setDilution(defaultDil);
       setCells(c);
       setPhases((ps?.value as Record<string, Phase>) ?? {});
+      // —— 草稿恢复检查：同周期+同指标 且 该指标尚无任何已存测量 → 提示（避免覆盖已保存）——
+      const hasSaved = await db.measurements
+        .where('cycleRunId')
+        .equals(cycle.id!)
+        .filter((m) => m.indicatorId === indicator.id)
+        .count();
+      if (cancelled) return;
+      const draft = loadAnyDraft(CYCLE_DRAFT_KEY);
+      const draftCells = (draft?.cells ?? {}) as Record<string, CycleCell>;
+      const draftPhases = (draft?.phases ?? {}) as Record<string, Phase>;
+      if (
+        draft &&
+        draft.cycleId === cycle.id &&
+        draft.indicatorId === indicator.id &&
+        hasSaved === 0 &&
+        !isDraftEmpty({ cells: draftCells, phases: draftPhases, blank: String(draft.blank ?? '') })
+      ) {
+        setOfferRestore(draft);
+      } else {
+        setOfferRestore(null);
+      }
     })();
     return () => {
       cancelled = true;
@@ -149,6 +208,8 @@ export default function CyclePage() {
 
   async function handleSave() {
     if (!cycle || !indicator || !reactors) return;
+    clearDraftFor(CYCLE_DRAFT_KEY);
+    setOfferRestore(null);
 
     // composite（总氮）：不录吸光度，浓度 = 三氮之和，直写库
     if (isComposite) {
@@ -198,11 +259,32 @@ export default function CyclePage() {
   async function handleDelete() {
     if (cycleId == null) return;
     await deleteCycle(cycleId);
+    clearDraftFor(CYCLE_DRAFT_KEY);
+    setOfferRestore(null);
     setCycleId(null);
     setCells({});
     setPhases({});
     setConfirmDelete(false);
     toast('周期已删除', 'info');
+  }
+
+  /** 恢复草稿：把上次未保存的格子/阶段/空白/稀释填回（仅当前周期+指标匹配时调用） */
+  function handleRestoreDraft() {
+    if (!offerRestore) return;
+    const draftCells = (offerRestore.cells ?? {}) as Record<string, CycleCell>;
+    const draftPhases = (offerRestore.phases ?? {}) as Record<string, Phase>;
+    setCells(draftCells);
+    setPhases(draftPhases);
+    if (typeof offerRestore.blank === 'string') setBlank(offerRestore.blank);
+    if (typeof offerRestore.dilution === 'string') setDilution(offerRestore.dilution);
+    setOfferRestore(null);
+    toast('已恢复上次草稿，请核对后再保存', 'success');
+  }
+
+  function handleDiscardDraft() {
+    clearDraftFor(CYCLE_DRAFT_KEY);
+    setOfferRestore(null);
+    toast('草稿已丢弃', 'info');
   }
 
   function onPaste(e: React.ClipboardEvent) {
@@ -273,6 +355,15 @@ export default function CyclePage() {
           保存
         </button>
       </div>
+
+      {offerRestore && (
+        <DraftRestoreBanner
+          note="全周期录入"
+          savedAt={offerRestore.savedAt}
+          onRestore={handleRestoreDraft}
+          onDiscard={handleDiscardDraft}
+        />
+      )}
 
       {!cycle ? (
         <EmptyState title="还没有周期实验" desc="点「新建周期」，设置起始时间、间隔和点数" />
