@@ -139,7 +139,8 @@ export default function MLSSPage() {
                 <div className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   {date} · {dayRows.length} 条
                 </div>
-                <div className="overflow-x-auto">
+                {/* 桌面（≥md）：原表格；手机：每条记录一张卡，免横滑查看全部字段 */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full table-fixed border-collapse text-xs min-w-[560px]">
                     <thead>
                       <tr className="text-slate-500 dark:text-slate-400">
@@ -178,6 +179,41 @@ export default function MLSSPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+                {/* 手机：每条记录一张卡，按「输入 + 计算结果」分组，全部字段一次看完不横滑 */}
+                <div className="md:hidden space-y-2">
+                  {dayRows.map((r) => (
+                    <div key={r.id} className="border border-slate-200 dark:border-slate-700 rounded-md p-3 text-xs">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-medium text-slate-700 dark:text-slate-200">滤纸 {r.paperNo}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(r.id!)}
+                          className="text-red-600 text-xs"
+                        >
+                          删除
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-x-2 gap-y-0.5 tabular-nums">
+                        <span className="text-slate-500 dark:text-slate-400">M1</span>
+                        <span className="col-span-2 text-right">{r.m1?.toFixed(4)}</span>
+                        <span className="text-slate-500 dark:text-slate-400">M2</span>
+                        <span className="col-span-2 text-right">{r.m2?.toFixed(4)}</span>
+                        <span className="text-slate-500 dark:text-slate-400">M3</span>
+                        <span className="col-span-2 text-right">{r.m3?.toFixed(4)}</span>
+                        <span className="text-slate-500 dark:text-slate-400">M4</span>
+                        <span className="col-span-2 text-right">{r.m4?.toFixed(4)}</span>
+                        <span className="text-slate-500 dark:text-slate-400">V (mL)</span>
+                        <span className="col-span-2 text-right">{r.v}</span>
+                      </div>
+                      <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-700 grid grid-cols-3 gap-x-2 tabular-nums">
+                        <span className="text-slate-500 dark:text-slate-400">MLSS</span>
+                        <span className="col-span-2 text-right font-medium text-teal-700">{r.mlss?.toFixed(4) ?? '—'} g/L</span>
+                        <span className="text-slate-500 dark:text-slate-400">MLVSS</span>
+                        <span className="col-span-2 text-right font-medium text-teal-700">{r.mlvss?.toFixed(4) ?? '—'} g/L</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             );

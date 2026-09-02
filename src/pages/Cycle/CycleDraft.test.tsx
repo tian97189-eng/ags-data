@@ -94,8 +94,13 @@ describe('Cycle 草稿（问题：全周期误关可恢复）', () => {
       if (document.querySelectorAll('tbody input[type="number"]').length > 0) break;
       await new Promise((r) => setTimeout(r, 25));
     }
-    // 额外等加载 effect 读完 db（异步回填完成后再输入，避免被覆盖）
-    await new Promise((r) => setTimeout(r, 800));
+    // 等加载 effect 真正完成（toolbar 稀释输入框从空变为 indicator.defaultDilution 默认值「10」）
+    for (let i = 0; i < 60; i++) {
+      const dilutionInput = [...document.querySelectorAll<HTMLInputElement>('input[type="number"]')]
+        .find((i) => (i.previousElementSibling?.textContent ?? '') === '稀释');
+      if (dilutionInput && dilutionInput.value === '10') break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
     const firstCell = document.querySelectorAll('tbody input[type="number"]')[0] as HTMLInputElement;
     expect(firstCell).toBeTruthy();
     fireEvent.change(firstCell, { target: { value: '0.42' } });

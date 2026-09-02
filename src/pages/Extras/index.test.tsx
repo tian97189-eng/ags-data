@@ -74,3 +74,49 @@ describe('ExtrasPage - 实验方法 tab', () => {
     expect(screen.getByText('200-50μm 四级筛')).toBeTruthy();
   });
 });
+
+describe('ExtrasPage - 污泥浓度页 手机窄屏卡片化（问题：数据跑到外面）', () => {
+  it('DOM 同时包含桌面表格（hidden md:block）和手机卡片（md:hidden），全部字段都在卡片里', async () => {
+    await db.mlssRecords.add({
+      date: '2026-09-02', reactorId: null, paperNo: 'A-1',
+      m1: 0.1000, m2: 0.1150, m3: 15.0000, m4: 14.9990, v: 15,
+      mlss: 1.0000, mlvss: 66.6667, note: '', createdAt: '',
+    });
+    render(<ExtrasPage />);
+    // 等历史日历默认选中最新日期后渲染表格/卡片
+    await screen.findByText('滤纸 A-1', undefined, { timeout: 3000 });
+
+    // 桌面表格：含 min-w-[560px] 与 w-20 等固定宽列
+    const tables = document.querySelectorAll('table');
+    expect(tables.length).toBe(1);
+    expect(tables[0].className).toContain('min-w-[560px]');
+    // hidden md:block 在 table 外层 div 上（jsdom 不渲染 @media，但 className 都在 DOM 上）
+    const desktopWrap = tables[0].parentElement!;
+    expect(desktopWrap.className).toContain('hidden');
+    expect(desktopWrap.className).toContain('md:block');
+
+    // 手机卡片：每条记录一张，含全部 7 个字段（M1/M2/M3/M4/V/MLSS/MLVSS）+ 滤纸
+    const cardContainer = document.querySelector('div.md\\:hidden.space-y-2');
+    expect(cardContainer).toBeTruthy();
+    // 滤纸标签
+    expect(cardContainer!.textContent).toContain('滤纸 A-1');
+    // 7 个字段标签
+    for (const label of ['M1', 'M2', 'M3', 'M4', 'V (mL)', 'MLSS', 'MLVSS']) {
+      expect(cardContainer!.textContent).toContain(label);
+    }
+    // 关键数值 MLVSS 66.6667 不被截断（包含在卡片文本里）
+    expect(cardContainer!.textContent).toContain('66.6667');
+  });
+
+  it('卡片模式下的删除按钮能删记录', async () => {
+    const id = await db.mlssRecords.add({
+      date: '2026-09-02', reactorId: null, paperNo: 'B-2',
+      m1: 0.1, m2: 0.2, m3: 0.3, m4: 0.4, v: 10,
+      mlss: 10.0, mlvss: 5.0, note: '', createdAt: '',
+    });
+    render(<ExtrasPage />);
+    const cardContainer = (await screen.findByText('滤纸 B-2', undefined, { timeout: 3000 })).closest('div.md\\:hidden.space-y-2') as HTMLElement;
+    fireEvent.click(cardContainer.querySelector('button.text-red-600')!);
+    expect(await db.mlssRecords.get(id)).toBeUndefined();
+  });
+});
