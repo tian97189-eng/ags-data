@@ -26,7 +26,7 @@ export default class ErrorBoundary extends Component<
   };
 
   private handleGoHome = () => {
-    window.location.hash = '#/entry';
+    window.location.hash = '#/overview';
     this.setState({ error: null, info: '' });
   };
 
@@ -58,7 +58,7 @@ export default class ErrorBoundary extends Component<
               onClick={this.handleGoHome}
               className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white hover:bg-teal-700"
             >
-              返回数据录入
+              返回首页
             </button>
           </div>
         </div>

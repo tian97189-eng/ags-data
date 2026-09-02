@@ -33,16 +33,16 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText(/测试崩溃信息/)).toBeTruthy();
   });
 
-  it('错误卡片有「返回数据录入」按钮，点了能跳回首页（避免卡死）', () => {
+  it('错误卡片有「返回首页」按钮，点了能跳回概览（避免卡死）', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     render(
       <ErrorBoundary>
         <Boom />
       </ErrorBoundary>,
     );
-    const btn = screen.getByText('返回数据录入');
+    const btn = screen.getByText('返回首页');
     fireEvent.click(btn);
-    expect(window.location.hash).toBe('#/entry');
+    expect(window.location.hash).toBe('#/overview');
   });
 
   it('点「重试」后重新渲染子组件', () => {

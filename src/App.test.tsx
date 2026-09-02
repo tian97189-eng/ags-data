@@ -29,8 +29,8 @@ describe('App 错误边界集成', () => {
 
   it('某页面崩溃时，左侧导航仍然可用（不再整页白屏卡死）', async () => {
     render(<App />);
-    // 左侧导航的「数据录入」链接（href 指向 #/entry）
-    await screen.findAllByText('数据录入');
+    // 左侧导航的「录入」链接
+    await screen.findAllByText('录入');
 
     // 切到会崩溃的「统计分析」
     window.location.hash = '#/stats';
@@ -38,8 +38,8 @@ describe('App 错误边界集成', () => {
       expect(screen.getByText('这个页面出错了')).toBeTruthy();
     });
 
-    // 关键：左侧导航还在，能点「数据录入」切走
-    const navEntry = screen.getAllByRole('link', { name: '数据录入' })[0];
+    // 关键：左侧导航还在，能点「录入」切走
+    const navEntry = screen.getAllByRole('link', { name: '录入' })[0];
     fireEvent.click(navEntry);
 
     await waitFor(() => {
@@ -47,14 +47,14 @@ describe('App 错误边界集成', () => {
     });
   });
 
-  it('崩溃页提供「返回数据录入」按钮且可点击跳回', async () => {
+  it('崩溃页提供「返回首页」按钮且可点击跳回', async () => {
     render(<App />);
-    await screen.findAllByText('数据录入');
+    await screen.findAllByText('录入');
 
     window.location.hash = '#/stats';
-    await waitFor(() => screen.getByText('返回数据录入'));
+    await waitFor(() => screen.getByText('返回首页'));
 
-    fireEvent.click(screen.getByText('返回数据录入'));
-    expect(window.location.hash).toBe('#/entry');
+    fireEvent.click(screen.getByText('返回首页'));
+    expect(window.location.hash).toBe('#/overview');
   });
 });

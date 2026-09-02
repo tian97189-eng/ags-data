@@ -9,6 +9,7 @@ import ExtrasPage from './pages/Extras';
 import ChartPage from './pages/Chart';
 import StatsPage from './pages/Stats';
 import SettingsPage from './pages/Settings';
+import OverviewPage from './pages/Overview';
 import { useAppStore } from './store/useAppStore';
 import { db } from './db/schema';
 import { checkUpdate, shouldAutoCheck } from './lib/updater';
@@ -57,7 +58,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<Navigate to="/entry" replace />} />
+        <Route index element={<Navigate to="/overview" replace />} />
+        <Route path="/overview" element={wrap(<OverviewPage />)} />
         <Route path="/entry" element={wrap(<EntryPage />)} />
         <Route path="/cycle" element={wrap(<CyclePage />)} />
         <Route path="/query" element={wrap(<QueryPage />)} />
@@ -65,7 +67,7 @@ function AppRoutes() {
         <Route path="/chart" element={wrap(<ChartPage />)} />
         <Route path="/stats" element={wrap(<StatsPage />)} />
         <Route path="/settings" element={wrap(<SettingsPage />)} />
-        <Route path="*" element={<Navigate to="/entry" replace />} />
+        <Route path="*" element={<Navigate to="/overview" replace />} />
       </Route>
     </Routes>
   );
