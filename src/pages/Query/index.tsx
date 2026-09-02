@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Measurement, type Scene } from '../../db/schema';
 import { matchFilter, sortMeasurements, type SortKey, type SortDir } from '../../lib/query';
+import { loadPresets, savePreset, deletePreset, type QueryPreset, type QueryFilter } from '../../lib/presets';
 import { buildExportRows, buildWorkbook, downloadWorkbook } from '../../lib/excel';
 import { formatNumber } from '../../lib/format';
 import { outOfRange } from '../../lib/stats';
@@ -9,6 +10,13 @@ import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useAppStore } from '../../store/useAppStore';
+import {
+  trashMeasurements,
+  listTrash,
+  restoreTrash,
+  purgeTrash,
+  emptyTrash,
+} from '../../lib/trash';
 
 const PHASE_LABEL: Record<string, string> = { anaerobic: '厌氧', oxic: '好氧', anoxic: '缺氧' };
 
@@ -32,6 +40,13 @@ export default function QueryPage() {
   const [editValue, setEditValue] = useState('');
   const [editNote, setEditNote] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // 回收站
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trashList, setTrashList] = useState<Awaited<ReturnType<typeof listTrash>>>([]);
+  // 快捷筛选预设
+  const [presets, setPresets] = useState<QueryPreset[]>(() => loadPresets());
+  const [showSavePreset, setShowSavePreset] = useState(false);
+  const [presetName, setPresetName] = useState('');
 
   const rMap = useMemo(() => new Map((reactors ?? []).map((r) => [r.id, r])), [reactors]);
   const iMap = useMemo(() => new Map((indicators ?? []).map((i) => [i.id, i])), [indicators]);
@@ -72,6 +87,38 @@ export default function QueryPage() {
     setEditNote(m.note ?? '');
   }
 
+  function currentFilter(): QueryFilter {
+    return {
+      dateFrom,
+      dateTo,
+      reactorIds,
+      indicatorIds,
+      scene,
+      phase,
+      keyword,
+    };
+  }
+
+  function applyPreset(p: QueryPreset) {
+    setDateFrom(p.f.dateFrom ?? '');
+    setDateTo(p.f.dateTo ?? '');
+    setReactorIds(p.f.reactorIds ?? []);
+    setIndicatorIds(p.f.indicatorIds ?? []);
+    setScene((p.f.scene as Scene | 'all') ?? 'all');
+    setPhase(p.f.phase ?? '');
+    setKeyword(p.f.keyword ?? '');
+    toast(`已应用「${p.name}」`, 'info');
+  }
+
+  function handleSavePreset() {
+    const name = presetName.trim();
+    if (!name) return;
+    setPresets(savePreset(name, currentFilter()));
+    setShowSavePreset(false);
+    setPresetName('');
+    toast(`已保存「${name}」`, 'success');
+  }
+
   async function saveEdit() {
     if (!editing) return;
     await db.measurements.update(editing.id!, {
@@ -84,10 +131,14 @@ export default function QueryPage() {
 
   async function deleteSelected() {
     const ids = Array.from(selected);
+    const toDelete = rows.filter((r) => ids.includes(r.id!));
+    if (toDelete.length > 0) {
+      await trashMeasurements(toDelete); // 先进回收站（保原 id），30 天内可恢复
+    }
     await db.measurements.bulkDelete(ids);
     setSelected(new Set());
     setConfirmDelete(false);
-    toast(`已删除 ${ids.length} 条`, 'info');
+    toast(`已删除 ${toDelete.length} 条（可在回收站恢复，30 天有效）`, 'success');
   }
 
   async function handleExport() {
@@ -97,20 +148,50 @@ export default function QueryPage() {
     toast('已导出', 'success');
   }
 
+  async function openTrash() {
+    setTrashList(await listTrash());
+    setTrashOpen(true);
+  }
+
+  async function handleRestore(id: number) {
+    const n = await restoreTrash(id);
+    setTrashList(await listTrash());
+    toast(`已恢复 ${n} 条数据`, 'success');
+  }
+  async function handlePurge(id: number) {
+    await purgeTrash(id);
+    setTrashList(await listTrash());
+    toast('已彻底删除', 'info');
+  }
+  async function handleEmptyTrash() {
+    await emptyTrash();
+    setTrashList([]);
+    toast('回收站已清空', 'info');
+  }
+
   return (
     <div>
       <PageHeader
         title="查询整理"
         desc="筛选、排序、搜索与导出"
         actions={
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={rows.length === 0}
-            className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white disabled:opacity-40"
-          >
-            导出 Excel
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void openTrash()}
+              className="px-3 py-1.5 text-xs rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300"
+            >
+              🗑 回收站
+            </button>
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={rows.length === 0}
+              className="px-3 py-1.5 text-xs rounded-md bg-teal-600 text-white disabled:opacity-40"
+            >
+              导出 Excel
+            </button>
+          </div>
         }
       />
 
@@ -166,6 +247,68 @@ export default function QueryPage() {
               {i.name}
             </button>
           ))}
+        </div>
+
+        {/* 快捷筛选预设 */}
+        <div className="flex items-center gap-1.5 flex-wrap border-t border-slate-100 dark:border-slate-800 pt-2">
+          <span className="text-slate-400 dark:text-slate-500 shrink-0">快捷筛选：</span>
+          {presets.map((p) => (
+            <span key={p.name} className="inline-flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => applyPreset(p)}
+                className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-teal-700 dark:text-teal-300 hover:border-teal-400"
+              >
+                {p.name}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPresets(deletePreset(p.name))}
+                className="text-slate-300 dark:text-slate-600 hover:text-red-500 text-[11px] px-0.5"
+                aria-label={`删除预设 ${p.name}`}
+                title={`删除「${p.name}」`}
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+          {showSavePreset ? (
+            <span className="inline-flex items-center gap-1">
+              <input
+                autoFocus
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSavePreset();
+                  if (e.key === 'Escape') setShowSavePreset(false);
+                }}
+                placeholder="预设名字，如：近7天R1氨氮"
+                className="border border-slate-200 dark:border-slate-700 rounded px-2 py-0.5 w-40"
+              />
+              <button
+                type="button"
+                onClick={handleSavePreset}
+                className="px-2 py-0.5 rounded bg-teal-600 text-white"
+              >
+                保存
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSavePreset(false)}
+                className="px-1.5 text-slate-400"
+              >
+                取消
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowSavePreset(true)}
+              className="px-2 py-0.5 rounded border border-dashed border-teal-400 text-teal-700 dark:text-teal-300"
+            >
+              + 存为快捷筛选
+            </button>
+          )}
         </div>
       </div>
 
@@ -271,12 +414,95 @@ export default function QueryPage() {
       <ConfirmDialog
         open={confirmDelete}
         title="删除数据"
-        message={`确定删除选中的 ${selected.size} 条数据吗？此操作不可撤销。`}
+        message={`将 ${selected.size} 条数据移入回收站（30 天内可在「回收站」恢复）。确定删除？`}
         confirmText="删除"
         danger
         onConfirm={deleteSelected}
         onCancel={() => setConfirmDelete(false)}
       />
+
+      {/* 回收站弹窗 */}
+      {trashOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setTrashOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+              <div>
+                <div className="text-base font-medium">回收站</div>
+                <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                  删除的数据在这里，30 天内可恢复
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTrashOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm px-1"
+                aria-label="关闭回收站"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-4 py-2 text-xs space-y-1.5">
+              {trashList.length === 0 ? (
+                <div className="text-center text-slate-400 dark:text-slate-500 py-8">
+                  回收站是空的
+                </div>
+              ) : (
+                trashList.map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex items-center gap-2 border border-slate-100 dark:border-slate-700 rounded-lg px-3 py-2"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium">
+                        {t.table === 'measurements' ? '测量数据' : t.table} · {t.count} 条
+                      </div>
+                      <div className="text-[11px] text-slate-400 dark:text-slate-500">
+                        删除于 {t.deletedAt.slice(0, 19).replace('T', ' ')}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleRestore(t.id)}
+                      className="px-2 py-1 rounded bg-teal-600 text-white"
+                    >
+                      恢复
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handlePurge(t.id)}
+                      className="px-2 py-1 rounded border border-red-200 text-red-600 dark:border-red-800"
+                    >
+                      彻底删除
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+            {trashList.length > 0 && (
+              <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('确定清空回收站？此操作不可恢复。')) void handleEmptyTrash();
+                  }}
+                  className="text-xs text-red-600"
+                >
+                  清空回收站
+                </button>
+                <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                  超 30 天自动清理
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

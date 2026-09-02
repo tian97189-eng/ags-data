@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CalibrationCurve } from '../../db/schema';
 import { dailyScope, deleteDailyData, getDefault, getMeasurement, saveMeasurement, upsertDefault } from '../../lib/entry';
 import { recomputeAndSaveComposites } from '../../lib/calibration';
-import { today } from '../../lib/format';
+import { today, prevDay } from '../../lib/format';
 import PageHeader from '../../components/layout/PageHeader';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -128,6 +128,36 @@ export default function EntryPage() {
     setCells((prev) => ({ ...prev, [`${indicatorId}:${reactorId}`]: cell }));
   }
 
+  /** 复制前一天出水吸光度到今天（空白/稀释默认不复制，进水不复制） */
+  async function handleCopyYesterday() {
+    const prev = prevDay(date);
+    const list = await db.measurements
+      .where('scene')
+      .equals('daily')
+      .filter((m) => m.date === prev && m.sampleAbs != null)
+      .toArray();
+    if (list.length === 0) {
+      toast(`昨天（${prev}）没有可复制的出水数据`, 'info');
+      return;
+    }
+    setCells((cur) => {
+      const next: Record<string, CellState> = {};
+      for (const m of list) {
+        const key = `${m.indicatorId}:${m.reactorId}`;
+        const old = cur[key];
+        if (!old) continue; // 停用/新增格子跳过，不误写
+        next[key] = {
+          sample: m.sampleAbs != null ? String(m.sampleAbs) : old.sample,
+          dilution:
+            m.dilutionOverridden && m.dilution != null ? String(m.dilution) : old.dilution,
+          dilutionOverridden: m.dilutionOverridden ?? false,
+        };
+      }
+      return { ...cur, ...next };
+    });
+    toast(`已从 ${prev} 复制 ${list.length} 格出水吸光度（进水请手动录入）`, 'success');
+  }
+
   async function handleSave() {
     if (!indicators || !reactors) return;
     const scope = dailyScope(date);
@@ -198,6 +228,14 @@ export default function EntryPage() {
         </label>
         <button
           type="button"
+          onClick={() => void handleCopyYesterday()}
+          className="px-3 py-1.5 text-xs rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:border-teal-400"
+          title={`把 ${prevDay(date)} 的出水吸光度复制到 ${date}`}
+        >
+          复制昨天
+        </button>
+        <button
+          type="button"
           onClick={() => setConfirmClear(true)}
           className="px-3 py-1.5 text-xs rounded-md border border-red-200 text-red-600 hover:bg-red-50"
         >
@@ -206,10 +244,23 @@ export default function EntryPage() {
         <button
           type="button"
           onClick={handleSave}
-          className="ml-auto px-4 py-1.5 text-xs rounded-md bg-teal-600 text-white hover:bg-teal-700"
+          className="ml-auto px-4 py-1.5 text-xs rounded-md bg-teal-600 text-white hover:bg-teal-700 hidden md:block"
         >
           保存
         </button>
+      </div>
+
+      {/* 手机端吸底保存：数据多时不用滚回顶部就能保存（置于底部导航上方） */}
+      <div className="md:hidden fixed bottom-16 left-0 right-0 z-40 px-3 pb-2 pointer-events-none">
+        <div className="pointer-events-auto max-w-3xl mx-auto">
+          <button
+            type="button"
+            onClick={handleSave}
+            className="w-full py-2.5 text-sm font-medium rounded-xl bg-teal-600 text-white shadow-lg active:bg-teal-700"
+          >
+            保存今日数据
+          </button>
+        </div>
       </div>
 
       <InfluentPanel key={influentKey} ref={influentRef} date={date} blankByIndicator={outBlank} />
@@ -237,6 +288,8 @@ export default function EntryPage() {
           />
         ))
       )}
+
+      <div className="h-16 md:hidden" />
 
       <ConfirmDialog
         open={confirmClear}

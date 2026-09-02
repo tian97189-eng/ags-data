@@ -323,6 +323,14 @@ export interface MethodDoc {
   updatedAt: string;
 }
 
+/** 回收站记录：被删数据的 JSON 快照（保原 id），30 天内可恢复 */
+export interface TrashRecord {
+  id?: number;
+  table: string; // 原表名（如 measurements）
+  data: string; // 被删记录 JSON 字符串（数组）
+  deletedAt: string; // ISO 时间
+}
+
 export class AgsDB extends Dexie {
   reactors!: Table<Reactor, number>;
   indicators!: Table<Indicator, number>;
@@ -342,6 +350,7 @@ export class AgsDB extends Dexie {
   otherMeasurements!: Table<OtherMeasurement, number>;
   experimentRecords!: Table<ExperimentRecord, number>;
   methodDocs!: Table<MethodDoc, number>;
+  trashRecords!: Table<TrashRecord, number>;
 
   constructor() {
     super('ags-data');
@@ -377,6 +386,10 @@ export class AgsDB extends Dexie {
     // v5：实验方法库（SOP 手册：试剂/仪器/步骤配图/附件）
     this.version(5).stores({
       methodDocs: '++id, category, name, updatedAt',
+    });
+    // v6：回收站（误删可恢复，30 天自动清理）
+    this.version(6).stores({
+      trashRecords: '++id, table, deletedAt',
     });
   }
 }

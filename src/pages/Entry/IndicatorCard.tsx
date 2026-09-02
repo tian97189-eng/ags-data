@@ -1,4 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useMemo } from 'react';
 import { computeConcentration, computeCompositeValue, type ComputeStatus } from '../../lib/calibration';
 import { db } from '../../db/schema';
 import { formatNumber } from '../../lib/format';
@@ -48,6 +49,15 @@ export default function IndicatorCard({
   const isDirect = indicator.method === 'direct';
   const isComposite = indicator.compositeType === 'sumOf';
 
+  // 当前生效标曲的使用天数（effectiveFrom 起算）
+  const curveDays = useMemo(() => {
+    if (!curve?.effectiveFrom) return null;
+    const from = new Date(curve.effectiveFrom + 'T00:00:00');
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return Math.max(0, Math.round((now.getTime() - from.getTime()) / 86_400_000));
+  }, [curve?.effectiveFrom]);
+
   // composite 指标：实时查同日的依赖指标 value，按罐聚合
   const compositeByReactor = useLiveQuery<Record<number, number | null>>(async () => {
     if (!isComposite || !indicator.compositeRefs?.length) return {};
@@ -82,8 +92,35 @@ export default function IndicatorCard({
     });
   }
 
+  /** 回车 → 跳到同卡片下一个输入框；卡尾则跳到下一张指标卡 */
+  function handleInputEnter(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const cur = e.currentTarget;
+    const card = cur.closest('[data-indicator-card]');
+    const inputs = card
+      ? Array.from(card.querySelectorAll<HTMLInputElement>('input[type="number"]'))
+      : [];
+    const idx = inputs.indexOf(cur);
+    if (idx >= 0 && idx < inputs.length - 1) {
+      inputs[idx + 1].focus();
+      inputs[idx + 1].select();
+      return;
+    }
+    const cards = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-indicator-card]'),
+    );
+    const ci = card ? cards.indexOf(card as HTMLElement) : -1;
+    const next = cards[ci + 1];
+    const first = next?.querySelector<HTMLInputElement>('input[type="number"]');
+    if (first) {
+      first.focus();
+      first.select();
+    }
+  }
+
   return (
-    <div className="border border-slate-200 dark:border-slate-700 rounded-lg mb-3">
+    <div className="border border-slate-200 dark:border-slate-700 rounded-lg mb-3" data-indicator-card="true">
       <div className="flex items-center gap-3 flex-wrap px-3 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 rounded-t-lg">
         <span className="text-base font-medium">{indicator.name}</span>
         {isComposite && (
@@ -92,30 +129,43 @@ export default function IndicatorCard({
           </span>
         )}
         {!isDirect && !isComposite && (
-          <div className="flex items-center gap-3 text-xs ml-auto">
-            <label className="flex items-center gap-1">
-              <span className="text-slate-500 dark:text-slate-400">空白</span>
-              <input
-                type="number"
-                step="any"
-                aria-label={`${indicator.name} 空白`}
-                className="w-20 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800"
-                value={defaultBlank}
-                onChange={(e) => onDefaultChange(e.target.value, defaultDilution)}
-              />
-            </label>
-            <label className="flex items-center gap-1">
-              <span className="text-slate-500 dark:text-slate-400">稀释</span>
-              <input
-                type="number"
-                step="any"
-                aria-label={`${indicator.name} 稀释`}
-                className="w-20 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800"
-                value={defaultDilution}
-                onChange={(e) => onDefaultChange(defaultBlank, e.target.value)}
-              />
-            </label>
-          </div>
+          <>
+            {curve && (
+              <span
+                className="ml-auto text-[10px] text-slate-400 dark:text-slate-500"
+                title={`当前生效标曲：k=${curve.k != null ? curve.k.toFixed(4) : '—'}，生效日 ${curve.effectiveFrom}，斜率越大灵敏度越高`}
+              >
+                标曲 k={curve.k != null ? curve.k.toFixed(4) : '—'} · {curve.effectiveFrom?.slice(5) ?? ''} 生效
+                {curveDays != null && (curveDays === 0 ? ' · 今日生效' : ` · 已用 ${curveDays} 天`)}
+              </span>
+            )}
+            <div className={`flex items-center gap-3 text-xs ${curve ? '' : 'ml-auto'}`}>
+              <label className="flex items-center gap-1">
+                <span className="text-slate-500 dark:text-slate-400">空白</span>
+                <input
+                  type="number"
+                  step="any"
+                  aria-label={`${indicator.name} 空白`}
+                  className="w-20 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800"
+                  value={defaultBlank}
+                  onChange={(e) => onDefaultChange(e.target.value, defaultDilution)}
+                  onKeyDown={handleInputEnter}
+                />
+              </label>
+              <label className="flex items-center gap-1">
+                <span className="text-slate-500 dark:text-slate-400">稀释</span>
+                <input
+                  type="number"
+                  step="any"
+                  aria-label={`${indicator.name} 稀释`}
+                  className="w-20 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800"
+                  value={defaultDilution}
+                  onChange={(e) => onDefaultChange(defaultBlank, e.target.value)}
+                  onKeyDown={handleInputEnter}
+                />
+              </label>
+            </div>
+          </>
         )}
         {isDirect && (
           <span className="ml-auto text-[11px] text-slate-400 dark:text-slate-500">仪器直读，直接填浓度</span>
@@ -167,6 +217,7 @@ export default function IndicatorCard({
                         className="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
                         value={cell.sample}
                         onChange={(e) => onCellChange(r.id!, { ...cell, sample: e.target.value })}
+                        onKeyDown={handleInputEnter}
                       />
                     </td>
                     {!isDirect && (
@@ -189,6 +240,7 @@ export default function IndicatorCard({
                               dilutionOverridden: e.target.value !== defaultDilution,
                             })
                           }
+                          onKeyDown={handleInputEnter}
                         />
                       </td>
                     )}

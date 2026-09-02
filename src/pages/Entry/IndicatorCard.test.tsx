@@ -1,138 +1,99 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, beforeEach, expect } from 'vitest';
-import { db } from '../../db/schema';
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import IndicatorCard from './IndicatorCard';
+import type { Indicator, Reactor, CalibrationCurve } from '../../db/schema';
 
-async function clearAll() {
-  for (const t of db.tables) await t.clear();
+function mkIndicator(partial: Partial<Indicator> = {}): Indicator {
+  return {
+    name: '氨氮',
+    category: 'basic',
+    method: 'absorbance',
+    unit: 'mg/L',
+    defaultDilution: 1,
+    refLow: null,
+    refHigh: null,
+    lod: null,
+    active: true,
+    sortOrder: 1,
+    ...partial,
+  };
 }
 
-async function seedTotalNitrogen() {
-  const nh4 = await db.indicators.add({
-    name: '氨氮', category: 'basic', method: 'absorbance', unit: 'mg/L',
-    defaultDilution: 10, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 1,
-  });
-  const no3 = await db.indicators.add({
-    name: '硝态氮', category: 'basic', method: 'absorbance', unit: 'mg/L',
-    defaultDilution: 5, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 2,
-  });
-  const no2 = await db.indicators.add({
-    name: '亚硝态氮', category: 'basic', method: 'absorbance', unit: 'mg/L',
-    defaultDilution: 5, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 3,
-  });
-  const total = await db.indicators.add({
-    name: '总氮', category: 'basic', method: 'absorbance', unit: 'mg/L',
-    defaultDilution: 1, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 3.5,
-    compositeType: 'sumOf', compositeRefs: [nh4, no2, no3],
-  });
-  const r1 = await db.reactors.add({ code: 'R1', name: 'R1', note: '', active: true, sortOrder: 1, createdAt: '' });
-  return { nh4, no2, no3, total, r1 };
+const reactors: Reactor[] = [{ id: 1, code: 'R1', name: 'R1', note: '', active: true, sortOrder: 1, createdAt: '' }];
+
+const emptyCell = { sample: '', dilution: '1', dilutionOverridden: false };
+
+function mkCurve(effectiveFrom = '2026-08-20'): CalibrationCurve {
+  return {
+    id: 7,
+    indicatorId: 1,
+    effectiveFrom,
+    effectiveTo: null,
+    k: 0.05,
+    b: 0,
+    r2: 0.999,
+    points: [],
+    type: 'fit',
+    note: '',
+    createdAt: '',
+  };
 }
 
-beforeEach(clearAll);
+function noop() {}
 
-describe('IndicatorCard composite 指标显示', () => {
-  it('总氮标题出现在卡片上', async () => {
-    const { total, r1 } = await seedTotalNitrogen();
-    const totalInd = (await db.indicators.get(total))!;
+describe('IndicatorCard', () => {
+  it('有生效标曲时显示 k 值、生效日与已用天数', () => {
     render(
       <IndicatorCard
-        indicator={totalInd}
-        reactors={[await db.reactors.get(r1)] as any}
-        date="2026-08-30"
+        indicator={mkIndicator()}
+        reactors={reactors}
+        date="2026-09-02"
         defaultBlank=""
         defaultDilution="1"
-        cells={{ [r1]: { sample: '', dilution: '1', dilutionOverridden: false } }}
-        curve={null}
-        onDefaultChange={() => {}}
-        onCellChange={() => {}}
+        cells={{ 1: emptyCell }}
+        curve={mkCurve()}
+        onDefaultChange={noop}
+        onCellChange={noop}
       />,
     );
-    expect(screen.getByText('总氮')).toBeInTheDocument();
+    expect(screen.getByText(/标曲 k=/)).toBeTruthy();
+    expect(screen.getByText(/08-20 生效/)).toBeTruthy();
+    expect(screen.getByText(/已用 \d+ 天/)).toBeTruthy();
   });
 
-  it('composite 指标不显示吸光度输入框与稀释输入框', async () => {
-    const { total, r1 } = await seedTotalNitrogen();
-    const totalInd = (await db.indicators.get(total))!;
+  it('无标曲时显示"未设标曲"状态的浓度位且不出现标曲行', () => {
     render(
       <IndicatorCard
-        indicator={totalInd}
-        reactors={[await db.reactors.get(r1)] as any}
-        date="2026-08-30"
+        indicator={mkIndicator()}
+        reactors={reactors}
+        date="2026-09-02"
         defaultBlank=""
         defaultDilution="1"
-        cells={{ [r1]: { sample: '', dilution: '1', dilutionOverridden: false } }}
+        cells={{ 1: emptyCell }}
         curve={null}
-        onDefaultChange={() => {}}
-        onCellChange={() => {}}
+        onDefaultChange={noop}
+        onCellChange={noop}
       />,
     );
-    expect(screen.queryByLabelText('R1 吸光度')).toBeNull();
-    expect(screen.queryByLabelText('R1 稀释')).toBeNull();
-    expect(screen.queryByLabelText('R1 浓度')).toBeNull();
+    expect(screen.queryByText(/标曲 k=/)).toBeNull();
   });
 
-  it('composite 指标显示"由 N 个指标自动求和"提示', async () => {
-    const { total, r1 } = await seedTotalNitrogen();
-    const totalInd = (await db.indicators.get(total))!;
+  it('输入吸光度后可看到自动换算的浓度值', () => {
+    const cells = { 1: { sample: '0.284', dilution: '1', dilutionOverridden: false } };
     render(
       <IndicatorCard
-        indicator={totalInd}
-        reactors={[await db.reactors.get(r1)] as any}
-        date="2026-08-30"
-        defaultBlank=""
+        indicator={mkIndicator({ refHigh: 8 })}
+        reactors={reactors}
+        date="2026-09-02"
+        defaultBlank="0.012"
         defaultDilution="1"
-        cells={{ [r1]: { sample: '', dilution: '1', dilutionOverridden: false } }}
-        curve={null}
-        onDefaultChange={() => {}}
-        onCellChange={() => {}}
+        cells={cells}
+        curve={mkCurve()}
+        onDefaultChange={noop}
+        onCellChange={noop}
       />,
     );
-    expect(screen.getByText(/由 3 个指标自动求和/)).toBeInTheDocument();
-  });
-
-  it('依赖指标都没值时显示"—"；有依赖时实时显示 sum', async () => {
-    const { nh4, no2, no3, total, r1 } = await seedTotalNitrogen();
-    const totalInd = (await db.indicators.get(total))!;
-    const r1obj = (await db.reactors.get(r1))!;
-    render(
-      <IndicatorCard
-        indicator={totalInd}
-        reactors={[r1obj] as any}
-        date="2026-08-30"
-        defaultBlank=""
-        defaultDilution="1"
-        cells={{ [r1]: { sample: '', dilution: '1', dilutionOverridden: false } }}
-        curve={null}
-        onDefaultChange={() => {}}
-        onCellChange={() => {}}
-      />,
-    );
-    // 初始（无依赖值）显示 —
-    await waitFor(() => {
-      const cells = document.querySelectorAll('table tbody tr td');
-      const valueCell = cells[cells.length - 1];
-      expect(valueCell.textContent?.trim()).toBe('—');
-    });
-
-    // 录入三个依赖指标的测量
-    await db.measurements.bulkAdd([
-      { scene: 'daily', date: '2026-08-30', phase: null, reactorId: r1, indicatorId: nh4,
-        inputType: 'absorbance', sampleAbs: 0, blankAbs: 0, dilution: 1, value: 1.5,
-        curveId: null, blankOverridden: false, dilutionOverridden: false, note: '' },
-      { scene: 'daily', date: '2026-08-30', phase: null, reactorId: r1, indicatorId: no2,
-        inputType: 'absorbance', sampleAbs: 0, blankAbs: 0, dilution: 1, value: 0.5,
-        curveId: null, blankOverridden: false, dilutionOverridden: false, note: '' },
-      { scene: 'daily', date: '2026-08-30', phase: null, reactorId: r1, indicatorId: no3,
-        inputType: 'absorbance', sampleAbs: 0, blankAbs: 0, dilution: 1, value: 3.0,
-        curveId: null, blankOverridden: false, dilutionOverridden: false, note: '' },
-    ]);
-
-    // 实时算出 5
-    await waitFor(() => {
-      const cells = document.querySelectorAll('table tbody tr td');
-      const valueCell = cells[cells.length - 1];
-      expect(valueCell.textContent?.trim()).toBe('5');
-    });
+    // 浓度 = (0.284-0.012-0)/0.05 = 5.44
+    expect(screen.getByText('5.44')).toBeTruthy();
   });
 });

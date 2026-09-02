@@ -15,10 +15,16 @@ import ExperimentPage from './pages/Experiment';
 import { useAppStore, resolveDark } from './store/useAppStore';
 import { db } from './db/schema';
 import { checkUpdate, shouldAutoCheck } from './lib/updater';
+import { purgeExpiredTrash } from './lib/trash';
 
 export default function App() {
   const toast = useAppStore((s) => s.toast);
   const theme = useAppStore((s) => s.theme);
+
+  // 启动时清理回收站中超过 30 天的记录（静默，不打扰）
+  useEffect(() => {
+    void purgeExpiredTrash(30);
+  }, []);
 
   // 主题应用到 <html> 的 dark class
   useEffect(() => {
