@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   saveDraft,
+  saveDraftFor,
   loadDraft,
+  loadDraftFor,
   clearDraft,
+  clearDraftFor,
   isDraftEmpty,
   shouldOfferRestore,
   type Draft,
@@ -76,5 +79,73 @@ describe('shouldOfferRestore', () => {
     expect(shouldOfferRestore(null, '2026-09-02', false)).toBe(false);
     expect(shouldOfferRestore(mk('2026-09-01'), '2026-09-02', false)).toBe(false);
     expect(shouldOfferRestore(mk('2026-09-02'), '2026-09-02', true)).toBe(false);
+  });
+});
+
+describe('saveDraftFor 泛化 API（多页面隔离）', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('不同 key 互不干扰（一个存一个取不串）', () => {
+    saveDraftFor('page-a', { date: '2026-09-01', defaults: {}, cells: { '1:2': { sample: '0.5', dilution: '10', dilutionOverridden: false } } });
+    saveDraftFor('page-b', { date: '2026-09-02', defaults: {}, cells: { '3:4': { sample: '0.3', dilution: '20', dilutionOverridden: false } } });
+    const a = loadDraftFor('page-a');
+    const b = loadDraftFor('page-b');
+    expect(a?.date).toBe('2026-09-01');
+    expect(a?.cells['1:2']?.sample).toBe('0.5');
+    expect(b?.date).toBe('2026-09-02');
+    expect(b?.cells['3:4']?.sample).toBe('0.3');
+    // 不串 key
+    expect(a?.cells['3:4']).toBeUndefined();
+    expect(b?.cells['1:2']).toBeUndefined();
+  });
+
+  it('clearDraftFor 只清自己的 key', () => {
+    saveDraftFor('a', { date: '2026-09-01', defaults: {}, cells: {} });
+    saveDraftFor('b', { date: '2026-09-01', defaults: {}, cells: {} });
+    clearDraftFor('a');
+    expect(loadDraftFor('a')).toBeNull();
+    expect(loadDraftFor('b')).not.toBeNull();
+  });
+
+  it('旧 API（无 key）仍指向固定 KEY，与 For API 不串', () => {
+    saveDraft({ date: '2026-09-01', defaults: {}, cells: {} });
+    expect(loadDraft()?.date).toBe('2026-09-01');
+    saveDraftFor('ags-entry-draft', { date: '2026-09-15', defaults: {}, cells: {} });
+    // 旧 API 与 For API 用同一 KEY（兼容）
+    expect(loadDraft()?.date).toBe('2026-09-15');
+  });
+});
+
+describe('saveDraftFor 泛化 API（多页面隔离）', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('不同 key 互不干扰（一个存一个取不串）', () => {
+    saveDraftFor('page-a', { date: '2026-09-01', defaults: {}, cells: { '1:2': { sample: '0.5', dilution: '10', dilutionOverridden: false } } });
+    saveDraftFor('page-b', { date: '2026-09-02', defaults: {}, cells: { '3:4': { sample: '0.3', dilution: '20', dilutionOverridden: false } } });
+    const a = loadDraftFor('page-a');
+    const b = loadDraftFor('page-b');
+    expect(a?.date).toBe('2026-09-01');
+    expect(a?.cells['1:2']?.sample).toBe('0.5');
+    expect(b?.date).toBe('2026-09-02');
+    expect(b?.cells['3:4']?.sample).toBe('0.3');
+    // 不串 key
+    expect(a?.cells['3:4']).toBeUndefined();
+    expect(b?.cells['1:2']).toBeUndefined();
+  });
+
+  it('clearDraftFor 只清自己的 key', () => {
+    saveDraftFor('a', { date: '2026-09-01', defaults: {}, cells: {} });
+    saveDraftFor('b', { date: '2026-09-01', defaults: {}, cells: {} });
+    clearDraftFor('a');
+    expect(loadDraftFor('a')).toBeNull();
+    expect(loadDraftFor('b')).not.toBeNull();
+  });
+
+  it('旧 API（无 key）仍指向固定 KEY，与 For API 不串', () => {
+    saveDraft({ date: '2026-09-01', defaults: {}, cells: {} });
+    expect(loadDraft()?.date).toBe('2026-09-01');
+    saveDraftFor('ags-entry-draft', { date: '2026-09-15', defaults: {}, cells: {} });
+    // 旧 API 与 For API 用同一 KEY（兼容）
+    expect(loadDraft()?.date).toBe('2026-09-15');
   });
 });

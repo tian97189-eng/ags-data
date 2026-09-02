@@ -20,18 +20,29 @@ export interface Draft extends DraftPayload {
 
 const KEY = 'ags-entry-draft';
 
+/** 旧 API：固定 key（录入页用），由 saveDraftFor(KEY, ...) 委托 */
 export function saveDraft(payload: DraftPayload): void {
-  try {
-    const d: Draft = { ...payload, savedAt: Date.now() };
-    localStorage.setItem(KEY, JSON.stringify(d));
-  } catch {
-    /* localStorage 满/不可用则静默 */
-  }
+  saveDraftFor(KEY, payload);
+}
+export function loadDraft(): Draft | null {
+  return loadDraftFor(KEY);
+}
+export function clearDraft(): void {
+  clearDraftFor(KEY);
 }
 
-export function loadDraft(): Draft | null {
+/** 泛化 API：多页面（OtherEntry 等）各自用自己的 key 隔离 */
+export function saveDraftFor(key: string, payload: DraftPayload): void {
   try {
-    const raw = localStorage.getItem(KEY);
+    const d: Draft = { ...payload, savedAt: Date.now() };
+    localStorage.setItem(key, JSON.stringify(d));
+  } catch {
+    /* ignore */
+  }
+}
+export function loadDraftFor(key: string): Draft | null {
+  try {
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const d = JSON.parse(raw) as Draft;
     if (!d || typeof d.date !== 'string' || d.savedAt == null) return null;
@@ -40,12 +51,11 @@ export function loadDraft(): Draft | null {
     return null;
   }
 }
-
-export function clearDraft(): void {
+export function clearDraftFor(key: string): void {
   try {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(key);
   } catch {
-    /* 忽略 */
+    /* ignore */
   }
 }
 
