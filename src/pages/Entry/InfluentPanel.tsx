@@ -278,7 +278,7 @@ const InfluentPanel = forwardRef<
               <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20">稀释</th>
               {mode === 'shared' ? (
                 <>
-                  <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">
+                  <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20 whitespace-nowrap">
                     检测样
                   </th>
                   <th className="text-right py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-20 whitespace-nowrap">
@@ -323,7 +323,7 @@ const InfluentPanel = forwardRef<
                         type="number"
                         step="any"
                         aria-label={`${ind.name} 进水稀释`}
-                        className="w-full min-w-[3.5rem] border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
+                        className="w-full min-w-[3.5rem] max-w-[6rem] border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
                         value={dilution}
                         onChange={(e) => setDilution(ind.id!, e.target.value)}
                       />
@@ -346,7 +346,7 @@ const InfluentPanel = forwardRef<
                             type="number"
                             step="any"
                             aria-label={`${ind.name} 进水检测样`}
-                            className="w-full min-w-[3.5rem] border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
+                            className="w-full min-w-[3.5rem] max-w-[6rem] border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
                             value={state.samples[`${ind.id}:shared`] ?? ''}
                             onChange={(e) => setSample(`${ind.id}:shared`, e.target.value)}
                           />
@@ -368,7 +368,7 @@ const InfluentPanel = forwardRef<
                             type="number"
                             step="any"
                             aria-label={`${ind.name} ${r.code} 进水检测样`}
-                            className="w-full min-w-[3.5rem] border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
+                            className="w-full min-w-[3.5rem] max-w-[6rem] border border-slate-200 dark:border-slate-700 rounded px-2 py-1"
                             value={state.samples[`${ind.id}:${r.id}`] ?? ''}
                             onChange={(e) => setSample(`${ind.id}:${r.id}`, e.target.value)}
                           />

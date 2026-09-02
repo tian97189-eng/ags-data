@@ -293,6 +293,31 @@ export default function EntryPage() {
     <div>
       <PageHeader title="数据录入" desc="按指标分行、按罐分列，吸光度自动换算为浓度" />
 
+      {/* 恢复草稿提示：放到最顶部，避免手机端被表单挤压看不见 */}
+      {offerRestore && (
+        <div className="mb-3 flex items-center gap-2 flex-wrap border border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10 rounded-lg px-3 py-2 text-xs">
+          <span className="text-amber-800 dark:text-amber-300">
+            发现未保存的草稿（保存于{' '}
+            {new Date(offerRestore.savedAt).toLocaleTimeString('zh-CN', { hour12: false })}），要恢复吗？
+          </span>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={handleRestoreDraft}
+            className="px-3 py-1 rounded-md bg-amber-500 text-white hover:bg-amber-600"
+          >
+            恢复草稿
+          </button>
+          <button
+            type="button"
+            onClick={handleDiscardDraft}
+            className="px-3 py-1 rounded-md border border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-500/40 dark:text-amber-400"
+          >
+            丢弃
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center gap-3 flex-wrap mb-3">
         <label className="flex items-center gap-1 text-xs">
           <span className="text-slate-500 dark:text-slate-400">日期</span>
@@ -335,29 +360,7 @@ export default function EntryPage() {
         </div>
       </div>
 
-      {/* 恢复草稿提示 */}
-      {offerRestore && (
-        <div className="mb-3 flex items-center gap-2 flex-wrap border border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10 rounded-lg px-3 py-2 text-xs">
-          <span className="text-amber-800 dark:text-amber-300">
-            发现未保存的草稿（保存于{' '}
-            {new Date(offerRestore.savedAt).toLocaleTimeString('zh-CN', { hour12: false })}），要恢复吗？
-          </span>
-          <button
-            type="button"
-            onClick={handleRestoreDraft}
-            className="px-3 py-1 rounded-md bg-amber-500 text-white hover:bg-amber-600"
-          >
-            恢复草稿
-          </button>
-          <button
-            type="button"
-            onClick={handleDiscardDraft}
-            className="px-3 py-1 rounded-md border border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-500/40 dark:text-amber-400"
-          >
-            丢弃
-          </button>
-        </div>
-      )}
+      {/* 恢复草稿提示已移至顶部，避免被表单挤压看不见 */}
 
       <InfluentPanel key={influentKey} ref={influentRef} date={date} blankByIndicator={outBlank} onStateChange={handleInfluentChange} />
 

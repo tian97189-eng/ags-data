@@ -330,3 +330,43 @@ describe('InfluentPanel 窄屏布局', () => {
     expect(scrollContainer.className).toMatch(/overflow-x-auto/);
   });
 });
+
+describe('InfluentPanel 输入框宽度（问题：进水检测样输入框太长）', () => {
+  beforeEach(clearAll);
+
+  it('shared 模式检测样 input 加 max-w-[6rem]，适配小数点后最多 5 位的吸光度', async () => {
+    const { nh4Id } = await seed();
+    const ref = createRef<InfluentPanelHandle>();
+    renderPanel({ nh4Id, blank: '0.01', ref });
+    // 等面板渲染
+    await screen.findByLabelText('氨氮 进水检测样', undefined, { timeout: 3000 });
+    const sample = screen.getByLabelText('氨氮 进水检测样') as HTMLInputElement;
+    expect(sample.className).toContain('max-w-[6rem]');
+    expect(sample.className).toContain('min-w-[3.5rem]');
+    // 检测样表头有 w-20，约束列宽（避免 td 把 input 撑太长）
+    const ths = document.querySelectorAll('thead th');
+    const sampleTh = Array.from(ths).find((t) => t.textContent?.includes('检测样'));
+    expect(sampleTh?.className).toContain('w-20');
+  });
+
+  it('稀释 input 也加 max-w-[6rem]（小数最多 2~3 位也能放下）', async () => {
+    const { nh4Id } = await seed();
+    renderPanel({ nh4Id, blank: '0.01' });
+    await screen.findByLabelText('氨氮 进水稀释', undefined, { timeout: 3000 });
+    const dil = screen.getByLabelText('氨氮 进水稀释') as HTMLInputElement;
+    expect(dil.className).toContain('max-w-[6rem]');
+  });
+
+  it('perReactor 模式各罐检测样 input 也加 max-w-[6rem]', async () => {
+    const { nh4Id, r1 } = await seed();
+    const ref = createRef<InfluentPanelHandle>();
+    render(<InfluentPanel ref={ref} date="2026-09-02" blankByIndicator={{ [nh4Id]: '0.01' }} onStateChange={() => {}} />);
+    // 切到 perReactor 模式
+    await screen.findByText('每罐各自', undefined, { timeout: 3000 });
+    fireEvent.click(screen.getByText('每罐各自'));
+    await screen.findByLabelText('氨氮 R1 进水检测样', undefined, { timeout: 3000 });
+    const sample = screen.getByLabelText('氨氮 R1 进水检测样') as HTMLInputElement;
+    expect(sample.className).toContain('max-w-[6rem]');
+    void r1;
+  });
+});

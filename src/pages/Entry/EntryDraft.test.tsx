@@ -112,4 +112,25 @@ describe('录入草稿自动保存与恢复', () => {
     });
     expect(loadDraft()).not.toBeNull(); // 草稿仍在，留给切回那天用
   });
+
+
+  it('手机端 banner 位于 PageHeader 之后、日期行之前（不会被表单挤压看不见）', async () => {
+    await saveDraft({
+      date: '2026-09-02',
+      defaults: { 1: { blank: '', dilution: '10' } },
+      cells: { '1:1': { sample: '0.123', dilution: '10', dilutionOverridden: false } },
+    });
+    render(<EntryPage />);
+    const banner = await screen.findByText(/发现未保存的草稿/, undefined, { timeout: 3000 });
+    // 父级 div 应在 PageHeader（h1 "数据录入"）之后；banner 元素 nextElementSibling 的兄弟链中应能找到「复制昨天」
+    const pageTitle = screen.getByRole('heading', { name: /数据录入/ });
+    // 沿 DOM 顺序确认 banner 在 pageTitle 之后、在日期行（DatePicker / 复制昨天 按钮）之前
+    const all = Array.from(document.body.querySelectorAll('*'));
+    const idxTitle = all.indexOf(pageTitle);
+    const idxBanner = all.indexOf(banner.closest('div.border-amber-300')!);
+    const copyBtn = screen.getByText('复制昨天');
+    const idxCopy = all.indexOf(copyBtn);
+    expect(idxTitle).toBeLessThan(idxBanner);
+    expect(idxBanner).toBeLessThan(idxCopy);
+  });
 });
