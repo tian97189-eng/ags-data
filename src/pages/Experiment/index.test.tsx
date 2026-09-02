@@ -110,3 +110,139 @@ describe('实验记录 照片入口（问题4：拍照+选图分两个按钮）'
     expect(gallery!.getAttribute('capture')).toBeNull();
   });
 });
+
+describe('实验记录 CRUD + 回收站（问题5）', () => {
+  beforeEach(clearAll);
+
+  it('点时间线卡片主体 → 打开编辑弹窗（点删除按钮不会误打开弹窗）', async () => {
+    const { render, screen, fireEvent, waitFor } = await import('@testing-library/react');
+    const { default: ExperimentPage } = await import('./index');
+    const id = await db.experimentRecords.add({
+      date: '2026-09-02', title: '原标题', content: '原内容', indicators: [], photos: [], createdAt: 'x',
+    });
+    render(<ExperimentPage />);
+    const card = await screen.findByTestId(`exp-record-${id}`);
+    fireEvent.click(card);
+    await waitFor(() => {
+      expect(screen.getByTestId('exp-edit-modal')).toBeTruthy();
+    });
+    // 弹窗里能看到原标题（说明编辑模式已加载）
+    const titleInput = document.querySelector('input[type="text"]') as HTMLInputElement | null;
+    expect(titleInput?.value).toBe('原标题');
+  });
+
+  it('编辑后点「保存修改」→ db.experimentRecords 字段已更新', async () => {
+    const { render, screen, fireEvent, waitFor } = await import('@testing-library/react');
+    const { default: ExperimentPage } = await import('./index');
+    const id = await db.experimentRecords.add({
+      date: '2026-09-02', title: '原标题', content: '原内容', indicators: [], photos: [], createdAt: 'x',
+    });
+    render(<ExperimentPage />);
+    fireEvent.click(await screen.findByTestId(`exp-record-${id}`));
+    await screen.findByTestId('exp-edit-modal');
+    // 改标题
+    const titleInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+    fireEvent.change(titleInput, { target: { value: '新标题' } });
+    fireEvent.click(screen.getByText('保存修改'));
+    await waitFor(async () => {
+      const r = await db.experimentRecords.get(id);
+      expect(r?.title).toBe('新标题');
+    });
+  });
+
+  it('点「删除」→ 物理删 + trashRecords 多一条 experimentRecords，可恢复', async () => {
+    const { render, screen, fireEvent, waitFor } = await import('@testing-library/react');
+    const { default: ExperimentPage } = await import('./index');
+    const { listTrash, restoreTrash } = await import('../../lib/trash');
+    const id = await db.experimentRecords.add({
+      date: '2026-09-02', title: '可恢复的记录', content: '正文', indicators: ['氨氮'], photos: [], createdAt: 'x',
+    });
+
+    render(<ExperimentPage />);
+    const card = await screen.findByTestId(`exp-record-${id}`);
+    // 找卡内删除按钮
+    const deleteBtn = card.querySelector('button.text-red-600') as HTMLButtonElement;
+    fireEvent.click(deleteBtn);
+
+    await waitFor(async () => {
+      expect(await db.experimentRecords.get(id)).toBeUndefined();
+    });
+    const trash = await listTrash();
+    expect(trash.some((t) => t.table === 'experimentRecords')).toBe(true);
+
+    // 恢复
+    const target = trash.find((t) => t.table === 'experimentRecords')!;
+    const n = await restoreTrash(target.id);
+    expect(n).toBe(1);
+    const restored = await db.experimentRecords.get(id);
+    expect(restored?.title).toBe('可恢复的记录');
+  });
+});
+
+describe('实验记录 CRUD + 回收站（问题5）', () => {
+  beforeEach(clearAll);
+
+  it('点时间线卡片主体 → 打开编辑弹窗（点删除按钮不会误打开弹窗）', async () => {
+    const { render, screen, fireEvent, waitFor } = await import('@testing-library/react');
+    const { default: ExperimentPage } = await import('./index');
+    const id = await db.experimentRecords.add({
+      date: '2026-09-02', title: '原标题', content: '原内容', indicators: [], photos: [], createdAt: 'x',
+    });
+    render(<ExperimentPage />);
+    const card = await screen.findByTestId(`exp-record-${id}`);
+    fireEvent.click(card);
+    await waitFor(() => {
+      expect(screen.getByTestId('exp-edit-modal')).toBeTruthy();
+    });
+    // 弹窗里能看到原标题（说明编辑模式已加载）
+    const titleInput = document.querySelector('input[type="text"]') as HTMLInputElement | null;
+    expect(titleInput?.value).toBe('原标题');
+  });
+
+  it('编辑后点「保存修改」→ db.experimentRecords 字段已更新', async () => {
+    const { render, screen, fireEvent, waitFor } = await import('@testing-library/react');
+    const { default: ExperimentPage } = await import('./index');
+    const id = await db.experimentRecords.add({
+      date: '2026-09-02', title: '原标题', content: '原内容', indicators: [], photos: [], createdAt: 'x',
+    });
+    render(<ExperimentPage />);
+    fireEvent.click(await screen.findByTestId(`exp-record-${id}`));
+    await screen.findByTestId('exp-edit-modal');
+    // 改标题
+    const titleInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+    fireEvent.change(titleInput, { target: { value: '新标题' } });
+    fireEvent.click(screen.getByText('保存修改'));
+    await waitFor(async () => {
+      const r = await db.experimentRecords.get(id);
+      expect(r?.title).toBe('新标题');
+    });
+  });
+
+  it('点「删除」→ 物理删 + trashRecords 多一条 experimentRecords，可恢复', async () => {
+    const { render, screen, fireEvent, waitFor } = await import('@testing-library/react');
+    const { default: ExperimentPage } = await import('./index');
+    const { listTrash, restoreTrash } = await import('../../lib/trash');
+    const id = await db.experimentRecords.add({
+      date: '2026-09-02', title: '可恢复的记录', content: '正文', indicators: ['氨氮'], photos: [], createdAt: 'x',
+    });
+
+    render(<ExperimentPage />);
+    const card = await screen.findByTestId(`exp-record-${id}`);
+    // 找卡内删除按钮
+    const deleteBtn = card.querySelector('button.text-red-600') as HTMLButtonElement;
+    fireEvent.click(deleteBtn);
+
+    await waitFor(async () => {
+      expect(await db.experimentRecords.get(id)).toBeUndefined();
+    });
+    const trash = await listTrash();
+    expect(trash.some((t) => t.table === 'experimentRecords')).toBe(true);
+
+    // 恢复
+    const target = trash.find((t) => t.table === 'experimentRecords')!;
+    const n = await restoreTrash(target.id);
+    expect(n).toBe(1);
+    const restored = await db.experimentRecords.get(id);
+    expect(restored?.title).toBe('可恢复的记录');
+  });
+});

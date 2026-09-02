@@ -60,6 +60,13 @@ export async function restoreTrash(trashId: number): Promise<number> {
     await db.trashRecords.delete(trashId);
     return parsed.length;
   }
+  if (t.table === 'experimentRecords') {
+    await db.experimentRecords.bulkPut(
+      parsed as Parameters<typeof db.experimentRecords.bulkPut>[0],
+    );
+    await db.trashRecords.delete(trashId);
+    return parsed.length;
+  }
   return 0;
 }
 
