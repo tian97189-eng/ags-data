@@ -99,3 +99,58 @@ describe('trash（回收站）', () => {
     expect(await listTrash()).toEqual([]);
   });
 });
+
+describe('回收站分组与泛化恢复（全周期/其他指标/他人数据/实验记录/标准曲线）', () => {
+  beforeEach(clearAll);
+
+  it('groupForRows：按表与 scene 归类', async () => {
+    const { groupForRows } = await import('./trash');
+    expect(groupForRows('measurements', [{ scene: 'daily' }])).toBe('daily');
+    expect(groupForRows('measurements', [{ scene: 'cycle' }])).toBe('cycle');
+    expect(groupForRows('mlssRecords', [{ mlss: 1 }])).toBe('mlss');
+    expect(groupForRows('epsRecords', [{}])).toBe('eps');
+    expect(groupForRows('sviRecords', [{}])).toBe('svi');
+    expect(groupForRows('particleSizeRecords', [{}])).toBe('particle');
+    expect(groupForRows('otherMeasurements', [{}])).toBe('other');
+    expect(groupForRows('experimentRecords', [{}])).toBe('experiment');
+    expect(groupForRows('curves', [{}])).toBe('curve');
+  });
+
+  it('listTrash 返回分组标签（循环测量归入「全周期」）', async () => {
+    const { trashRows, listTrash } = await import('./trash');
+    await trashRows('measurements', [{ scene: 'cycle', date: '2026-08-05', id: 7 }]);
+    const list = await listTrash();
+    expect(list[0].group).toBe('cycle');
+    expect(list[0].count).toBe(1);
+  });
+
+  it('恢复写回 round-trip：mlssRecords / otherMeasurements / curves 可整条恢复', async () => {
+    const { trashRows, restoreTrash } = await import('./trash');
+    // 各类别各造一条并删入回收站
+    const mId = await db.mlssRecords.add({ date: '2026-09-01', reactorId: null, paperNo: 'A', m1: 1, m2: 2, m3: 3, m4: 4, v: 15, mlss: 0.1, mlvss: 0.2, note: '', createdAt: '' });
+    const row = await db.mlssRecords.get(mId);
+    await db.mlssRecords.delete(mId);
+    await trashRows('mlssRecords', [row!]);
+    const oId = await db.otherMeasurements.add({ date: '2026-09-01', reactorId: 1, indicatorId: 1, inputType: 'direct', sampleAbs: null, blankAbs: null, dilution: null, value: 5, curveId: null, note: '', createdAt: '' });
+    const orow = await db.otherMeasurements.get(oId);
+    await db.otherMeasurements.delete(oId);
+    await trashRows('otherMeasurements', [orow!]);
+    const cId = await db.curves.add({ indicatorId: 1, effectiveFrom: '2026-08-01', effectiveTo: null, k: 0.5, b: 0, r2: 0.99, points: [], batchNo: 'x', note: '', createdAt: '' });
+    const crow = await db.curves.get(cId);
+    await db.curves.delete(cId);
+    await trashRows('curves', [crow!]);
+
+    const list = await (await import('./trash')).listTrash();
+    expect(list.length).toBe(3);
+    for (const item of list) {
+      const n = await restoreTrash(item.id);
+      expect(n).toBe(1);
+    }
+    // 三表都被写回
+    expect(await db.mlssRecords.get(mId)).toBeTruthy();
+    expect(await db.otherMeasurements.get(oId)).toBeTruthy();
+    expect(await db.curves.get(cId)).toBeTruthy();
+    // 回收站已清
+    expect((await (await import('./trash')).listTrash()).length).toBe(0);
+  });
+});
