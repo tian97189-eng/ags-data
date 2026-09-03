@@ -103,3 +103,46 @@ describe('deleteCycle', () => {
     expect(await db.cycles.get(otherCycleId)).toBeTruthy();
   });
 });
+
+describe('deleteCycle 进入回收站（设置 → 回收站可整周期恢复）', () => {
+  beforeEach(async () => {
+    for (const t of db.tables) await t.clear();
+  });
+
+  it('删除后回收站含该周期的 cycles/measurements/defaults/settings 且可恢复', async () => {
+    const { deleteCycle } = await import('./cycle');
+    const { trashRows, restoreTrash } = await import('./trash'); // 触发循环依赖：trash 不依赖 cycle OK
+    const indicatorId = await db.indicators.add({
+      name: '氨氮', category: 'basic', method: 'absorbance', unit: 'mg/L',
+      defaultDilution: 10, refLow: null, refHigh: null, lod: null, active: true, sortOrder: 1,
+    });
+    const reactorId = await db.reactors.add({
+      code: 'R1', name: 'R1', note: '', active: true, sortOrder: 1, createdAt: '',
+    });
+    const cycleId = await db.cycles.add({
+      date: '2026-08-05', name: '周期A', startTime: '08:00', intervalMinutes: 30,
+      count: 2, reactorIds: [reactorId], note: '',
+    });
+    await db.measurements.add({
+      scene: 'cycle', date: '2026-08-05', cycleRunId: cycleId, time: '08:00',
+      phase: null, reactorId, indicatorId, inputType: 'absorbance',
+      sampleAbs: 0.284, blankAbs: 0.012, dilution: 10, value: 5.73, curveId: null,
+      blankOverridden: false, dilutionOverridden: false, note: '',
+    });
+    await db.settings.put({ key: `cycle:${cycleId}:phases`, value: { '08:00': 'oxic' } });
+
+    await deleteCycle(cycleId);
+
+    // 回收站应有 4 组条目，且分组均为 cycle
+    const { listTrash } = await import('./trash');
+    const list = await listTrash();
+    expect(list.length).toBe(3); // cycles / measurements / settings（无 defaults）
+    expect(list.every((x) => x.group === 'cycle')).toBe(true);
+
+    // 全部恢复 → 数据回到原表
+    for (const item of list) await restoreTrash(item.id);
+    expect(await db.cycles.get(cycleId)).toBeTruthy();
+    expect(await db.measurements.where('cycleRunId').equals(cycleId).count()).toBe(1);
+    expect(await db.settings.get(`cycle:${cycleId}:phases`)).toBeTruthy();
+  });
+});
