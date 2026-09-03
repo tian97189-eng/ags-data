@@ -1,16 +1,25 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
-import { useAppStore } from '../../store/useAppStore';
-import { getCurrentCoord, requestLocationPermission } from '../../lib/geolocation';
+import { useEffect, useState, useMemo } from 'react';
 
 /**
- * 今日概览（非实验数据）：日期 · 天气 · 一言 · 倒计时 · 快捷笔记。
- * 数据存 localStorage，天气从 Open-Meteo 公开 API 拉（无需 key）。
+ * 今日概览（非实验数据）：日期 · 一言 · 心情 · 倒计时 · 随手记。
+ * 数据存 localStorage。
  */
 
 const NOTES_KEY = 'overview.notes.v1';
+const MOOD_KEY = 'overview.mood.v1';
 const COUNTDOWN_KEY = 'overview.countdown.v1';
-/** 用户手动设置的城市（localStorage），空 = 未设置（不要默认写死北京） */
-const CITY_KEY = 'overview.city.v1';
+
+/** 今日心情可选列表 */
+const MOODS: { id: string; emoji: string; text: string }[] = [
+  { id: 'great', emoji: '😄', text: '开心' },
+  { id: 'calm', emoji: '😌', text: '平静' },
+  { id: 'ok', emoji: '😐', text: '一般' },
+  { id: 'tired', emoji: '🥱', text: '疲惫' },
+  { id: 'anxious', emoji: '😰', text: '焦虑' },
+  { id: 'annoyed', emoji: '😤', text: '烦躁' },
+  { id: 'sick', emoji: '🤒', text: '不舒服' },
+  { id: 'energetic', emoji: '💪', text: '有劲' },
+];
 
 // —— 一言库 ——（每天按日期种子稳定选一句，避免每次刷新跳字）
 export const QUOTES = [
@@ -51,35 +60,6 @@ export function pickQuote(dateStr: string): string {
   return QUOTES[h % QUOTES.length];
 }
 
-// —— WMO weather code → 中文 + emoji ——（Open-Meteo 标准）
-type Weather = { text: string; emoji: string };
-const WMO: Record<number, Weather> = {
-  0: { text: '晴', emoji: '☀️' },
-  1: { text: '大致晴', emoji: '🌤️' },
-  2: { text: '局部多云', emoji: '⛅' },
-  3: { text: '阴', emoji: '☁️' },
-  45: { text: '雾', emoji: '🌫️' },
-  48: { text: '冻雾', emoji: '🌫️' },
-  51: { text: '小毛毛雨', emoji: '🌦️' },
-  53: { text: '毛毛雨', emoji: '🌦️' },
-  55: { text: '大毛毛雨', emoji: '🌧️' },
-  61: { text: '小雨', emoji: '🌦️' },
-  63: { text: '中雨', emoji: '🌧️' },
-  65: { text: '大雨', emoji: '🌧️' },
-  71: { text: '小雪', emoji: '🌨️' },
-  73: { text: '中雪', emoji: '❄️' },
-  75: { text: '大雪', emoji: '❄️' },
-  77: { text: '雪粒', emoji: '🌨️' },
-  80: { text: '小阵雨', emoji: '🌦️' },
-  81: { text: '阵雨', emoji: '🌧️' },
-  82: { text: '强阵雨', emoji: '⛈️' },
-  85: { text: '小阵雪', emoji: '🌨️' },
-  86: { text: '阵雪', emoji: '❄️' },
-  95: { text: '雷雨', emoji: '⛈️' },
-  96: { text: '雷雨夹冰雹', emoji: '⛈️' },
-  99: { text: '强雷雨夹冰雹', emoji: '⛈️' },
-};
-
 const FESTIVALS: Record<string, string> = {
   '01-01': '元旦',
   '02-14': '情人节',
@@ -112,19 +92,6 @@ function daysUntil(target: string): number {
   return Math.round(ms / 86_400_000);
 }
 
-/** HH:MM（天气"更新于"时间戳用） */
-function fmtHm(d: Date): string {
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-interface WeatherInfo {
-  temp: number;
-  code: number;
-  humidity: number;
-  wind: number;
-  city: string;
-}
-
 export default function OverviewPage() {
   const todayStr = fmt(new Date());
   const todayObj = new Date();
@@ -153,12 +120,6 @@ export default function OverviewPage() {
     return () => clearTimeout(t);
   }, [note]);
 
-  // 概览页 mount 时主动请求位置权限：APK 上会弹原生权限框，用户接受后
-  // 系统设置 → 应用权限里就会出现"位置"分类（Android 设计：没申请过就不显示）。
-  // 仅当用户未授权过 + 移动端 native 环境时调用；web 静默返回 false。
-  useEffect(() => {
-    void requestLocationPermission();
-  }, []);
   function addOrUpdateCountdown(id: string | null, label: string, date: string) {
     const trimmed = label.trim();
     if (!trimmed || !date) return;
@@ -187,151 +148,29 @@ export default function OverviewPage() {
 
   const festival = FESTIVALS[todayStr.slice(5)] ?? '';
 
-  // —— 天气 ——（默认不设城市：可📍自动定位，或手动输入城市名；数据每 30 分钟自动刷新）
-  const [weather, setWeather] = useState<WeatherInfo | null>(null);
-  const [weatherErr, setWeatherErr] = useState(false);
-  const [city, setCity] = useState<string>(() => localStorage.getItem(CITY_KEY) ?? '');
-  // 自动定位坐标（优先于手动城市）；geoLabel 是反查出的省市区名（可延迟补上，不影响请求）
-  const [geoCoords, setGeoCoords] = useState<{ lat: number; lon: number } | null>(null);
-  const [geoLabel, setGeoLabel] = useState('');
-  const [locating, setLocating] = useState(false);
-  const [locateMsg, setLocateMsg] = useState('');
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-
-  // 当前生效的查询方式（供 30 分钟定时器复用），null = 未设置城市也不定位
-  const lastReq = useRef<{ kind: 'geo'; lat: number; lon: number } | { kind: 'city'; city: string } | null>(null);
-  const reqSeq = useRef(0);
-
-  async function loadWeather(
-    desc: { kind: 'geo'; lat: number; lon: number } | { kind: 'city'; city: string },
-  ): Promise<void> {
-    const seq = ++reqSeq.current;
-    setWeather(null);
-    setWeatherErr(false);
+  // —— 今日心情（每天选一次，可随时改；本地存 { date, moodId }）——
+  const [mood, setMood] = useState<{ date: string; moodId: string }>(() => {
     try {
-      let lat: number, lon: number, label: string;
-      if (desc.kind === 'geo') {
-        lat = desc.lat;
-        lon = desc.lon;
-        label = geoLabel || '当前位置';
-      } else {
-        const geoRes = await fetch(
-          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(desc.city)}&count=1&language=zh`,
-        );
-        const geoJson = (await geoRes.json()) as { results?: { latitude: number; longitude: number }[] };
-        const hit = geoJson.results?.[0];
-        if (!hit) {
-          if (seq === reqSeq.current) {
-            setWeatherErr(true);
-            setLocateMsg(`没找到「${desc.city}」，试试带市的写法（如：长沙）`);
-          }
-          return;
-        }
-        lat = hit.latitude;
-        lon = hit.longitude;
-        label = desc.city;
-      }
-      const wRes = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=auto`,
-      );
-      const wJson = (await wRes.json()) as {
-        current?: { temperature_2m: number; weather_code: number; relative_humidity_2m: number; wind_speed_10m: number };
-      };
-      if (!wJson?.current || seq !== reqSeq.current) return;
-      setWeather({
-        temp: Math.round(wJson.current.temperature_2m),
-        code: wJson.current.weather_code,
-        humidity: wJson.current.relative_humidity_2m,
-        wind: wJson.current.wind_speed_10m,
-        city: label,
-      });
-      setUpdatedAt(new Date());
-      setLocateMsg('');
-    } catch {
-      if (seq === reqSeq.current) setWeatherErr(true);
-    }
+      const v = JSON.parse(localStorage.getItem(MOOD_KEY) ?? 'null') as { date?: string; moodId?: string } | null;
+      if (v && typeof v.date === 'string' && typeof v.moodId === 'string') return { date: v.date, moodId: v.moodId };
+    } catch { /* ignore */ }
+    return { date: '', moodId: '' };
+  });
+  const todayMood = mood.date === todayStr ? MOODS.find((m) => m.id === mood.moodId) ?? null : null;
+  function pickMood(id: string) {
+    const next = { date: todayStr, moodId: id };
+    setMood(next);
+    try {
+      localStorage.setItem(MOOD_KEY, JSON.stringify(next));
+    } catch { /* ignore */ }
+  }
+  function clearMood() {
+    setMood({ date: '', moodId: '' });
+    try {
+      localStorage.removeItem(MOOD_KEY);
+    } catch { /* ignore */ }
   }
 
-  // 城市或定位变化 → 首次/切换时拉取
-  useEffect(() => {
-    if (geoCoords) {
-      lastReq.current = { kind: 'geo', lat: geoCoords.lat, lon: geoCoords.lon };
-      void loadWeather(lastReq.current);
-    } else if (city) {
-      lastReq.current = { kind: 'city', city };
-      void loadWeather(lastReq.current);
-    } else {
-      lastReq.current = null;
-      reqSeq.current += 1; // 让在途请求作废
-      setWeather(null);
-      setWeatherErr(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [city, geoCoords]);
-
-  // 数据会过期 → 每 30 分钟自动刷新一次
-  useEffect(() => {
-    if (!lastReq.current) return;
-    const t = setInterval(() => {
-      const cur = lastReq.current;
-      if (cur) void loadWeather(cur);
-    }, 30 * 60 * 1000);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [city, geoCoords]);
-
-  // 反查城市名晚到 → 补进已显示的城市（不重新发天气请求）
-  useEffect(() => {
-    if (geoCoords && geoLabel) {
-      setWeather((w) => (w ? { ...w, city: geoLabel } : w));
-    }
-  }, [geoLabel, geoCoords]);
-
-  function handleCitySubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const input = (e.currentTarget.elements.namedItem('city') as HTMLInputElement | null);
-    const v = input?.value.trim() ?? '';
-    if (!v) return;
-    setGeoCoords(null); // 手动输入城市优先于定位
-    setGeoLabel('');
-    setCity(v);
-    localStorage.setItem(CITY_KEY, v);
-    setLocateMsg('');
-  }
-
-  /** 一键定位：APK 优先用 @capacitor/geolocation 插件（自动申请 Android 运行时权限）；失败/不可用回退 navigator.geolocation */
-  async function handleLocate() {
-    setLocateMsg('');
-    setLocating(true);
-    const result = await getCurrentCoord();
-    if (!result) {
-      setLocating(false);
-      setLocateMsg('定位失败（未授权位置权限？），请在上方输入城市名查询');
-      return;
-    }
-    const { lat: latitude, lon: longitude } = result;
-    setGeoCoords({ lat: latitude, lon: longitude });
-    // 反查城市名用于显示（最多等 4s，失败/离线则显示"当前位置"，不阻塞天气）
-    (async () => {
-      try {
-        const ctrl = new AbortController();
-        const tm = setTimeout(() => ctrl.abort(), 4000);
-        const res = await fetch(
-          `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=zh`,
-          { signal: ctrl.signal },
-        );
-        clearTimeout(tm);
-        const j = (await res.json()) as { principalSubdivision?: string; city?: string; locality?: string };
-        const parts = [j.principalSubdivision, j.city || j.locality].filter(Boolean);
-        setGeoLabel(parts.join(' · ') || '当前位置');
-      } catch {
-        setGeoLabel('当前位置');
-      }
-    })();
-    setLocating(false);
-  }
-
-  const wd = weather ? WMO[weather.code] ?? { text: '未知', emoji: '🌡️' } : null;
 
   // —— 实时时间（每秒刷新，让顶部时钟走起来）——
   const [now, setNow] = useState(new Date());
@@ -388,62 +227,64 @@ export default function OverviewPage() {
 
       {/* 主网格：4 张卡片 2×2 */}
       <div className="grid md:grid-cols-2 gap-3">
-        {/* 天气 */}
-        <Card title="今日天气" icon="☀️">
-          {locating ? (
-            <div className="text-[13px] text-slate-400 dark:text-slate-500">正在定位…</div>
-          ) : weather ? (
+        {/* 今日心情 */}
+        <Card title="今日心情" icon="🎭">
+          {todayMood ? (
             <div>
-              <div className="flex items-baseline gap-3">
-                <span className="text-[44px] leading-none">{wd?.emoji}</span>
-                <span className="text-[34px] font-light tabular-nums leading-none">
-                  {weather.temp}°
-                </span>
-                <span className="text-[14px] text-slate-500 dark:text-slate-400">{wd?.text}</span>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[40px] leading-none">{todayMood.emoji}</span>
+                <div>
+                  <div className="text-[20px] font-light text-slate-800 dark:text-slate-100">{todayMood.text}</div>
+                  <div className="text-[12px] text-slate-400 dark:text-slate-500">今天也要好好的 · 想改就再点一个</div>
+                </div>
               </div>
-              <div className="mt-1 text-[12px] text-slate-400 dark:text-slate-500">
-                {weather.city}
-                {updatedAt && ` · 更新于 ${fmtHm(updatedAt)}`}
+              <div className="flex flex-wrap gap-1.5">
+                {MOODS.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    title={m.text}
+                    aria-label={`心情 ${m.text}`}
+                    onClick={() => pickMood(m.id)}
+                    className={`w-9 h-9 rounded-xl border text-[18px] leading-none flex items-center justify-center transition-colors ${
+                      m.id === todayMood.id
+                        ? 'border-teal-500 bg-teal-50 dark:bg-slate-700'
+                        : 'border-slate-200 dark:border-slate-700 hover:border-teal-400'
+                    }`}
+                  >
+                    {m.emoji}
+                  </button>
+                ))}
               </div>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-[13px] text-slate-600 dark:text-slate-400">
-                <div>湿度 <span className="font-medium text-slate-800 dark:text-slate-100 tabular-nums">{weather.humidity}%</span></div>
-                <div>风速 <span className="font-medium text-slate-800 dark:text-slate-100 tabular-nums">{weather.wind} km/h</span></div>
-              </div>
-            </div>
-          ) : weatherErr ? (
-            <div className="text-[13px] text-slate-500 dark:text-slate-400">
-              <div>⚠️ 天气拉取失败（离线？检查网络后点下方重试）</div>
+              <button
+                type="button"
+                onClick={clearMood}
+                className="mt-2 text-[12px] text-slate-400 dark:text-slate-500 hover:text-red-500"
+              >
+                清除选择
+              </button>
             </div>
           ) : (
-            <div className="text-[13px] text-slate-500 dark:text-slate-400">
-              {geoCoords
-                ? '已定位，天气加载中…'
-                : '未设置城市：点「自动定位」用当前位置，或输入城市名查询（如：长沙）'}
+            <div>
+              <div className="text-[13px] text-slate-500 dark:text-slate-400">今天心情如何？点一个选上</div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {MOODS.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    title={m.text}
+                    aria-label={`心情 ${m.text}`}
+                    onClick={() => pickMood(m.id)}
+                    className="w-11 h-11 rounded-xl border border-slate-200 dark:border-slate-700 text-[22px] leading-none flex items-center justify-center hover:border-teal-400 hover:bg-teal-50 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    {m.emoji}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+                每天一个心情，坚持记录看看自己的情绪曲线
+              </div>
             </div>
-          )}
-          <form onSubmit={handleCitySubmit} className="mt-3 flex gap-1.5 text-[12px]">
-            <input
-              name="city"
-              className="flex-1 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded px-2 py-1"
-              placeholder={city || '城市名（如：长沙）'}
-            />
-            <button
-              type="submit"
-              className="px-2 py-1 bg-brand-600 text-white rounded hover:bg-brand-700 shrink-0"
-            >
-              查询
-            </button>
-            <button
-              type="button"
-              onClick={handleLocate}
-              disabled={locating}
-              className="px-2 py-1 border border-brand-400 text-brand-700 dark:text-brand-300 rounded hover:bg-brand-50 dark:hover:bg-slate-700 shrink-0 disabled:opacity-50"
-            >
-              {locating ? '定位中…' : '📍 自动定位'}
-            </button>
-          </form>
-          {locateMsg && (
-            <div className="mt-1.5 text-[12px] text-amber-600 dark:text-amber-400">{locateMsg}</div>
           )}
         </Card>
 
