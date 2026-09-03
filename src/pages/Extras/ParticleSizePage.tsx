@@ -214,8 +214,8 @@ export default function ParticleSizePage({ onOpenSOP }: { onOpenSOP?: () => void
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">填滤纸重 M1 和滤纸+泥重 M2（可只填一个，会自动保存）。泥重 = M2 − M1，占比% = 泥重 / 总泥重 × 100。</p>
 
-        <div className="overflow-x-auto -mx-4 px-4">
-          <table className="w-full table-fixed border-collapse text-xs min-w-[640px]">
+        <div className="overflow-x-auto max-w-full">
+          <table className="w-full table-fixed border-collapse text-xs">
             <thead>
               <tr className="text-slate-500 dark:text-slate-400">
                 <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">粒径区间</th>
@@ -302,8 +302,8 @@ export default function ParticleSizePage({ onOpenSOP }: { onOpenSOP?: () => void
                   {d} · {dayRecs.length} 条 · d50 ={' '}
                   <span className="font-mono text-teal-700">{dayDist.d50?.toFixed(2) ?? '—'}</span> μm
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full table-fixed border-collapse text-xs min-w-[480px]">
+                <div className="overflow-x-auto max-w-full">
+                  <table className="w-full table-fixed border-collapse text-xs">
                     <thead>
                       <tr className="text-slate-500 dark:text-slate-400">
                         <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800">区间</th>

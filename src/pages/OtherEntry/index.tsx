@@ -473,8 +473,8 @@ export default function OtherEntryPage() {
                 <div className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   {d} · {day.length} 条
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full table-fixed border-collapse text-xs min-w-[480px]">
+                <div className="overflow-x-auto max-w-full">
+                  <table className="w-full table-fixed border-collapse text-xs">
                     <thead>
                       <tr className="text-slate-500 dark:text-slate-400">
                         <th className="text-left py-1.5 px-2 border-b border-slate-100 dark:border-slate-800 w-16">罐</th>
