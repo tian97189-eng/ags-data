@@ -117,6 +117,9 @@ describe('ExtrasPage - 污泥浓度页 手机窄屏卡片化（问题：数据�
     render(<ExtrasPage />);
     const cardContainer = (await screen.findByText('滤纸 B-2', undefined, { timeout: 3000 })).closest('div.md\\:hidden.space-y-2') as HTMLElement;
     fireEvent.click(cardContainer.querySelector('button.text-red-600')!);
-    expect(await db.mlssRecords.get(id)).toBeUndefined();
+    // 删除走回收站（多步 await），轮询等最终删除完成
+    await waitFor(async () => {
+      expect(await db.mlssRecords.get(id)).toBeUndefined();
+    }, { timeout: 3000 });
   });
 });

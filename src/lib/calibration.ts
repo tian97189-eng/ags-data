@@ -1,4 +1,5 @@
 import { db, type CalibrationCurve, type CalibrationPoint, type Indicator, type Measurement } from '../db/schema';
+import { trashRows } from './trash';
 import { evaluateFormula } from './formula';
 
 // —— 最小二乘拟合 y = kx + b（x=浓度，y=吸光度）——
@@ -138,6 +139,8 @@ export async function countMeasurementsByCurve(curveId: number): Promise<number>
 
 /** 删除一条标准曲线。已存测量值的浓度不受影响（冗余存储），仅失去曲线追溯。 */
 export async function deleteCurve(curveId: number): Promise<void> {
+  const row = await db.curves.get(curveId);
+  if (row) await trashRows('curves', [row]);
   await db.curves.delete(curveId);
 }
 

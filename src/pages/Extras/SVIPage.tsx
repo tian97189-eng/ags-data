@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/schema';
 import { computeSVI } from '../../lib/extras';
 import { useAppStore } from '../../store/useAppStore';
+import { trashRows } from '../../lib/trash';
 import { today } from '../../lib/format';
 import EmptyState from '../../components/common/EmptyState';
 
@@ -70,6 +71,8 @@ export default function SVIPage() {
   }
 
   async function handleDelete(id: number) {
+    const row = await db.sviRecords.get(id);
+    if (row) await trashRows('sviRecords', [row]);
     await db.sviRecords.delete(id);
   }
 

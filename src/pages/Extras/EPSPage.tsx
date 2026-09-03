@@ -9,6 +9,7 @@ import {
 } from '../../lib/extras';
 import { resolveCurve } from '../../lib/calibration';
 import { useAppStore } from '../../store/useAppStore';
+import { trashRows } from '../../lib/trash';
 import { today } from '../../lib/format';
 import EmptyState from '../../components/common/EmptyState';
 import SampleReminder from '../../components/common/SampleReminder';
@@ -186,6 +187,8 @@ export default function EPSPage() {
   }
 
   async function handleDelete(id: number) {
+    const row = await db.epsRecords.get(id);
+    if (row) await trashRows('epsRecords', [row]);
     await db.epsRecords.delete(id);
   }
 

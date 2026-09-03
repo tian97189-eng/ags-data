@@ -54,9 +54,14 @@ export const TRASH_GROUP_LABEL: Record<TrashGroup, string> = {
 
 /** 从被删行推断分组（无 scene 字段的表按表名归组） */
 export function groupForRows(table: string, rows: object[]): TrashGroup {
-  const first = rows[0] as { scene?: string } | null;
+  const first = rows[0] as { scene?: string; key?: string } | null;
   if (table === 'measurements') {
     return first?.scene === 'cycle' ? 'cycle' : 'daily';
+  }
+  if (table === 'cycles') return 'cycle';
+  if (table === 'settings') {
+    // 周期阶段标记等以 cycle: 为前缀；其余默认 daily
+    return typeof first?.key === 'string' && first.key.startsWith('cycle:') ? 'cycle' : 'daily';
   }
   switch (table) {
     case 'influents':
@@ -147,6 +152,7 @@ const TABLES: Record<string, BulkTable> = {
   reactors: db.reactors,
   indicators: db.indicators,
   cycles: db.cycles,
+  settings: db.settings,
 };
 
 /** 恢复一条回收站记录（写回原表后删除回收站条目）；返回恢复行数 */

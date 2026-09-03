@@ -1,4 +1,5 @@
 import { db } from '../db/schema';
+import { trashRows } from './trash';
 import { cycleScope } from './entry';
 import { timeToMinutes } from './format';
 
@@ -57,6 +58,16 @@ export function cycleStats(
 
 /** 删除某个周期及其全部测量、默认空白/稀释、阶段标记 */
 export async function deleteCycle(cycleRunId: number): Promise<void> {
+  // 先入回收站（30 天内可在「系统设置 → 回收站」整周期恢复）
+  const cycleRow = await db.cycles.get(cycleRunId);
+  if (cycleRow) await trashRows('cycles', [cycleRow]);
+  const ms = await db.measurements.where('cycleRunId').equals(cycleRunId).toArray();
+  if (ms.length > 0) await trashRows('measurements', ms);
+  const defs = await db.defaults.where('scopeKey').equals(cycleScope(cycleRunId)).toArray();
+  if (defs.length > 0) await trashRows('defaults', defs);
+  const phase = await db.settings.get(`cycle:${cycleRunId}:phases`);
+  if (phase) await trashRows('settings', [phase]);
+
   await db.cycles.delete(cycleRunId);
   await db.measurements.where('cycleRunId').equals(cycleRunId).delete();
   await db.defaults.where('scopeKey').equals(cycleScope(cycleRunId)).delete();

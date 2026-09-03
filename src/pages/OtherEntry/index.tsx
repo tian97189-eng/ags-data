@@ -7,6 +7,7 @@ import {
   seedOtherReactorsIfEmpty,
   deleteOtherMeasurements,
 } from '../../lib/otherEntry';
+import { trashRows } from '../../lib/trash';
 import { useAppStore } from '../../store/useAppStore';
 import { today } from '../../lib/format';
 import PageHeader from '../../components/layout/PageHeader';
@@ -255,9 +256,21 @@ export default function OtherEntryPage() {
   }
   async function handleDeleteReactor(r: { id?: number }) {
     if (r.id == null) return;
+    // 该罐全部测量 + 罐本身先进回收站（30 天内可在「系统设置 → 回收站」恢复）
+    const ms = await db.otherMeasurements.where('reactorId').equals(r.id).toArray();
+    if (ms.length > 0) await trashRows('otherMeasurements', ms);
+    const rr = await db.otherReactors.get(r.id);
+    if (rr) await trashRows('otherReactors', [rr]);
     await db.otherMeasurements.where('reactorId').equals(r.id).delete();
     await db.otherReactors.delete(r.id);
-    toast('已删除他人罐及其数据', 'info');
+    toast('已删除他人罐及其数据（可在回收站恢复）', 'info');
+  }
+
+  async function handleDeleteMeasurement(m: { id?: number }) {
+    if (m.id == null) return;
+    const row = await db.otherMeasurements.get(m.id);
+    if (row) await trashRows('otherMeasurements', [row]);
+    await db.otherMeasurements.delete(m.id);
   }
 
   const dateSet = new Set((records ?? []).map((r) => r.date));
@@ -490,7 +503,7 @@ export default function OtherEntryPage() {
                             <button
                               type="button"
                               className="text-red-600"
-                              onClick={() => db.otherMeasurements.delete(m.id!)}
+                              onClick={() => void handleDeleteMeasurement(m)}
                             >
                               删除
                             </button>

@@ -13,13 +13,7 @@ import DaySummary from './DaySummary';
 import { useAppStore } from '../../store/useAppStore';
 import { buildWideCsv } from '../../lib/csv';
 import { saveAndShare } from '../../lib/share';
-import {
-  trashMeasurements,
-  listTrash,
-  restoreTrash,
-  purgeTrash,
-  emptyTrash,
-} from '../../lib/trash';
+import { trashMeasurements } from '../../lib/trash';
 import * as XLSX from 'xlsx';
 
 const PHASE_LABEL: Record<string, string> = { anaerobic: '厌氧', oxic: '好氧', anoxic: '缺氧' };
@@ -45,8 +39,6 @@ export default function QueryPage() {
   const [editNote, setEditNote] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   // 回收站
-  const [trashOpen, setTrashOpen] = useState(false);
-  const [trashList, setTrashList] = useState<Awaited<ReturnType<typeof listTrash>>>([]);
   // 单日小结
   const [dayOpen, setDayOpen] = useState(false);
   // 快捷筛选预设
@@ -197,26 +189,7 @@ export default function QueryPage() {
     );
   }
 
-  async function openTrash() {
-    setTrashList(await listTrash());
-    setTrashOpen(true);
-  }
 
-  async function handleRestore(id: number) {
-    const n = await restoreTrash(id);
-    setTrashList(await listTrash());
-    toast(`已恢复 ${n} 条数据`, 'success');
-  }
-  async function handlePurge(id: number) {
-    await purgeTrash(id);
-    setTrashList(await listTrash());
-    toast('已彻底删除', 'info');
-  }
-  async function handleEmptyTrash() {
-    await emptyTrash();
-    setTrashList([]);
-    toast('回收站已清空', 'info');
-  }
 
   return (
     <div>
@@ -233,13 +206,7 @@ export default function QueryPage() {
             >
               单日小结
             </button>
-            <button
-              type="button"
-              onClick={() => void openTrash()}
-              className="px-3 py-1.5 text-xs rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300"
-            >
-              🗑 回收站
-            </button>
+
             <button
               type="button"
               onClick={handleExport}
@@ -512,87 +479,7 @@ export default function QueryPage() {
       {dayOpen && <DaySummary onClose={() => setDayOpen(false)} />}
 
       {/* 回收站弹窗 */}
-      {trashOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
-          onClick={() => setTrashOpen(false)}
-        >
-          <div
-            className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-              <div>
-                <div className="text-base font-medium">回收站</div>
-                <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                  删除的数据在这里，30 天内可恢复
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setTrashOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm px-1"
-                aria-label="关闭回收站"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="overflow-y-auto flex-1 px-4 py-2 text-xs space-y-1.5">
-              {trashList.length === 0 ? (
-                <div className="text-center text-slate-400 dark:text-slate-500 py-8">
-                  回收站是空的
-                </div>
-              ) : (
-                trashList.map((t) => (
-                  <div
-                    key={t.id}
-                    className="flex items-center gap-2 border border-slate-100 dark:border-slate-700 rounded-lg px-3 py-2"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium">
-                        {t.table === 'measurements' ? '测量数据' : t.table} · {t.count} 条
-                      </div>
-                      <div className="text-[11px] text-slate-400 dark:text-slate-500">
-                        删除于 {t.deletedAt.slice(0, 19).replace('T', ' ')}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => void handleRestore(t.id)}
-                      className="px-2 py-1 rounded bg-teal-600 text-white"
-                    >
-                      恢复
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handlePurge(t.id)}
-                      className="px-2 py-1 rounded border border-red-200 text-red-600 dark:border-red-800"
-                    >
-                      彻底删除
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-            {trashList.length > 0 && (
-              <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.confirm('确定清空回收站？此操作不可恢复。')) void handleEmptyTrash();
-                  }}
-                  className="text-xs text-red-600"
-                >
-                  清空回收站
-                </button>
-                <span className="text-[11px] text-slate-400 dark:text-slate-500">
-                  超 30 天自动清理
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 }

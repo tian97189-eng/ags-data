@@ -284,7 +284,7 @@ export default function CyclePage() {
     setCells({});
     setPhases({});
     setConfirmDelete(false);
-    toast('周期已删除', 'info');
+    toast('周期已删除（可在 系统设置 → 回收站 恢复）', 'info');
   }
 
   /** 恢复草稿：把上次未保存的格子/阶段/空白/稀释填回（仅当前周期+指标匹配时调用） */

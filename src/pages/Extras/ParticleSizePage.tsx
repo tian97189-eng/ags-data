@@ -5,6 +5,7 @@ import { computeParticleDistribution, midOfRange } from '../../lib/extras';
 import { useAppStore } from '../../store/useAppStore';
 import { today } from '../../lib/format';
 import HistoryCalendar from '../../components/common/HistoryCalendar';
+import { trashRows } from '../../lib/trash';
 
 /** 筛分粒径：
  *  - 顶部：粒径范围配置（用户增删改）—— 每段含 from/to/中位径
@@ -60,10 +61,14 @@ export default function ParticleSizePage({ onOpenSOP }: { onOpenSOP?: () => void
   }
 
   async function handleDeleteRange(r: ParticleSizeRange) {
+    const row = await db.particleSizeRanges.get(r.id!);
+    if (row) await trashRows('particleSizeRanges', [row]);
     await db.particleSizeRanges.delete(r.id!);
   }
 
   async function handleDeleteRecord(id: number) {
+    const row = await db.particleSizeRecords.get(id);
+    if (row) await trashRows('particleSizeRecords', [row]);
     await db.particleSizeRecords.delete(id);
   }
 

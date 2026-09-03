@@ -5,6 +5,7 @@ import { computeMLSS } from '../../lib/extras';
 import { useAppStore } from '../../store/useAppStore';
 import { today } from '../../lib/format';
 import HistoryCalendar from '../../components/common/HistoryCalendar';
+import { trashRows } from '../../lib/trash';
 
 /** 污泥浓度（MLSS / MLVSS）录入表
  * 填入日期、滤纸编号、4 个重量（M1~M4）、取样体积 V → 自动算 MLSS/MLVSS
@@ -59,6 +60,8 @@ export default function MLSSPage() {
   }
 
   async function handleDelete(id: number) {
+    const row = await db.mlssRecords.get(id);
+    if (row) await trashRows('mlssRecords', [row]);
     await db.mlssRecords.delete(id);
   }
 
