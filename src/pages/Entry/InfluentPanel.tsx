@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CalibrationCurve, type Indicator, type InfluentMode } from '../../db/schema';
 import { computeConcentration } from '../../lib/calibration';
@@ -56,12 +56,18 @@ const InfluentPanel = forwardRef<
   const [mode, setMode] = useState<InfluentMode>('shared');
   const [state, setState] = useState<InfluentState>({ dilution: {}, samples: {} });
   const [hydrated, setHydrated] = useState(false);
+  // 用户是否已手动输入（或从草稿恢复）过——防止异步数据回填把输入覆盖丢草稿
+  const touchedRef = useRef(false);
+  // 始终引用最新 onStateChange（避免父组件每次渲染重传引用导致 effect 空跑）
+  const onStateChangeRef = useRef(onStateChange);
+  onStateChangeRef.current = onStateChange;
 
-  // 数据加载完成后标记 hydrated，再对外回调快照
+  // 进水值每次变化（含用户输入、db 回填、草稿恢复）都对外回调快照 →
+  // Entry 端立即落盘草稿。不再等 hydrated：用户手快在数据加载完前输入也能存草稿
+  // （旧版 gate hydrated=false 会静默丢弃回调，手机端"只填进水不存草稿"的根因）。
   useEffect(() => {
-    if (!hydrated) return;
-    onStateChange?.({ dilution: state.dilution, samples: state.samples });
-  }, [state, hydrated, onStateChange]);
+    onStateChangeRef.current?.({ dilution: state.dilution, samples: state.samples });
+  }, [state]);
 
   // mode 初始化独立于数据加载：只在挂载时读一次 settings，避免数据加载的慢异步
   // 覆盖用户刚点击的「每罐各自」（竞态 bug：mode 曾绑在 [date, indicators] effect 里，
@@ -107,7 +113,10 @@ const InfluentPanel = forwardRef<
       }
       const m = await db.settings.get('influentMode');
       if (cancelled) return;
-      setState({ dilution, samples });
+      // 用户已输入/恢复过则保留输入，不让 db 空回填覆盖（手机端进水草稿丢失根因）
+      if (!touchedRef.current) {
+        setState({ dilution, samples });
+      }
       setMode((m?.value as InfluentMode) ?? 'shared');
       setHydrated(true);
     })();
@@ -154,9 +163,11 @@ const InfluentPanel = forwardRef<
   }
 
   function setDilution(indicatorId: number, v: string) {
+    touchedRef.current = true;
     setState((p) => ({ ...p, dilution: { ...p.dilution, [indicatorId]: v } }));
   }
   function setSample(key: string, v: string) {
+    touchedRef.current = true;
     setState((p) => ({ ...p, samples: { ...p.samples, [key]: v } }));
   }
 
@@ -229,6 +240,7 @@ const InfluentPanel = forwardRef<
     () => ({
       save,
       restoreDraft: (s: InfluentSnapshot) => {
+        touchedRef.current = true;
         setState({ dilution: s.dilution ?? {}, samples: s.samples ?? {} });
         setHydrated(true);
       },

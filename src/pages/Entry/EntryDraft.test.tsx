@@ -178,3 +178,21 @@ describe('录入草稿立即同步写盘（问题：手机端输入立即被关�
     expect((draft!.defaults[indId!] as { blank?: string }).blank).toBe('0.015');
   });
 });
+
+describe('录入草稿：只填进水不填出水也能存（问题：手机端进水浓度先填不存草稿）', () => {
+  beforeEach(clearAll);
+
+  it('只在进水检测样输入 → 草稿立即写入（含进水 samples，出水为空也能存）', async () => {
+    await seedBasic();
+    render(<EntryPage />);
+    // 等进水面板渲染出检测样输入
+    const input = (await screen.findByLabelText('氨氮 进水检测样', undefined, { timeout: 3000 })) as HTMLInputElement;
+    await new Promise((r) => setTimeout(r, 100));
+    fireEvent.change(input, { target: { value: '0.284' } });
+    const draft = loadDraft();
+    expect(draft).not.toBeNull();
+    expect(
+      Object.values((draft?.influent?.samples ?? {}) as Record<string, string>).some((v) => v === '0.284'),
+    ).toBe(true);
+  });
+});
