@@ -190,3 +190,21 @@ describe('天气与实际地点一致（默认不再写死北京）', () => {
     await screen.findByText((c: string) => c.includes('湖南省'), undefined, { timeout: 3000 });
   });
 });
+
+  it('概览页 mount 时主动调用 requestLocationPermission（让 Android 系统设置显示"位置"分类）', async () => {
+    vi.resetModules();
+    const reqPerm = vi.fn().mockResolvedValue({ location: 'granted' });
+    const checkPerm = vi.fn().mockResolvedValue({ location: 'prompt' });
+    vi.doMock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => true } }));
+    vi.doMock('@capacitor/geolocation', () => ({
+      Geolocation: { checkPermissions: checkPerm, requestPermissions: reqPerm },
+    }));
+    const { default: OverviewWithPerm } = await import('./index');
+    render(<OverviewWithPerm />);
+    await waitFor(() => {
+      expect(reqPerm).toHaveBeenCalled();
+    });
+    vi.doUnmock('@capacitor/core');
+    vi.doUnmock('@capacitor/geolocation');
+    vi.resetModules();
+  });

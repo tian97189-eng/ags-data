@@ -64,3 +64,23 @@ export async function getCurrentCoord(): Promise<CoordResult | null> {
   if (fromNative) return fromNative;
   return tryWeb();
 }
+
+/** 仅做"申请权限"，不取位置——给页面 mount 时预热用。
+ * 用户首次进概览就弹原生权限框，接受后系统设置里能看到"位置"开关。
+ * 不弹则设置里也不显示该权限分类（Android 设计）。 */
+export async function requestLocationPermission(): Promise<boolean> {
+  try {
+    const cap = (await import('@capacitor/core')) as { Capacitor?: CapacitorShape };
+    if (!cap.Capacitor?.isNativePlatform?.()) return false;
+    const mod = (await import('@capacitor/geolocation')) as {
+      Geolocation?: GeolocationPluginShape;
+    };
+    if (!mod.Geolocation) return false;
+    const perm = await mod.Geolocation.checkPermissions();
+    if (perm.location === 'granted') return true;
+    const req = await mod.Geolocation.requestPermissions();
+    return req.location === 'granted';
+  } catch {
+    return false;
+  }
+}

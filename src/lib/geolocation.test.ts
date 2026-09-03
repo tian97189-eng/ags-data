@@ -43,6 +43,43 @@ describe('getCurrentCoord（跨平台定位，APK 走 @capacitor/geolocation 插
     expect(r).toBeNull();
   });
 
+  it('requestLocationPermission：web 端静默返回 false（不弹窗）', async () => {
+    const { requestLocationPermission } = await import('./geolocation');
+    expect(await requestLocationPermission()).toBe(false);
+  });
+
+  it('requestLocationPermission：原生平台已授权 → 返回 true 不弹窗', async () => {
+    vi.resetModules();
+    vi.doMock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => true } }));
+    vi.doMock('@capacitor/geolocation', () => ({
+      Geolocation: {
+        checkPermissions: async () => ({ location: 'granted' }),
+        requestPermissions: async () => ({ location: 'granted' }),
+      },
+    }));
+    const { requestLocationPermission } = await import('./geolocation');
+    expect(await requestLocationPermission()).toBe(true);
+    vi.doUnmock('@capacitor/core');
+    vi.doUnmock('@capacitor/geolocation');
+    vi.resetModules();
+  });
+
+  it('requestLocationPermission：原生平台未授权 → 调用 requestPermissions → 用户拒绝返 false', async () => {
+    vi.resetModules();
+    vi.doMock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => true } }));
+    vi.doMock('@capacitor/geolocation', () => ({
+      Geolocation: {
+        checkPermissions: async () => ({ location: 'prompt' }),
+        requestPermissions: async () => ({ location: 'denied' }),
+      },
+    }));
+    const { requestLocationPermission } = await import('./geolocation');
+    expect(await requestLocationPermission()).toBe(false);
+    vi.doUnmock('@capacitor/core');
+    vi.doUnmock('@capacitor/geolocation');
+    vi.resetModules();
+  });
+
   it('Web 模式：dynamic import @capacitor/core 失败时不抛错（jsdom 无 Capacitor global）', async () => {
     Object.defineProperty(navigator, 'geolocation', {
       configurable: true,

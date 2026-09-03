@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
-import { getCurrentCoord } from '../../lib/geolocation';
+import { getCurrentCoord, requestLocationPermission } from '../../lib/geolocation';
 
 /**
  * 今日概览（非实验数据）：日期 · 天气 · 一言 · 倒计时 · 快捷笔记。
@@ -152,6 +152,13 @@ export default function OverviewPage() {
     const t = setTimeout(() => localStorage.setItem(NOTES_KEY, note), 300);
     return () => clearTimeout(t);
   }, [note]);
+
+  // 概览页 mount 时主动请求位置权限：APK 上会弹原生权限框，用户接受后
+  // 系统设置 → 应用权限里就会出现"位置"分类（Android 设计：没申请过就不显示）。
+  // 仅当用户未授权过 + 移动端 native 环境时调用；web 静默返回 false。
+  useEffect(() => {
+    void requestLocationPermission();
+  }, []);
   function addOrUpdateCountdown(id: string | null, label: string, date: string) {
     const trimmed = label.trim();
     if (!trimmed || !date) return;
