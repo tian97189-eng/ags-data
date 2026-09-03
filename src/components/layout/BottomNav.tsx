@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { NAV_ITEMS, type NavItem } from './nav';
 import { IconMore } from '../common/Icons';
@@ -9,6 +9,9 @@ import { IconMore } from '../common/Icons';
  * - 「更多」抽屉（用户指定顺序）：周期 / 他人 / 可视 / 统计 / 设置
  * 首次使用也能一眼看到「更多」，不会漏掉藏在滚动区外的功能。
  * 桌面端（md+）由 Sidebar 展示全部导航，不受影响。
+ *
+ * 抽屉 z-index 用 z-50 高于任何页面浮动元素（如数据录入页的「保存今日数据」fixed 按钮 z-40），
+ * 且打开时锁定背景滚动，避免感觉抽屉是「贴图」叠在可滑背景上。
  */
 
 const MAIN_PATHS = ['/overview', '/entry', '/extras', '/experiment', '/query'];
@@ -30,6 +33,21 @@ export default function BottomNav() {
   const { pathname } = useLocation();
   const activeInMore = MORE_PATHS.includes(pathname);
   const close = () => setOpen(false);
+
+  // 抽屉打开时锁定背景滚动（防止手指在抽屉上滑时背景页跟着滚，
+  // 让抽屉感觉像「贴图」）。关闭时恢复。注意：只用 overflow:hidden
+  // 不锁位置，避免 iOS 跳动；md+ 桌面端不渲染此组件。
+  useEffect(() => {
+    if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    const prevOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'contain';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.overscrollBehavior = prevOverscroll;
+    };
+  }, [open]);
 
   return (
     <>
@@ -82,7 +100,7 @@ export default function BottomNav() {
 
       {/* 更多抽屉：遮罩 + 底部面板 */}
       {open && (
-        <div className="md:hidden fixed inset-0 z-30 bg-black/40" onClick={close}>
+        <div className="md:hidden fixed inset-0 z-50 bg-black/40" onClick={close}>
           <div
             role="dialog"
             aria-label="更多功能"
