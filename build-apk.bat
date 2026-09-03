@@ -8,10 +8,24 @@ echo.
 set "JAVA_HOME=C:\jdk21\jdk"
 set "ANDROID_HOME=C:\android-sdk"
 set "ANDROID_SDK_ROOT=C:\android-sdk"
-set "GRADLE_USER_HOME=C:\Users\sky\gradle-home"
+rem ===== 缓存目录方案（2026-09-03 改）=====
+rem 旧的 C:\Users\sky\gradle-home 曾因异常中断产生锁残留（native .lock / wrapper .lck 拒绝访问，
+rem gradle 无法启动）。改为：每次构建前从干净模板 C:\gb-tpl 克隆全新缓存到 C:\gb-run，
+rem gradle 在全新目录首跑必然成功，彻底绕开锁问题。
+set "GRADLE_HOME_TPL=C:\gb-tpl"
+set "GRADLE_USER_HOME=C:\gb-run"
 set "BUILD=C:\Users\sky\ags-build2"
 set "LOG=%BUILD%\build-log.txt"
 set "SRC=%~dp0"
+
+rem ======== [0/7] 准备全新 gradle 缓存目录（从模板克隆，排除一切 .lock/.lck） ========
+echo [0/7] Preparing clean gradle cache...
+taskkill /IM java.exe /F >nul 2>&1
+taskkill /IM javaw.exe /F >nul 2>&1
+if exist "%GRADLE_USER_HOME%" rmdir /s /q "%GRADLE_USER_HOME%" >nul 2>&1
+mkdir "%GRADLE_USER_HOME%" 2>nul
+robocopy "%GRADLE_HOME_TPL%" "%GRADLE_USER_HOME%" /E /XF *.lock *.lck /NFL /NDL /NJH /NJS >nul 2>&1
+echo      clean gradle cache ready.
 
 echo Log file: %LOG%
 if exist "%LOG%" del /q "%LOG%" >nul 2>&1
@@ -85,7 +99,7 @@ rem says BUILD SUCCESSFUL, its single-use daemon often throws IllegalStateExcept
 rem ("Cannot start managing file contention because this handler has been closed")
 rem on shutdown, making java exit non-zero. That misjudged failure and skipped [7/7].
 rem So we do NOT check exit code here; [7/7] checks the APK file directly.
-"%JAVA_HOME%\bin\java.exe" -Dorg.gradle.appname=gradlew -classpath "C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar" org.gradle.launcher.GradleMain assembleRelease --no-daemon --console=plain
+"%JAVA_HOME%\bin\java.exe" -Dorg.gradle.appname=gradlew -classpath "C:\Users\sky\gradle-dist\gradle-8.14.3\lib\gradle-launcher-8.14.3.jar" org.gradle.launcher.GradleMain assembleRelease --no-daemon --console=plain --rerun-tasks
 echo [DIAG] gradle returned, errorlevel=%errorlevel% >> "%LOG%"
 echo      gradle finished, checking APK...
 
