@@ -196,3 +196,32 @@ describe('录入草稿：只填进水不填出水也能存（问题：手机端�
     ).toBe(true);
   });
 });
+
+describe('录入草稿端到端：只填进水 → 退出页面 → 重开应显示恢复条（问题：还是不行）', () => {
+  beforeEach(clearAll);
+
+  it('进水只填值并重开页面 → 恢复条出现，恢复后进水值仍在', async () => {
+    const { indId, rId } = await seedBasic();
+    const first = render(<EntryPage />);
+    // 等进水检测样渲染
+    const inf = (await screen.findByLabelText('氨氮 进水检测样', undefined, { timeout: 3000 })) as HTMLInputElement;
+    fireEvent.change(inf, { target: { value: '0.284' } });
+    // 确认草稿已带进水
+    await waitFor(() => {
+      const d = loadDraft();
+      expect(Object.values((d?.influent?.samples ?? {}) as Record<string, string>)).toContain('0.284');
+    }, { timeout: 3000 });
+    // 模拟退出页面（卸载组件，草稿已在 localStorage）
+    first.unmount();
+    // 重开
+    render(<EntryPage />);
+    // 恢复条应出现
+    await screen.findByText(/未保存草稿/, undefined, { timeout: 3000 });
+    fireEvent.click(screen.getByText('恢复草稿'));
+    // 进水值恢复（shared 模式 key = indId:shared）
+    await waitFor(() => {
+      const input = screen.getByLabelText('氨氮 进水检测样') as HTMLInputElement;
+      expect(input.value).toBe('0.284');
+    }, { timeout: 3000 });
+  });
+});
