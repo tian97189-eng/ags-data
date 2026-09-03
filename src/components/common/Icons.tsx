@@ -114,3 +114,12 @@ export const IconNote = (p: IconProps) => (
     <path d="M9 12h6M9 16h6" />
   </Base>
 );
+
+/** 「更多」水平三点（dots-horizontal，用于底部导航展开抽屉） */
+export const IconMore = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="5" cy="12" r="1" />
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="19" cy="12" r="1" />
+  </Base>
+);
