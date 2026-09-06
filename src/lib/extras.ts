@@ -6,7 +6,8 @@ import type { ReminderTime } from './reminder';
 import { computeConcentration, type ComputeStatus } from './calibration';
 import type { CalibrationCurve } from '../db/schema';
 
-/** 算 MLSS / MLVSS（g/L）。输入重量单位 g，V 单位 mL → 需 ×1000 转 L。 */
+/** 算 MLSS / MLVSS（g/L）。输入重量单位 g，V 单位 mL → 需 ×1000 转 L。
+ * 容忍分次保存：只要 M1/M2/V 有值就出 mlss；M3/M4 也齐才出 mlvss */
 export function computeMLSS(input: {
   m1: number | null;
   m2: number | null;
@@ -15,19 +16,22 @@ export function computeMLSS(input: {
   v: number | null;
 }): { mlss: number | null; mlvss: number | null } {
   const { m1, m2, m3, m4, v } = input;
+  // MLSS 至少需要 M1/M2/V（M3/M4 可缺）
+  let mlss: number | null = null;
   if (
-    m1 == null || m2 == null || m3 == null || m4 == null || v == null ||
-    !Number.isFinite(m1) || !Number.isFinite(m2) || !Number.isFinite(m3) ||
-    !Number.isFinite(m4) || !Number.isFinite(v) || v === 0
+    m1 != null && m2 != null && v != null && v !== 0 &&
+    Number.isFinite(m1) && Number.isFinite(m2) && Number.isFinite(v)
   ) {
-    return { mlss: null, mlvss: null };
+    const v1 = (m2 - m1) / v * 1000;
+    mlss = Number.isFinite(v1) ? v1 : null;
   }
-  const mlss = ((m2 - m1) / v) * 1000;
-  const mlvss = ((m2 + m3 - m4) / v) * 1000;
-  return {
-    mlss: Number.isFinite(mlss) ? mlss : null,
-    mlvss: Number.isFinite(mlvss) ? mlvss : null,
-  };
+  // MLVSS 需要 M3/M4 也填
+  let mlvss: number | null = null;
+  if (mlss != null && m3 != null && m4 != null) {
+    const v2 = (m2! + m3 - m4) / v! * 1000;
+    mlvss = Number.isFinite(v2) ? v2 : null;
+  }
+  return { mlss, mlvss };
 }
 
 /** 单行粒径记录的泥重 = M2 - M1 */
