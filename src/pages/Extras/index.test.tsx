@@ -249,3 +249,59 @@ describe('ExtrasPage - 污泥浓度分次保存（问题：M1/M2/M3/M4 分 3 天
     void id;
   });
 });
+
+describe('ExtrasPage - 粒径筛分手机卡片（问题：6 列被 360px 屏挤压重叠）', () => {
+  beforeEach(clearAll);
+
+  it('DOM 同时存在桌面表格（hidden md:block）和手机卡片（md:hidden），不重叠', async () => {
+    // 准备 2 个粒径区间 + 1 条当日记录
+    await db.particleSizeRanges.bulkAdd([
+      { from: 200, to: 355, mid: 277.5, sortOrder: 1 },
+      { from: 100, to: 200, mid: 150, sortOrder: 2 },
+    ]);
+    const r1 = (await db.particleSizeRanges.toArray())[0];
+    await db.particleSizeRecords.add({
+      date: '2026-09-02', reactorId: null, rangeId: r1.id!,
+      paperWeight: 0.123, sampleWeight: 0.456, dryWeight: 0.333, percent: 60, contribution: 166.5,
+      note: '', createdAt: '',
+    });
+
+    render(<ExtrasPage />);
+    // 切到粒径 tab
+    fireEvent.click(screen.getByText('筛分粒径'));
+    // 等粒径页加载（看输入框 aria-label）
+    await waitFor(() => {
+      expect(screen.getAllByLabelText(/200-355.*滤纸重/).length).toBeGreaterThan(0);
+    }, { timeout: 3000 });
+
+    // 桌面表格容器存在（hidden md:block）
+    expect(document.querySelector('div.hidden.md\\:block.overflow-x-auto.max-w-full')).toBeTruthy();
+    // 手机卡片容器存在（md:hidden）
+    expect(document.querySelector('div.md\\:hidden.space-y-2')).toBeTruthy();
+  });
+
+  it('手机卡片：每个粒径区间一张卡，含「区间名 / M1 / M2 / 泥重 / 占比 / 加权」6 字段', async () => {
+    await db.particleSizeRanges.bulkAdd([
+      { from: 200, to: 355, mid: 277.5, sortOrder: 1 },
+      { from: 100, to: 200, mid: 150, sortOrder: 2 },
+    ]);
+    render(<ExtrasPage />);
+    fireEvent.click(screen.getByText('筛分粒径'));
+    await waitFor(() => {
+      expect(screen.getAllByText('200-355 μm').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('100-200 μm').length).toBeGreaterThan(0);
+    }, { timeout: 3000 });
+    // 只统计手机卡片容器（md:hidden）内的字段（jsdom 不支持 \: 转义选择器，用遍历）
+    const mobile = Array.from(document.querySelectorAll('div')).find(
+      (el) => el.classList.contains('md:hidden') && el.classList.contains('space-y-2'),
+    ) as HTMLElement;
+    expect(mobile).toBeTruthy();
+    expect(mobile.querySelectorAll('input').length).toBe(4); // 2 区间 × (M1+M2)
+    expect(mobile.querySelectorAll('input[aria-label*="滤纸重"]').length).toBe(2);
+    expect(mobile.querySelectorAll('input[aria-label*="滤纸+泥"]').length).toBe(2);
+    // 计算字段标识（每个区间卡都有：泥重/占比/加权 标题）
+    expect(mobile.textContent).toContain('泥重');
+    expect(mobile.textContent).toContain('占比');
+    expect(mobile.textContent).toContain('加权');
+  });
+});

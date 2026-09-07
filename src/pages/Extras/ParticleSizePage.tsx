@@ -214,7 +214,8 @@ export default function ParticleSizePage({ onOpenSOP }: { onOpenSOP?: () => void
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">填滤纸重 M1 和滤纸+泥重 M2（可只填一个，会自动保存）。泥重 = M2 − M1，占比% = 泥重 / 总泥重 × 100。</p>
 
-        <div className="overflow-x-auto max-w-full">
+        {/* 桌面（≥md）：原 6 列表格；手机（<md）：每个粒径区间一张卡，6 字段一次看完不横滑避免列重叠 */}
+        <div className="hidden md:block overflow-x-auto max-w-full">
           <table className="w-full table-fixed border-collapse text-xs">
             <thead>
               <tr className="text-slate-500 dark:text-slate-400">
@@ -270,6 +271,55 @@ export default function ParticleSizePage({ onOpenSOP }: { onOpenSOP?: () => void
               })}
             </tbody>
           </table>
+        </div>
+        {/* 手机卡片模式：每张卡一个粒径区间，6 字段按"标识 + 输入 + 计算结果"分组，360px 不挤不重叠 */}
+        <div className="md:hidden space-y-2">
+          {(ranges ?? []).map((rng, idx) => {
+            const rec = dayRecords.find((r) => r.rangeId === rng.id);
+            return (
+              <div key={rng.id} className="border border-slate-200 dark:border-slate-700 rounded-md p-3 text-xs">
+                <div className="font-medium text-slate-700 dark:text-slate-200 mb-2">
+                  {rangeLabel(rng)}
+                </div>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <label className="block">
+                    <span className="text-slate-500 dark:text-slate-400">M1 滤纸重 (g)</span>
+                    <input
+                      type="number" step="any"
+                      aria-label={`${rangeLabel(rng)} 滤纸重`}
+                      className="mt-0.5 w-full border border-slate-200 dark:border-slate-700 rounded px-1.5 py-1"
+                      value={rec?.paperWeight ?? ''}
+                      onChange={(e) => {
+                        const pw = e.target.value === '' ? null : Number(e.target.value);
+                        handleSaveRow(rng.id!, pw, rec?.sampleWeight ?? null);
+                      }}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-slate-500 dark:text-slate-400">M2 滤纸+泥 (g)</span>
+                    <input
+                      type="number" step="any"
+                      aria-label={`${rangeLabel(rng)} 滤纸+泥`}
+                      className="mt-0.5 w-full border border-slate-200 dark:border-slate-700 rounded px-1.5 py-1"
+                      value={rec?.sampleWeight ?? ''}
+                      onChange={(e) => {
+                        const sw = e.target.value === '' ? null : Number(e.target.value);
+                        handleSaveRow(rng.id!, rec?.paperWeight ?? null, sw);
+                      }}
+                    />
+                  </label>
+                </div>
+                <div className="grid grid-cols-3 gap-x-2 gap-y-0.5 tabular-nums pt-1.5 border-t border-slate-100 dark:border-slate-700">
+                  <span className="text-slate-500 dark:text-slate-400">泥重</span>
+                  <span className="col-span-2 text-right font-medium text-teal-700">{dist.dryWeights[idx]?.toFixed(4) ?? '—'} g</span>
+                  <span className="text-slate-500 dark:text-slate-400">占比</span>
+                  <span className="col-span-2 text-right">{dist.percents[idx] != null ? `${dist.percents[idx]!.toFixed(2)}%` : '—'}</span>
+                  <span className="text-slate-500 dark:text-slate-400">加权</span>
+                  <span className="col-span-2 text-right">{dist.contributions[idx]?.toFixed(4) ?? '—'}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
