@@ -143,7 +143,9 @@ export interface MLSSRecord {
   id?: number;
   date: string;
   reactorId: number | null;
-  paperNo: string; // 滤纸编号
+  paperNo: string; // 滤纸编号（新模型 = "R1-1"，即 code-slot）
+  /** 平行样槽位 1..3（2026-09-07 起：一个反应器 3 张滤纸取均值；旧记录无此字段） */
+  slot?: number;
   m1: number | null;
   m2: number | null;
   m3: number | null;

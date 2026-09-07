@@ -75,178 +75,119 @@ describe('ExtrasPage - 实验方法 tab', () => {
   });
 });
 
-describe('ExtrasPage - 污泥浓度页 手机窄屏卡片化（问题：数据跑到外面）', () => {
-  it('DOM 同时包含桌面表格（hidden md:block）和手机卡片（md:hidden），全部字段都在卡片里', async () => {
-    await db.mlssRecords.add({
-      date: '2026-09-02', reactorId: null, paperNo: 'A-1',
-      m1: 0.1000, m2: 0.1150, m3: 15.0000, m4: 14.9990, v: 15,
-      mlss: 1.0000, mlvss: 66.6667, note: '', createdAt: '',
-    });
+describe('ExtrasPage - 污泥浓度：一个反应器 3 张滤纸平行样取均值（问题：需要三滤纸并取平均）', () => {
+  async function seedR1() {
+    await db.reactors.add({ code: 'R1', name: 'R1', note: '', active: true, sortOrder: 1, createdAt: '' });
+  }
+  /** 等某张滤纸记录出现（fireEvent 后等待 db flush，模拟真实单输入） */
+  async function waitRowCount(n: number, timeout = 4000) {
+    await waitFor(async () => {
+      expect((await db.mlssRecords.toArray()).length).toBe(n);
+    }, { timeout });
+  }
+  /** 输入一个字段并等待其生效 */
+  async function type(slot: number, field: string, value: string) {
+    const input = screen.getByLabelText(`R1 滤纸${slot} ${field}`) as HTMLInputElement;
+    fireEvent.change(input, { target: { value } });
+    // number 输入渲染时会归一化（0.1000 → 0.1），等 db 落库由调用方 waitRowCount 兜底；
+    // 这里只等 React 完成本次渲染
+    await new Promise((r) => setTimeout(r, 30));
+  }
+
+  it('新增区展示 R1 chip 与 3 张滤纸卡（R1-1/R1-2/R1-3）', async () => {
+    await seedR1();
     render(<ExtrasPage />);
-    // 等历史日历默认选中最新日期后渲染表格/卡片
-    await screen.findByText('滤纸 A-1', undefined, { timeout: 3000 });
-
-    // 桌面表格：含 min-w-[560px] 与 w-20 等固定宽列
-    const tables = document.querySelectorAll('table');
-    expect(tables.length).toBe(1);
-    expect(tables[0].className).toContain('min-w-[560px]');
-    // hidden md:block 在 table 外层 div 上（jsdom 不渲染 @media，但 className 都在 DOM 上）
-    const desktopWrap = tables[0].parentElement!;
-    expect(desktopWrap.className).toContain('hidden');
-    expect(desktopWrap.className).toContain('md:block');
-
-    // 手机卡片：每条记录一张，含全部 7 个字段（M1/M2/M3/M4/V/MLSS/MLVSS）+ 滤纸
-    const cardContainer = document.querySelector('div.md\\:hidden.space-y-2');
-    expect(cardContainer).toBeTruthy();
-    // 滤纸标签
-    expect(cardContainer!.textContent).toContain('滤纸 A-1');
-    // 7 个字段标签
-    for (const label of ['M1', 'M2', 'M3', 'M4', 'V (mL)', 'MLSS', 'MLVSS']) {
-      expect(cardContainer!.textContent).toContain(label);
-    }
-    // 关键数值 MLVSS 66.6667 不被截断（包含在卡片文本里）
-    expect(cardContainer!.textContent).toContain('66.6667');
+    await screen.findByText('R1', undefined, { timeout: 3000 });
+    await waitFor(() => {
+      expect(screen.getByText('R1-1 滤纸')).toBeTruthy();
+      expect(screen.getByText('R1-2 滤纸')).toBeTruthy();
+      expect(screen.getByText('R1-3 滤纸')).toBeTruthy();
+      expect(screen.getByText(/三滤纸均值/)).toBeTruthy();
+    }, { timeout: 3000 });
   });
 
-  it('卡片模式下的删除按钮能删记录', async () => {
-    const id = await db.mlssRecords.add({
-      date: '2026-09-02', reactorId: null, paperNo: 'B-2',
-      m1: 0.1, m2: 0.2, m3: 0.3, m4: 0.4, v: 10,
-      mlss: 10.0, mlvss: 5.0, note: '', createdAt: '',
-    });
+  it('只填滤纸1 的 M1 → 自动入库（reactorId 对应 R1 + slot=1），其它字段 null', async () => {
+    await seedR1();
     render(<ExtrasPage />);
-    const cardContainer = (await screen.findByText('滤纸 B-2', undefined, { timeout: 3000 })).closest('div.md\\:hidden.space-y-2') as HTMLElement;
-    fireEvent.click(cardContainer.querySelector('button.text-red-600')!);
-    // 删除走回收站（多步 await），轮询等最终删除完成
+    await screen.findByText('R1-1 滤纸', undefined, { timeout: 3000 });
+    await type(1, 'M1 滤纸重 (g)', '0.123');
+    await waitRowCount(1);
+    const rows = await db.mlssRecords.toArray();
+    const r1 = rows.find((x) => x.slot === 1)!;
+    expect(r1.paperNo).toBe('R1-1');
+    expect(r1.m1).toBe(0.123);
+    expect(r1.m2).toBeNull();
+    expect(r1.m3).toBeNull();
+    expect(r1.m4).toBeNull();
+    expect(r1.v).toBeNull();
+  });
+
+  it('同一张滤纸分天补全：再填 M2+V → upsert 到同一行，字段累加', async () => {
+    await seedR1();
+    render(<ExtrasPage />);
+    await screen.findByText('R1-1 滤纸', undefined, { timeout: 3000 });
+    await type(1, 'M1 滤纸重 (g)', '0.100');
+    await waitRowCount(1);
+    await type(1, 'M2 滤纸+泥 (g)', '0.350');
+    await type(1, 'V 取样体积 (mL)', '25');
+    await waitRowCount(1); // 仍是同一行
     await waitFor(async () => {
-      expect(await db.mlssRecords.get(id)).toBeUndefined();
+      const rows = await db.mlssRecords.toArray();
+      const r1 = rows.find((x) => x.slot === 1)!;
+      expect(r1.m1).toBe(0.100);
+      expect(r1.m2).toBe(0.350);
+      expect(r1.v).toBe(25);
+      expect(r1.mlss).toBeCloseTo(((0.350 - 0.100) / 25) * 1000, 3);
     }, { timeout: 3000 });
+  });
+
+  it('3 张滤纸各填齐 M1/M2/V → 均值卡 = 三张 MLSS 平均，且三张明细都显示', async () => {
+    await seedR1();
+    render(<ExtrasPage />);
+    await screen.findByText('R1-1 滤纸', undefined, { timeout: 3000 });
+    // M1 不一样 → 三张 MLSS 8 / 6 / 4 → 均值 6
+    await type(1, 'M1 滤纸重 (g)', '0.1000');
+    await type(2, 'M1 滤纸重 (g)', '0.1500');
+    await type(3, 'M1 滤纸重 (g)', '0.2000');
+    for (const s of [1, 2, 3]) {
+      await type(s, 'M2 滤纸+泥 (g)', '0.3');
+      await type(s, 'V 取样体积 (mL)', '25');
+    }
+    await waitRowCount(3);
+    await waitFor(() => {
+      // 均值卡 6.0000（明细滤纸2 也是 6.0000 → 用全部匹配）
+      expect(screen.getAllByText('6.0000 g/L').length).toBeGreaterThanOrEqual(1);
+    }, { timeout: 3000 });
+    const body = document.body.textContent ?? '';
+    expect(body).toContain('8.0000 g/L'); // 滤纸1
+    expect(body).toContain('4.0000 g/L'); // 滤纸3
+  });
+
+  it('清空某张纸最后一个字段 → 该张纸记录删除（避免留下空行）', async () => {
+    await seedR1();
+    render(<ExtrasPage />);
+    await screen.findByText('R1-1 滤纸', undefined, { timeout: 3000 });
+    await type(1, 'M1 滤纸重 (g)', '0.1');
+    await waitRowCount(1);
+    await type(1, 'M1 滤纸重 (g)', '');
+    await waitRowCount(0);
   });
 });
 
-describe('ExtrasPage - 污泥浓度分次保存（问题：M1/M2/M3/M4 分 3 天测，一次填完才能保存）', () => {
-  beforeEach(clearAll);
-
-  it('只填 M1（其它空）也能点保存：行入库但 M2-M4-V 为 null', async () => {
-    render(<ExtrasPage />);
-    await screen.findByText('可分次保存', undefined, { timeout: 3000 });
-    fireEvent.change(screen.getByLabelText('滤纸编号'), { target: { value: 'A-1' } });
-    await waitFor(() => {
-      expect((screen.getByLabelText('滤纸编号') as HTMLInputElement).value).toBe('A-1');
-    });
-    fireEvent.change(screen.getByLabelText('M1 滤纸重 (g)'), { target: { value: '0.123' } });
-    await waitFor(() => {
-      expect((screen.getByLabelText('M1 滤纸重 (g)') as HTMLInputElement).value).toBe('0.123');
-    });
-    fireEvent.click(screen.getByText('保存（按日期+编号自动合并）'));
-    // 轮询入库
-    await waitFor(async () => {
-      const rows = (await db.mlssRecords.toArray()).filter((r) => r.paperNo === 'A-1');
-      expect(rows).toHaveLength(1);
-      expect(rows[0].m1).toBe(0.123);
-      expect(rows[0].m2).toBeNull();
-      expect(rows[0].m3).toBeNull();
-      expect(rows[0].m4).toBeNull();
-      // V 默认 15 mL（产品预填，多数实验固定用 15）；用户没改即保留默认值
-      expect(rows[0].v).toBe(15);
-    }, { timeout: 3000 });
-  });
-
-  it('同 (日期+编号) 多次保存：upsert 到同一行，字段累加', async () => {
-    render(<ExtrasPage />);
-    await screen.findByText('可分次保存', undefined, { timeout: 3000 });
-    fireEvent.change(screen.getByLabelText('滤纸编号'), { target: { value: 'B-2' } });
-    await waitFor(() => {
-      expect((screen.getByLabelText('滤纸编号') as HTMLInputElement).value).toBe('B-2');
-    });
-    // 第 1 次：只填 M1
-    fireEvent.change(screen.getByLabelText('M1 滤纸重 (g)'), { target: { value: '0.100' } });
-    await waitFor(() => {
-      expect((screen.getByLabelText('M1 滤纸重 (g)') as HTMLInputElement).value).toBe('0.100');
-    });
-    // 等 React state 同步（再 flush 几轮 microtask）
-    await waitFor(() => {
-      expect((screen.getByLabelText('M1 滤纸重 (g)') as HTMLInputElement).value).toBe('0.100');
-    });
-    await new Promise((r) => setTimeout(r, 50));
-    fireEvent.click(screen.getByText('保存（按日期+编号自动合并）'));
-    await waitFor(async () => {
-      const rows = await db.mlssRecords.toArray();
-      expect(rows).toHaveLength(1);
-      expect(rows[0].m1).toBe(0.100);
-    }, { timeout: 3000 });
-    // 第 2 次：填 M2 + V（再点保存应 upsert 不新增）
-    fireEvent.change(screen.getByLabelText('M2 滤纸+泥 (g)'), { target: { value: '0.350' } });
-    fireEvent.change(screen.getByLabelText('V 取样体积 (mL)'), { target: { value: '25' } });
-    fireEvent.click(screen.getByText('保存（按日期+编号自动合并）'));
-    await waitFor(async () => {
-      const rows = await db.mlssRecords.toArray();
-      expect(rows).toHaveLength(1); // 仍是同一行
-      expect(rows[0].m1).toBe(0.100); // 已填字段保留
-      expect(rows[0].m2).toBe(0.350);
-      expect(rows[0].v).toBe(25);
-      expect(rows[0].mlss).toBeCloseTo((0.350 - 0.100) / 25 * 1000, 3);
-    }, { timeout: 3000 });
-  });
-
-  it('空记录（纸编号但 5 个值都空）→ 不入库且提示', async () => {
-    render(<ExtrasPage />);
-    await screen.findByText('可分次保存', undefined, { timeout: 3000 });
-    fireEvent.change(screen.getByLabelText('滤纸编号'), { target: { value: 'X' } });
-    await waitFor(() => {
-      expect((screen.getByLabelText('滤纸编号') as HTMLInputElement).value).toBe('X');
-    });
-    fireEvent.click(screen.getByText('保存（按日期+编号自动合并）'));
-    await waitFor(async () => {
-      expect(await db.mlssRecords.toArray()).toHaveLength(0);
-    }, { timeout: 2000 });
-  });
-
-  it('历史卡片：未填满时显示「已填 N/5」状态条 + 「补充」按钮', async () => {
-    // 插入一条只填 M1/M2 的记录
-    const id = await db.mlssRecords.add({
-      date: '2026-09-02', reactorId: null, paperNo: 'P-1',
-      m1: 0.1, m2: 0.2, m3: null, m4: null, v: null,
-      mlss: null, mlvss: null, note: '', createdAt: '',
+describe('ExtrasPage - 污泥浓度历史：旧记录（自由纸编号）仍兼容显示', () => {
+  it('旧记录（reactorId null / 无 slot）在历史中显示为「旧」组且不崩溃', async () => {
+    await db.mlssRecords.add({
+      date: '2026-09-02', reactorId: null, paperNo: 'A-1',
+      m1: 0.1, m2: 0.2, m3: 0.3, m4: 0.4, v: 10,
+      mlss: 10, mlvss: 5, note: '', createdAt: '',
     });
     render(<ExtrasPage />);
-    // 进入该日期
-    const cal = document.querySelector('.history-cal-cal');
-    if (cal) {
-      const day = cal.querySelector('button') ?? cal;
-      (day as HTMLElement).click?.();
-    }
-    await waitFor(() => {
-      expect(screen.getAllByText(/已填 2\/5/)[0]).toBeTruthy();
-    }, { timeout: 3000 });
-    expect(screen.getAllByText(/待补.*M3.*M4.*V/)[0]).toBeTruthy();
-    // 手机卡片和桌面表格都有「补充」按钮，至少存在一个
-    expect(screen.getAllByText('补充').length).toBeGreaterThan(0);
-    void id;
-  });
-
-  it('点击「补充」按钮 → 输入框被填充该行已有值', async () => {
-    const id = await db.mlssRecords.add({
-      date: '2026-09-02', reactorId: null, paperNo: 'P-2',
-      m1: 0.111, m2: null, m3: null, m4: null, v: null,
-      mlss: null, mlvss: null, note: '', createdAt: '',
-    });
-    render(<ExtrasPage />);
-    // 默认日 = 2026-09-02 = 今天（测试 env 时区）？强制切到 09-02
-    const cal = document.querySelector('.history-cal-cal');
-    if (cal) {
-      const btn = cal.querySelector('button') ?? cal;
-      (btn as HTMLElement).click?.();
-    }
-    await waitFor(() => expect(screen.getAllByText(/已填 1\/5/)[0]).toBeTruthy(), { timeout: 3000 });
-    // 点击第一个「补充」按钮
-    fireEvent.click(screen.getAllByText('补充')[0]);
-    await waitFor(() => {
-      const m1Input = screen.getByLabelText('M1 滤纸重 (g)') as HTMLInputElement;
-      expect(m1Input.value).toBe('0.111');
-    }, { timeout: 3000 });
-    expect((screen.getByLabelText('滤纸编号') as HTMLInputElement).value).toBe('P-2');
-    void id;
+    await screen.findByText(/旧/, undefined, { timeout: 3000 });
+    const body = document.body.textContent ?? '';
+    expect(body).toContain('A-1');
+    // 旧记录单张纸自身 MLSS=10 → 表格 toFixed(4) 显示 10.0000
+    expect(body).toContain('10.0000');
+    expect((await db.mlssRecords.toArray()).length).toBe(1);
   });
 });
 
